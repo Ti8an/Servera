@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.tivanstudio.servera"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.tivanstudio.servera"
