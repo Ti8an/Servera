@@ -8,3 +8,18 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# IntelliJ IDEA / Android Studio — ignore user-specific files
+.idea/*
+!.idea/codeStyles/
+!.idea/codeStyles/*
+!.idea/copyright/
+!.idea/copyright/*
+!.idea/inspectionProfiles/
+!.idea/inspectionProfiles/*
+!.idea/runConfigurations/
+!.idea/runConfigurations/*
+!.idea/gradle.xml
+!.idea/misc.xml
+!.idea/modules.xml
+!.idea/vcs.xml
