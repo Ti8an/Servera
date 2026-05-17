@@ -6,15 +6,15 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.tivanstudio.servera.presentation.auth.CreatePasswordScreen
-import com.tivanstudio.servera.presentation.auth.LoginScreen
-import com.tivanstudio.servera.presentation.console.ConsoleScreen
-import com.tivanstudio.servera.presentation.console.execute.ExecuteCommandScreen
-import com.tivanstudio.servera.presentation.console.result.CommandResultScreen
-import com.tivanstudio.servera.presentation.history.HistoryScreen
-import com.tivanstudio.servera.presentation.servers.add.AddServerScreen
-import com.tivanstudio.servera.presentation.servers.list.ServerListScreen
-import com.tivanstudio.servera.presentation.settings.SettingsScreen
+import com.tivanstudio.servera.presentation.auth.ui.CreatePasswordScreen
+import com.tivanstudio.servera.presentation.auth.ui.LoginScreen
+import com.tivanstudio.servera.presentation.console.ui.ConsoleScreen
+import com.tivanstudio.servera.presentation.console.execute.ui.ExecuteCommandScreen
+import com.tivanstudio.servera.presentation.console.result.ui.CommandResultScreen
+import com.tivanstudio.servera.presentation.history.ui.HistoryScreen
+import com.tivanstudio.servera.presentation.servers.add.ui.AddServerScreen
+import com.tivanstudio.servera.presentation.servers.list.ui.ServerListScreen
+import com.tivanstudio.servera.presentation.settings.ui.SettingsScreen
 
 @Composable
 fun AppNavGraph(navController: NavHostController) {
