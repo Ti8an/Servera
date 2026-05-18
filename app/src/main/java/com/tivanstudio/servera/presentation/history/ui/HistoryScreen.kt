@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -17,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.CommandHistory
 import com.tivanstudio.servera.presentation.components.AppBottomBar
 import com.tivanstudio.servera.presentation.history.viewmodel.HistoryViewModel
@@ -38,14 +40,18 @@ fun HistoryScreen(
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("Очистить историю?") },
-            text  = { Text("Это действие нельзя отменить.") },
+            title = { Text(stringResource(R.string.clear_history_title)) },
+            text  = { Text(stringResource(R.string.delete_server_message)) },
             confirmButton = {
                 TextButton(onClick = { viewModel.clearAll(); showClearDialog = false }) {
-                    Text("Очистить", color = DangerRed)
+                    Text(stringResource(R.string.clear_history), color = DangerRed)
                 }
             },
-            dismissButton = { TextButton(onClick = { showClearDialog = false }) { Text("Отмена") } },
+            dismissButton = {
+                TextButton(onClick = { showClearDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
             containerColor = Surface
         )
     }
@@ -53,7 +59,7 @@ fun HistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("История", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.history_title), fontWeight = FontWeight.Bold) },
                 actions = {
                     if (uiState.history.isNotEmpty()) {
                         IconButton(onClick = { showClearDialog = true }) {
@@ -84,7 +90,7 @@ fun HistoryScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(64.dp), tint = TextSecondary)
                         Spacer(Modifier.height(16.dp))
-                        Text("История пуста", color = TextSecondary)
+                        Text(stringResource(R.string.empty_history), color = TextSecondary)
                     }
                 }
             }

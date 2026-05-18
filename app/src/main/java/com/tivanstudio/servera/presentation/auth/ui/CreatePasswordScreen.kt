@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -19,6 +20,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.auth.viewmodel.CreatePasswordEvent
 import com.tivanstudio.servera.presentation.auth.viewmodel.CreatePasswordViewModel
 import com.tivanstudio.servera.presentation.theme.Elevated
@@ -48,7 +50,7 @@ fun CreatePasswordScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Создать пароль") },
+                title = { Text(stringResource(R.string.create_password_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = null)
@@ -69,7 +71,7 @@ fun CreatePasswordScreen(
             OutlinedTextField(
                 value = uiState.password,
                 onValueChange = viewModel::onPasswordChange,
-                label = { Text("Новый пароль") },
+                label = { Text(stringResource(R.string.create_password_hint)) },
                 singleLine = true,
                 visualTransformation = if (uiState.isPasswordVisible) VisualTransformation.None
                                        else PasswordVisualTransformation(),
@@ -97,7 +99,7 @@ fun CreatePasswordScreen(
             OutlinedTextField(
                 value = uiState.confirm,
                 onValueChange = viewModel::onConfirmChange,
-                label = { Text("Подтвердите пароль") },
+                label = { Text(stringResource(R.string.create_password_confirm_hint)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -132,7 +134,7 @@ fun CreatePasswordScreen(
                 if (uiState.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
                 } else {
-                    Text("Создать", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
+                    Text(stringResource(R.string.create_password_button), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }

@@ -11,11 +11,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.components.AppBottomBar
 import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.settings.viewmodel.SettingsViewModel
@@ -40,7 +42,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Настройки", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
             )
         },
@@ -62,7 +64,7 @@ fun SettingsScreen(
         ) {
             Spacer(Modifier.height(16.dp))
 
-            Text("Безопасность", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.section_security), color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
 
             Card(
                 colors = CardDefaults.cardColors(containerColor = Surface),
@@ -75,7 +77,7 @@ fun SettingsScreen(
                     Icon(Icons.Default.Fingerprint, contentDescription = null, tint = InfoBlue, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Вход по биометрии", fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.biometric_setting), fontWeight = FontWeight.Medium)
                         Text("Fingerprint / Face ID", color = TextSecondary, fontSize = 12.sp)
                     }
                     Switch(
@@ -89,7 +91,7 @@ fun SettingsScreen(
 
             if (!isBiometricAvailable) {
                 Text(
-                    "Биометрия недоступна на этом устройстве",
+                    stringResource(R.string.biometric_unavailable),
                     color = TextSecondary,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(start = 4.dp)
@@ -98,7 +100,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            Text("О приложении", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.section_about), color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
 
             Card(
                 colors = CardDefaults.cardColors(containerColor = Surface),
@@ -112,7 +114,7 @@ fun SettingsScreen(
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text("Servera", fontWeight = FontWeight.Medium)
-                        Text("Версия ${uiState.appVersion}", color = TextSecondary, fontSize = 12.sp)
+                        Text("${stringResource(R.string.app_version)} ${uiState.appVersion}", color = TextSecondary, fontSize = 12.sp)
                     }
                 }
             }
@@ -128,7 +130,7 @@ fun SettingsScreen(
                     Icon(Icons.Default.Security, contentDescription = null, tint = InfoBlue, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text("Шифрование", fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.encryption_label), fontWeight = FontWeight.Medium)
                         Text("AES-256-GCM + Android Keystore", color = TextSecondary, fontSize = 12.sp)
                     }
                 }

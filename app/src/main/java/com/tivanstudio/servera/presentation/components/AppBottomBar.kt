@@ -6,6 +6,8 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.theme.PrimaryGreen
 import com.tivanstudio.servera.presentation.theme.Surface
@@ -23,7 +25,7 @@ fun AppBottomBar(
             selected = currentRoute == Screen.ServerList.route,
             onClick  = onServers,
             icon     = { Icon(Icons.Default.Dns, contentDescription = null) },
-            label    = { Text("Серверы") },
+            label    = { Text(stringResource(R.string.nav_servers)) },
             colors   = NavigationBarItemDefaults.colors(
                 selectedIconColor   = PrimaryGreen,
                 selectedTextColor   = PrimaryGreen,
@@ -36,7 +38,7 @@ fun AppBottomBar(
             selected = currentRoute == Screen.History.route,
             onClick  = onHistory,
             icon     = { Icon(Icons.Default.History, contentDescription = null) },
-            label    = { Text("История") },
+            label    = { Text(stringResource(R.string.nav_history)) },
             colors   = NavigationBarItemDefaults.colors(
                 selectedIconColor   = PrimaryGreen,
                 selectedTextColor   = PrimaryGreen,
@@ -49,7 +51,7 @@ fun AppBottomBar(
             selected = currentRoute == Screen.Settings.route,
             onClick  = onSettings,
             icon     = { Icon(Icons.Default.Settings, contentDescription = null) },
-            label    = { Text("Настройки") },
+            label    = { Text(stringResource(R.string.nav_settings)) },
             colors   = NavigationBarItemDefaults.colors(
                 selectedIconColor   = PrimaryGreen,
                 selectedTextColor   = PrimaryGreen,

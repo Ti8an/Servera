@@ -28,6 +28,7 @@
     <string name="server_private_key_hint">Приватный ключ (PEM)</string>
     <string name="server_timeout_hint">Таймаут (сек)</string>
     <string name="save_button">Сохранить</string>
+    <string name="test_button">Тест</string>
     <string name="test_connection">Тест соединения</string>
     <string name="connection_ok">Соединение успешно</string>
     <string name="connection_failed">Не удалось подключиться</string>
@@ -37,10 +38,12 @@
     <string name="new_command">+ Новая команда</string>
     <string name="recent_commands">Последние команды</string>
     <string name="quick_commands">Быстрые команды</string>
+    <string name="command_label">Команда</string>
     <!-- Execute -->
     <string name="execute_title">Выполнить команду</string>
     <string name="execute_command_hint">Введите команду…</string>
     <string name="execute_button">▶ Выполнить</string>
+    <string name="executing_label">Выполняется…</string>
     <string name="example_commands">Примеры команд</string>
     <!-- Result -->
     <string name="result_title">Результат</string>
@@ -50,17 +53,26 @@
     <string name="stderr_label">STDERR</string>
     <string name="empty_output">(пусто)</string>
     <string name="exit_code_label">Exit code: %d</string>
+    <string name="duration_label">Время: %d мс</string>
+    <string name="copied">Скопировано</string>
+    <string name="no_data">Нет данных</string>
     <!-- History -->
     <string name="history_title">История</string>
     <string name="empty_history">История пуста</string>
     <string name="clear_history">Очистить</string>
+    <string name="clear_history_title">Очистить историю?</string>
     <!-- Settings -->
     <string name="settings_title">Настройки</string>
     <string name="biometric_setting">Вход по биометрии</string>
     <string name="app_version">Версия</string>
+    <string name="section_security">Безопасность</string>
+    <string name="section_about">О приложении</string>
+    <string name="biometric_unavailable">Биометрия недоступна на этом устройстве</string>
+    <string name="encryption_label">Шифрование</string>
     <!-- Status -->
     <string name="status_online">В сети</string>
     <string name="status_offline">Не в сети</string>
+    <string name="status_checking">Проверка…</string>
     <!-- Bottom Nav -->
     <string name="nav_servers">Серверы</string>
     <string name="nav_history">История</string>
@@ -73,6 +85,8 @@
     <string name="info_ram_free">ОЗУ свободно</string>
     <string name="info_disk">Диск</string>
     <string name="info_uptime">Аптайм</string>
+    <!-- Search -->
+    <string name="search_hint">Поиск…</string>
     <!-- Biometric -->
     <string name="biometric_prompt_title">Аутентификация</string>
     <string name="biometric_prompt_subtitle">Войдите с помощью биометрии</string>

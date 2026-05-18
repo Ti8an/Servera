@@ -15,12 +15,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.CommandResult
 import com.tivanstudio.servera.presentation.console.result.viewmodel.CommandResultViewModel
 import com.tivanstudio.servera.presentation.theme.*
@@ -35,11 +37,12 @@ fun CommandResultScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val result = uiState.result
+    val copiedText = stringResource(R.string.copied)
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Результат") },
+                title = { Text(stringResource(R.string.result_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = null) }
                 },
@@ -54,7 +57,7 @@ fun CommandResultScreen(
                             }
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             clipboard.setPrimaryClip(ClipData.newPlainText("result", text))
-                            Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, copiedText, Toast.LENGTH_SHORT).show()
                         }) {
                             Icon(Icons.Default.Share, contentDescription = null, tint = PrimaryGreen)
                         }
@@ -66,7 +69,7 @@ fun CommandResultScreen(
     ) { padding ->
         if (result == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("Нет данных", color = TextSecondary)
+                Text(stringResource(R.string.no_data), color = TextSecondary)
             }
             return@Scaffold
         }
@@ -97,7 +100,7 @@ fun CommandResultScreen(
                     )
                     IconButton(onClick = {
                         copyToClipboard(context, result.command)
-                        Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, copiedText, Toast.LENGTH_SHORT).show()
                     }) {
                         Icon(Icons.Default.ContentCopy, contentDescription = null, tint = TextSecondary)
                     }
@@ -115,10 +118,10 @@ fun CommandResultScreen(
                 )
             }
 
-            Text("Время: ${result.durationMs} мс", color = TextSecondary, fontSize = 12.sp)
+            Text(stringResource(R.string.duration_label, result.durationMs), color = TextSecondary, fontSize = 12.sp)
 
-            ResultSection(title = "STDOUT", content = result.stdout, context = context)
-            ResultSection(title = "STDERR", content = result.stderr, context = context)
+            ResultSection(title = stringResource(R.string.stdout_label), content = result.stdout, context = context, copiedText = copiedText)
+            ResultSection(title = stringResource(R.string.stderr_label), content = result.stderr, context = context, copiedText = copiedText)
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(
@@ -128,19 +131,19 @@ fun CommandResultScreen(
                 ) {
                     Icon(Icons.Default.Replay, contentDescription = null, tint = PrimaryGreen)
                     Spacer(Modifier.width(4.dp))
-                    Text("Повторить", color = PrimaryGreen)
+                    Text(stringResource(R.string.result_repeat), color = PrimaryGreen)
                 }
                 OutlinedButton(
                     onClick = {
                         copyToClipboard(context, result.stdout)
-                        Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, copiedText, Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.weight(1f),
                     shape = MaterialTheme.shapes.medium
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = null, tint = PrimaryGreen)
                     Spacer(Modifier.width(4.dp))
-                    Text("Скопировать", color = PrimaryGreen)
+                    Text(stringResource(R.string.result_copy), color = PrimaryGreen)
                 }
             }
 
@@ -150,7 +153,7 @@ fun CommandResultScreen(
 }
 
 @Composable
-private fun ResultSection(title: String, content: String, context: Context) {
+private fun ResultSection(title: String, content: String, context: Context, copiedText: String) {
     Column {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -162,7 +165,7 @@ private fun ResultSection(title: String, content: String, context: Context) {
                 IconButton(
                     onClick = {
                         copyToClipboard(context, content)
-                        Toast.makeText(context, "Скопировано", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, copiedText, Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.size(28.dp)
                 ) {
@@ -182,7 +185,7 @@ private fun ResultSection(title: String, content: String, context: Context) {
                     .horizontalScroll(rememberScrollState())
             ) {
                 Text(
-                    text = content.ifBlank { "(пусто)" },
+                    text = content.ifBlank { stringResource(R.string.empty_output) },
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
                     color = if (content.isBlank()) TextSecondary else TextPrimary
