@@ -1,154 +1,669 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Privacy Policy — Servera</title>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Privacy Policy — Servera SSH Client</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+          --bg:        #040c14;
+          --bg2:       #081420;
+          --surface:   #0d1f2d;
+          --surface2:  #112230;
+          --green:     #22c55e;
+          --green-dim: #16a34a;
+          --green-glow:rgba(34,197,94,0.12);
+          --blue:      #3b8df8;
+          --text1:     #f0f6ff;
+          --text2:     #94a3b8;
+          --text3:     #4a6070;
+          --border:    #1a3040;
+          --mono:      'Space Mono', monospace;
+          --sans:      'DM Sans', sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html { scroll-behavior: smooth; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 16px;
-            line-height: 1.7;
-            color: #212121;
-            background: #fafafa;
+          background: var(--bg);
+          color: var(--text1);
+          font-family: var(--sans);
+          font-size: 16px;
+          line-height: 1.7;
+          min-height: 100vh;
+          overflow-x: hidden;
         }
-        .container {
-            max-width: 760px;
-            margin: 0 auto;
-            padding: 40px 24px 80px;
+
+        /* ── NOISE TEXTURE ── */
+        body::before {
+          content: '';
+          position: fixed;
+          inset: 0;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+          pointer-events: none;
+          z-index: 0;
         }
+
+        /* ── GLOW ORBS ── */
+        .orb {
+          position: fixed;
+          border-radius: 50%;
+          filter: blur(120px);
+          pointer-events: none;
+          z-index: 0;
+        }
+        .orb-1 { width: 500px; height: 500px; background: rgba(34,197,94,0.07); top: -150px; left: -150px; }
+        .orb-2 { width: 400px; height: 400px; background: rgba(59,141,248,0.06); bottom: -100px; right: -100px; }
+
+        /* ── GRID PATTERN ── */
+        .grid-bg {
+          position: fixed;
+          inset: 0;
+          background-image:
+            linear-gradient(var(--border) 1px, transparent 1px),
+            linear-gradient(90deg, var(--border) 1px, transparent 1px);
+          background-size: 40px 40px;
+          opacity: 0.25;
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        /* ── LAYOUT ── */
+        .wrapper {
+          position: relative;
+          z-index: 1;
+          max-width: 780px;
+          margin: 0 auto;
+          padding: 0 24px 80px;
+        }
+
+        /* ── HEADER ── */
+        header {
+          padding: 60px 0 48px;
+          border-bottom: 1px solid var(--border);
+          margin-bottom: 48px;
+          animation: fadeUp 0.6s ease both;
+        }
+
+        .brand {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          margin-bottom: 32px;
+        }
+
+        .logo-icon {
+          width: 48px; height: 48px;
+          background: var(--surface2);
+          border: 1px solid var(--green);
+          border-radius: 10px;
+          display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          gap: 5px;
+          padding: 8px;
+          box-shadow: 0 0 20px var(--green-glow);
+        }
+        .logo-icon span {
+          display: block;
+          width: 100%;
+          height: 8px;
+          background: var(--green);
+          border-radius: 2px;
+          position: relative;
+        }
+        .logo-icon span::before {
+          content: '';
+          position: absolute;
+          left: 2px; top: 50%;
+          transform: translateY(-50%);
+          width: 6px; height: 6px;
+          background: #040c14;
+          border-radius: 50%;
+        }
+
+        .brand-name {
+          font-family: var(--mono);
+          font-size: 22px;
+          font-weight: 700;
+          color: var(--text1);
+          letter-spacing: 2px;
+        }
+        .brand-name span { color: var(--green); }
+
+        .header-tag {
+          display: inline-block;
+          font-family: var(--mono);
+          font-size: 11px;
+          color: var(--green);
+          background: var(--green-glow);
+          border: 1px solid rgba(34,197,94,0.3);
+          border-radius: 4px;
+          padding: 3px 10px;
+          letter-spacing: 2px;
+          margin-bottom: 16px;
+        }
+
         h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 4px;
-            color: #1a1a1a;
+          font-family: var(--mono);
+          font-size: clamp(26px, 4vw, 36px);
+          font-weight: 700;
+          color: var(--text1);
+          line-height: 1.2;
+          margin-bottom: 12px;
         }
-        .subtitle {
-            font-size: 0.9rem;
-            color: #757575;
-            margin-bottom: 36px;
+        h1 em { color: var(--green); font-style: normal; }
+
+        .meta {
+          font-family: var(--mono);
+          font-size: 12px;
+          color: var(--text3);
+          display: flex;
+          gap: 24px;
+          flex-wrap: wrap;
+          margin-top: 20px;
+        }
+        .meta span::before { content: '> '; color: var(--green); }
+
+        /* ── TOC ── */
+        .toc {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-left: 3px solid var(--green);
+          border-radius: 10px;
+          padding: 24px 28px;
+          margin-bottom: 48px;
+          animation: fadeUp 0.6s 0.1s ease both;
+        }
+        .toc-title {
+          font-family: var(--mono);
+          font-size: 11px;
+          color: var(--green);
+          letter-spacing: 2px;
+          margin-bottom: 14px;
+        }
+        .toc ol {
+          list-style: none;
+          counter-reset: toc;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 6px 24px;
+        }
+        @media(max-width:560px){ .toc ol { grid-template-columns: 1fr; } }
+        .toc li { counter-increment: toc; }
+        .toc a {
+          color: var(--text2);
+          text-decoration: none;
+          font-size: 14px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: color 0.2s;
+        }
+        .toc a::before {
+          content: counter(toc, decimal-leading-zero);
+          font-family: var(--mono);
+          font-size: 11px;
+          color: var(--green-dim);
+        }
+        .toc a:hover { color: var(--green); }
+
+        /* ── SECTIONS ── */
+        section {
+          margin-bottom: 48px;
+          animation: fadeUp 0.5s ease both;
+        }
+        section:nth-child(2) { animation-delay: 0.05s; }
+        section:nth-child(3) { animation-delay: 0.10s; }
+        section:nth-child(4) { animation-delay: 0.15s; }
+        section:nth-child(5) { animation-delay: 0.20s; }
+        section:nth-child(6) { animation-delay: 0.25s; }
+        section:nth-child(7) { animation-delay: 0.30s; }
+
+        .section-head {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          margin-bottom: 20px;
+          padding-bottom: 14px;
+          border-bottom: 1px solid var(--border);
+        }
+        .section-num {
+          font-family: var(--mono);
+          font-size: 11px;
+          color: var(--green);
+          background: var(--green-glow);
+          border: 1px solid rgba(34,197,94,0.25);
+          border-radius: 4px;
+          padding: 2px 8px;
+          white-space: nowrap;
         }
         h2 {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin: 32px 0 10px;
-            color: #1a1a1a;
-            border-left: 3px solid #1976D2;
-            padding-left: 10px;
+          font-family: var(--mono);
+          font-size: 18px;
+          font-weight: 700;
+          color: var(--text1);
         }
-        p { margin-bottom: 12px; }
-        ul {
-            padding-left: 24px;
-            margin-bottom: 12px;
+
+        p { color: var(--text2); margin-bottom: 14px; font-size: 15px; }
+        p:last-child { margin-bottom: 0; }
+
+        /* ── DATA TABLE ── */
+        .data-grid {
+          display: grid;
+          gap: 10px;
+          margin: 20px 0;
         }
-        ul li { margin-bottom: 6px; }
-        a { color: #1976D2; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        .highlight-box {
-            background: #E3F2FD;
-            border-radius: 8px;
-            padding: 16px 20px;
-            margin: 20px 0;
-            color: #0D47A1;
-            font-size: 0.95rem;
+        .data-row {
+          display: grid;
+          grid-template-columns: 200px 1fr;
+          gap: 0;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          overflow: hidden;
+          font-size: 14px;
         }
-        hr {
-            border: none;
-            border-top: 1px solid #E0E0E0;
-            margin: 40px 0;
+        @media(max-width:520px){ .data-row { grid-template-columns: 1fr; } }
+        .data-key {
+          background: var(--surface2);
+          padding: 12px 16px;
+          font-family: var(--mono);
+          font-size: 12px;
+          color: var(--green);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          border-right: 1px solid var(--border);
         }
+        .data-key svg { flex-shrink: 0; }
+        .data-val {
+          padding: 12px 16px;
+          color: var(--text2);
+          display: flex;
+          align-items: center;
+        }
+
+        /* ── HIGHLIGHT BOX ── */
+        .highlight {
+          background: var(--green-glow);
+          border: 1px solid rgba(34,197,94,0.25);
+          border-radius: 10px;
+          padding: 18px 22px;
+          margin: 20px 0;
+          display: flex;
+          gap: 14px;
+          align-items: flex-start;
+        }
+        .highlight-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+        .highlight p { color: var(--text1); font-size: 14px; margin: 0; }
+
+        /* ── SECURITY BADGES ── */
+        .security-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 12px;
+          margin: 20px 0;
+        }
+        .sec-badge {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-top: 2px solid var(--green);
+          border-radius: 8px;
+          padding: 16px;
+          transition: border-color 0.2s, transform 0.2s;
+        }
+        .sec-badge:hover { border-color: var(--green); transform: translateY(-2px); }
+        .sec-badge-icon { font-size: 22px; margin-bottom: 8px; }
+        .sec-badge-title {
+          font-family: var(--mono);
+          font-size: 12px;
+          color: var(--green);
+          margin-bottom: 4px;
+          font-weight: 700;
+        }
+        .sec-badge-desc { font-size: 13px; color: var(--text2); }
+
+        /* ── TERMINAL BLOCK ── */
+        .terminal {
+          background: #020810;
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          overflow: hidden;
+          margin: 20px 0;
+          font-family: var(--mono);
+          font-size: 13px;
+        }
+        .terminal-bar {
+          background: var(--surface2);
+          padding: 10px 16px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          border-bottom: 1px solid var(--border);
+        }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-r { background: #ef4444; }
+        .dot-y { background: #f59e0b; }
+        .dot-g { background: var(--green); }
+        .terminal-title { color: var(--text3); font-size: 11px; margin-left: 6px; }
+        .terminal-body { padding: 18px 20px; line-height: 2; }
+        .terminal-body .prompt { color: var(--green); }
+        .terminal-body .cmd { color: var(--text1); }
+        .terminal-body .out { color: var(--text3); }
+        .terminal-body .val { color: #60a5fa; }
+
+        /* ── CONTACT ── */
+        .contact-box {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 28px;
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          flex-wrap: wrap;
+        }
+        .contact-box a {
+          font-family: var(--mono);
+          font-size: 14px;
+          color: var(--green);
+          text-decoration: none;
+          padding: 8px 18px;
+          border: 1px solid rgba(34,197,94,0.4);
+          border-radius: 6px;
+          background: var(--green-glow);
+          transition: background 0.2s;
+          white-space: nowrap;
+        }
+        .contact-box a:hover { background: rgba(34,197,94,0.2); }
+
+        /* ── FOOTER ── */
+        footer {
+          border-top: 1px solid var(--border);
+          padding-top: 32px;
+          margin-top: 48px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: gap;
+          gap: 12px;
+        }
+        .footer-brand { font-family: var(--mono); font-size: 13px; color: var(--text3); }
+        .footer-brand span { color: var(--green); }
+        .footer-note { font-size: 12px; color: var(--text3); }
+
+        /* ── ANIMATIONS ── */
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(18px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── SCROLLBAR ── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--green-dim); }
     </style>
 </head>
 <body>
-<div class="container">
 
-    <h1>Privacy Policy</h1>
-    <p class="subtitle">Servera &mdash; Remote Server Control &nbsp;|&nbsp; Last updated: May 18, 2026</p>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="grid-bg"></div>
 
-    <div class="highlight-box">
-        Servera does <strong>not</strong> collect, store, or transmit any personal data to external servers.
-        All connection data is stored exclusively on your device.
+<div class="wrapper">
+
+    <!-- HEADER -->
+    <header>
+        <div class="brand">
+            <div class="logo-icon">
+                <span></span>
+                <span></span>
+            </div>
+            <div class="brand-name">SERV<span>ERA</span></div>
+        </div>
+        <div class="header-tag">LEGAL · PRIVACY</div>
+        <h1>Privacy <em>Policy</em></h1>
+        <p style="color:var(--text2);font-size:15px;max-width:560px;">
+            Servera is an SSH client for Android. We are committed to protecting your privacy.
+            This policy explains what data we collect, how we use it, and how we protect it.
+        </p>
+        <div class="meta">
+            <span>Effective: May 18, 2025</span>
+            <span>Last updated: May 18, 2026</span>
+            <span>App: Servera SSH Client</span>
+        </div>
+    </header>
+
+    <!-- TOC -->
+    <div class="toc">
+        <div class="toc-title">// TABLE OF CONTENTS</div>
+        <ol>
+            <li><a href="#s1">Information We Collect</a></li>
+            <li><a href="#s2">How We Use Your Data</a></li>
+            <li><a href="#s3">Data Storage & Security</a></li>
+            <li><a href="#s4">Third-Party Services</a></li>
+            <li><a href="#s5">Your Rights</a></li>
+            <li><a href="#s6">Children's Privacy</a></li>
+            <li><a href="#s7">Changes to Policy</a></li>
+            <li><a href="#s8">Contact Us</a></li>
+        </ol>
     </div>
 
-    <h2>1. About This Policy</h2>
-    <p>
-        This Privacy Policy describes how the Servera application ("App", "we", "our") handles
-        information when you use our Android application. We are committed to protecting your
-        privacy and being transparent about our practices.
-    </p>
+    <!-- SECTION 1 -->
+    <section id="s1">
+        <div class="section-head">
+            <span class="section-num">01</span>
+            <h2>Information We Collect</h2>
+        </div>
 
-    <h2>2. Information We Do Not Collect</h2>
-    <p>We do <strong>not</strong> collect, store on remote servers, or share:</p>
-    <ul>
-        <li>Personal identification information (name, email, phone number)</li>
-        <li>Server credentials, passwords, or SSH keys you enter in the App</li>
-        <li>IP addresses or hostnames of servers you connect to</li>
-        <li>Commands you execute on remote servers</li>
-        <li>Device identifiers or advertising IDs</li>
-        <li>Location data</li>
-    </ul>
+        <div class="highlight">
+            <div class="highlight-icon">🛡</div>
+            <p><strong>Servera does not collect, transmit, or share any personal data to external servers.</strong>
+                All data entered in the app stays exclusively on your device.</p>
+        </div>
 
-    <h2>3. Data Stored Locally on Your Device</h2>
-    <p>
-        To provide its core functionality, the App stores the following data
-        <strong>only on your device</strong>, using Android's local storage:
-    </p>
-    <ul>
-        <li>Saved server profiles (hostname, port, username)</li>
-        <li>App preferences and settings</li>
-    </ul>
-    <p>
-        This data never leaves your device through our App. You can delete it at any
-        time by clearing the App's data in your Android settings or by uninstalling the App.
-    </p>
+        <p>The following data is stored <strong>locally on your device only</strong>:</p>
 
-    <h2>4. Network Connections</h2>
-    <p>
-        The App establishes direct network connections between your device and the remote
-        servers <em>you configure</em>. These connections are made solely to carry out
-        the commands you initiate. We have no visibility into, and do not log, any
-        data transmitted over these connections.
-    </p>
+        <div class="data-grid">
+            <div class="data-row">
+                <div class="data-key">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                    Server Credentials
+                </div>
+                <div class="data-val">Hostname, IP, port, username, password or private key — stored encrypted via Android Keystore</div>
+            </div>
+            <div class="data-row">
+                <div class="data-key">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    Command History
+                </div>
+                <div class="data-val">SSH commands you execute, stored locally for your convenience. Never sent anywhere.</div>
+            </div>
+            <div class="data-row">
+                <div class="data-key">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    App Password
+                </div>
+                <div class="data-val">Hashed with SHA-256. The original password is never stored or recoverable.</div>
+            </div>
+            <div class="data-row">
+                <div class="data-key">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    App Preferences
+                </div>
+                <div class="data-val">Theme, timeout settings, and other UI preferences stored in SharedPreferences.</div>
+            </div>
+        </div>
 
-    <h2>5. Third-Party Services</h2>
-    <p>
-        The App does not integrate any third-party analytics, advertising, or crash-reporting
-        SDKs that would collect user data. The App is distributed via Google Play; Google's
-        own privacy policy applies to the distribution platform.
-    </p>
+        <p>We do <strong>not</strong> collect: device identifiers, location data, analytics, crash reports sent to us, or any usage statistics.</p>
+    </section>
 
-    <h2>6. Children's Privacy</h2>
-    <p>
-        Servera is not directed at children under 13 years of age. We do not knowingly
-        collect any information from children. If you believe a child has provided us
-        with personal data, please contact us so we can address the situation.
-    </p>
+    <!-- SECTION 2 -->
+    <section id="s2">
+        <div class="section-head">
+            <span class="section-num">02</span>
+            <h2>How We Use Your Data</h2>
+        </div>
+        <p>All data is used <strong>solely</strong> to provide the core functionality of the app:</p>
+        <div class="data-grid">
+            <div class="data-row">
+                <div class="data-key">SSH Connection</div>
+                <div class="data-val">Credentials are used to establish SSH sessions with your servers</div>
+            </div>
+            <div class="data-row">
+                <div class="data-key">Command History</div>
+                <div class="data-val">Displayed in-app so you can quickly repeat or review past commands</div>
+            </div>
+            <div class="data-row">
+                <div class="data-key">App Lock</div>
+                <div class="data-val">Password hash and biometric data used only for local authentication</div>
+            </div>
+        </div>
+        <p>Your data is <strong>never</strong> used for advertising, profiling, analytics, or any purpose other than operating the app.</p>
+    </section>
 
-    <h2>7. Security</h2>
-    <p>
-        Because no personal data is transmitted to our servers, there is no remote
-        database that could be breached. We encourage you to secure your device with a
-        lock screen and to use strong credentials when configuring server connections.
-    </p>
+    <!-- SECTION 3 -->
+    <section id="s3">
+        <div class="section-head">
+            <span class="section-num">03</span>
+            <h2>Data Storage &amp; Security</h2>
+        </div>
+        <p>We take security seriously. Here's exactly how your data is protected:</p>
 
-    <h2>8. Changes to This Policy</h2>
-    <p>
-        We may update this Privacy Policy from time to time. Any changes will be
-        reflected on this page with an updated "Last updated" date. Continued use of the
-        App after changes constitutes your acceptance of the updated policy.
-    </p>
+        <div class="security-grid">
+            <div class="sec-badge">
+                <div class="sec-badge-icon">🔐</div>
+                <div class="sec-badge-title">AES-256-GCM</div>
+                <div class="sec-badge-desc">All credentials encrypted with AES-256-GCM via Android Keystore</div>
+            </div>
+            <div class="sec-badge">
+                <div class="sec-badge-icon">🔑</div>
+                <div class="sec-badge-title">SHA-256 Hash</div>
+                <div class="sec-badge-desc">App password stored as SHA-256 hash — never in plain text</div>
+            </div>
+            <div class="sec-badge">
+                <div class="sec-badge-icon">👆</div>
+                <div class="sec-badge-title">Biometrics</div>
+                <div class="sec-badge-desc">Fingerprint & Face ID via Android BiometricPrompt API. Data never leaves device</div>
+            </div>
+            <div class="sec-badge">
+                <div class="sec-badge-icon">📵</div>
+                <div class="sec-badge-title">FLAG_SECURE</div>
+                <div class="sec-badge-desc">Screenshots and screen recording are blocked inside the app</div>
+            </div>
+            <div class="sec-badge">
+                <div class="sec-badge-icon">🏠</div>
+                <div class="sec-badge-title">Local Only</div>
+                <div class="sec-badge-desc">All data stored on-device. No cloud sync. No external servers</div>
+            </div>
+            <div class="sec-badge">
+                <div class="sec-badge-icon">🛡</div>
+                <div class="sec-badge-title">Android Keystore</div>
+                <div class="sec-badge-desc">Encryption keys managed by Android hardware-backed Keystore</div>
+            </div>
+        </div>
 
-    <h2>9. Contact Us</h2>
-    <p>
-        If you have any questions or concerns about this Privacy Policy, please contact us at:<br>
-        <a href="mailto:review4coolgames@gmail.com">review4coolgames@gmail.com</a>
-    </p>
+        <div class="terminal">
+            <div class="terminal-bar">
+                <div class="dot dot-r"></div>
+                <div class="dot dot-y"></div>
+                <div class="dot dot-g"></div>
+                <span class="terminal-title">security-overview.sh</span>
+            </div>
+            <div class="terminal-body">
+                <div><span class="prompt">$ </span><span class="cmd">cat security_spec.txt</span></div>
+                <div><span class="out">Encryption:    </span><span class="val">AES-256-GCM (Android Keystore)</span></div>
+                <div><span class="out">Password hash: </span><span class="val">SHA-256 (no plain text stored)</span></div>
+                <div><span class="out">Biometric:     </span><span class="val">BiometricPrompt API (hardware)</span></div>
+                <div><span class="out">Screenshots:   </span><span class="val">FLAG_SECURE (blocked)</span></div>
+                <div><span class="out">Data transfer: </span><span class="val">NONE (local only)</span></div>
+                <div><span class="out">Analytics:     </span><span class="val">NONE</span></div>
+                <div><span class="prompt">$ </span><span class="cmd">_</span></div>
+            </div>
+        </div>
+    </section>
 
-    <hr>
-    <p style="font-size:0.85rem; color:#9E9E9E; text-align:center;">
-        &copy; 2026 Servera. All rights reserved.
-    </p>
+    <!-- SECTION 4 -->
+    <section id="s4">
+        <div class="section-head">
+            <span class="section-num">04</span>
+            <h2>Third-Party Services</h2>
+        </div>
+        <div class="highlight">
+            <div class="highlight-icon">✅</div>
+            <p>Servera does <strong>not</strong> use any third-party SDKs, analytics services, advertising networks, or crash reporting tools. No data is shared with any third party.</p>
+        </div>
+        <p>The SSH connections you make go directly from your device to your own servers — we have no visibility into or involvement in those connections.</p>
+    </section>
+
+    <!-- SECTION 5 -->
+    <section id="s5">
+        <div class="section-head">
+            <span class="section-num">05</span>
+            <h2>Your Rights</h2>
+        </div>
+        <p>Since all data is stored locally on your device, you have full control at all times:</p>
+        <div class="data-grid">
+            <div class="data-row">
+                <div class="data-key">Delete Data</div>
+                <div class="data-val">Clear all app data via Android Settings → Apps → Servera → Clear Data</div>
+            </div>
+            <div class="data-row">
+                <div class="data-key">Command History</div>
+                <div class="data-val">Clear history anytime from within the app (History tab → clear)</div>
+            </div>
+            <div class="data-row">
+                <div class="data-key">Uninstall</div>
+                <div class="data-val">Uninstalling the app permanently removes all stored data from your device</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 6 -->
+    <section id="s6">
+        <div class="section-head">
+            <span class="section-num">06</span>
+            <h2>Children's Privacy</h2>
+        </div>
+        <p>Servera is designed for system administrators, DevOps engineers, and developers. The app is not directed at children under 13 years of age and we do not knowingly collect any information from children.</p>
+    </section>
+
+    <!-- SECTION 7 -->
+    <section id="s7">
+        <div class="section-head">
+            <span class="section-num">07</span>
+            <h2>Changes to This Policy</h2>
+        </div>
+        <p>We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date. We encourage you to review this policy periodically.</p>
+        <p>Continued use of the app after changes constitutes acceptance of the updated policy.</p>
+    </section>
+
+    <!-- SECTION 8 -->
+    <section id="s8">
+        <div class="section-head">
+            <span class="section-num">08</span>
+            <h2>Contact Us</h2>
+        </div>
+        <p>If you have any questions or concerns about this Privacy Policy, please contact us:</p>
+        <div class="contact-box">
+            <div>
+                <div style="font-family:var(--mono);font-size:13px;color:var(--text3);margin-bottom:4px;">// DEVELOPER</div>
+                <div style="font-size:16px;font-weight:500;color:var(--text1);">Servera SSH Client</div>
+                <div style="font-size:14px;color:var(--text2);margin-top:4px;">GitHub: Ti8an/Servera</div>
+            </div>
+            <a href="https://github.com/Ti8an/Servera/issues" target="_blank">→ Open Issue on GitHub</a>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-brand"><span>SERVERA</span> SSH Client for Android</div>
+        <div class="footer-note">© 2026 Servera. All rights reserved.</div>
+    </footer>
 
 </div>
 </body>
