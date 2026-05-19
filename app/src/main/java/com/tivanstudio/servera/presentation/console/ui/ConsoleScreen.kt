@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -17,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.CommandHistory
 import com.tivanstudio.servera.domain.entity.ServerInfo
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleEvent
@@ -48,7 +50,7 @@ fun ConsoleScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(uiState.server?.name ?: "Консоль", fontWeight = FontWeight.Bold)
+                        Text(uiState.server?.name ?: stringResource(R.string.console_tab), fontWeight = FontWeight.Bold)
                         Text(
                             uiState.server?.host ?: "",
                             fontSize = 11.sp,
@@ -79,12 +81,12 @@ fun ConsoleScreen(
                 Tab(
                     selected = uiState.selectedTab == 0,
                     onClick  = { viewModel.selectTab(0) },
-                    text = { Text("Консоль") }
+                    text = { Text(stringResource(R.string.console_tab)) }
                 )
                 Tab(
                     selected = uiState.selectedTab == 1,
                     onClick  = { viewModel.selectTab(1) },
-                    text = { Text("Информация") }
+                    text = { Text(stringResource(R.string.info_tab)) }
                 )
             }
 
@@ -104,7 +106,7 @@ private fun ConsoleTab(uiState: ConsoleUiState, onExecute: () -> Unit) {
     ) {
         item {
             Spacer(Modifier.height(8.dp))
-            Text("Быстрые команды", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.quick_commands), style = MaterialTheme.typography.titleMedium)
         }
 
         if (uiState.quickCommands.isNotEmpty()) {
@@ -132,12 +134,12 @@ private fun ConsoleTab(uiState: ConsoleUiState, onExecute: () -> Unit) {
             ) {
                 Icon(Icons.Default.Terminal, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("+ Новая команда", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
+                Text(stringResource(R.string.new_command), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
             }
         }
 
         if (uiState.recentHistory.isNotEmpty()) {
-            item { Text("Последние команды", style = MaterialTheme.typography.titleMedium) }
+            item { Text(stringResource(R.string.recent_commands), style = MaterialTheme.typography.titleMedium) }
             items(uiState.recentHistory) { history ->
                 HistoryItem(history = history, onRepeat = onExecute)
             }
@@ -216,13 +218,13 @@ private fun ServerInfoContent(info: ServerInfo) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item { Spacer(Modifier.height(8.dp)) }
-        item { InfoRow("Хост", info.hostname) }
-        item { InfoRow("ОС", info.os) }
-        item { InfoRow("Процессор", info.cpuInfo) }
-        item { InfoRow("ОЗУ всего", info.ramTotal) }
-        item { InfoRow("ОЗУ свободно", info.ramFree) }
-        item { InfoRow("Диск", info.diskUsage) }
-        item { InfoRow("Аптайм", info.uptime) }
+        item { InfoRow(stringResource(R.string.info_hostname), info.hostname) }
+        item { InfoRow(stringResource(R.string.info_os), info.os) }
+        item { InfoRow(stringResource(R.string.info_cpu), info.cpuInfo) }
+        item { InfoRow(stringResource(R.string.info_ram_total), info.ramTotal) }
+        item { InfoRow(stringResource(R.string.info_ram_free), info.ramFree) }
+        item { InfoRow(stringResource(R.string.info_disk), info.diskUsage) }
+        item { InfoRow(stringResource(R.string.info_uptime), info.uptime) }
         item { Spacer(Modifier.height(16.dp)) }
     }
 }

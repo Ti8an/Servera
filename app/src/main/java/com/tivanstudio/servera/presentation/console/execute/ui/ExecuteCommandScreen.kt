@@ -10,12 +10,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.console.execute.viewmodel.ExecuteCommandEvent
 import com.tivanstudio.servera.presentation.console.execute.viewmodel.ExecuteCommandViewModel
 import com.tivanstudio.servera.presentation.theme.*
@@ -45,7 +47,7 @@ fun ExecuteCommandScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Выполнить команду") },
+                title = { Text(stringResource(R.string.execute_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = null) }
                 },
@@ -65,7 +67,7 @@ fun ExecuteCommandScreen(
             OutlinedTextField(
                 value = uiState.command,
                 onValueChange = viewModel::onCommandChange,
-                label = { Text("Команда") },
+                label = { Text(stringResource(R.string.command_label)) },
                 placeholder = { Text("uname -a", fontFamily = FontFamily.Monospace, color = TextSecondary) },
                 minLines = 4,
                 maxLines = 10,
@@ -87,7 +89,7 @@ fun ExecuteCommandScreen(
                 Text(uiState.error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
 
-            Text("Примеры команд", color = TextSecondary, fontSize = 12.sp)
+            Text(stringResource(R.string.example_commands), color = TextSecondary, fontSize = 12.sp)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(EXAMPLE_COMMANDS) { cmd ->
                     SuggestionChip(
@@ -110,11 +112,11 @@ fun ExecuteCommandScreen(
                 if (uiState.isExecuting) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                     Spacer(Modifier.width(8.dp))
-                    Text("Выполняется…", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
+                    Text(stringResource(R.string.executing_label), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                 } else {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("▶ Выполнить", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
+                    Text(stringResource(R.string.execute_button), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
 

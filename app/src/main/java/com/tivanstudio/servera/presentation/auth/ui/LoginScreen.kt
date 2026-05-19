@@ -1,7 +1,6 @@
 package com.tivanstudio.servera.presentation.auth.ui
 
 import android.widget.Toast
-import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
@@ -16,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -27,6 +27,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.auth.viewmodel.LoginEvent
 import com.tivanstudio.servera.presentation.auth.viewmodel.LoginViewModel
 import com.tivanstudio.servera.presentation.theme.Elevated
@@ -42,6 +43,9 @@ fun LoginScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val biometricTitle    = stringResource(R.string.biometric_prompt_title)
+    val biometricSubtitle = stringResource(R.string.biometric_prompt_subtitle)
+    val biometricCancel   = stringResource(R.string.biometric_cancel)
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -77,7 +81,7 @@ fun LoginScreen(
         Spacer(Modifier.height(16.dp))
 
         Text(
-            text = "Remote Server Control",
+            text = stringResource(R.string.login_title),
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
@@ -88,7 +92,7 @@ fun LoginScreen(
         OutlinedTextField(
             value = uiState.password,
             onValueChange = viewModel::onPasswordChange,
-            label = { Text("Пароль") },
+            label = { Text(stringResource(R.string.login_password_hint)) },
             singleLine = true,
             visualTransformation = if (uiState.isPasswordVisible) VisualTransformation.None
                                    else PasswordVisualTransformation(),
@@ -138,20 +142,14 @@ fun LoginScreen(
             colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
             shape = MaterialTheme.shapes.medium
         ) {
-            Text("Войти", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.login_button), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
         }
 
         if (uiState.isBiometricEnabled) {
             Spacer(Modifier.height(12.dp))
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 4.dp),
-                color = Surface
-            )
-            Text("или", color = TextSecondary, fontSize = 12.sp)
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 4.dp),
-                color = Surface
-            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Surface)
+            Text(stringResource(R.string.or_divider), color = TextSecondary, fontSize = 12.sp)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Surface)
             Spacer(Modifier.height(4.dp))
 
             OutlinedButton(
@@ -168,9 +166,9 @@ fun LoginScreen(
                     }
                     val prompt = BiometricPrompt(activity, executor, callback)
                     val info = BiometricPrompt.PromptInfo.Builder()
-                        .setTitle("Аутентификация")
-                        .setSubtitle("Войдите с помощью биометрии")
-                        .setNegativeButtonText("Отмена")
+                        .setTitle(biometricTitle)
+                        .setSubtitle(biometricSubtitle)
+                        .setNegativeButtonText(biometricCancel)
                         .build()
                     prompt.authenticate(info)
                 },
@@ -179,7 +177,7 @@ fun LoginScreen(
             ) {
                 Icon(Icons.Default.Fingerprint, contentDescription = null, tint = PrimaryGreen)
                 Spacer(Modifier.width(8.dp))
-                Text("Войти по биометрии", color = PrimaryGreen)
+                Text(stringResource(R.string.login_biometric_button), color = PrimaryGreen)
             }
         }
 
@@ -187,7 +185,7 @@ fun LoginScreen(
 
         TextButton(onClick = viewModel::navigateToCreatePassword) {
             Text(
-                text = "Первый запуск? Создать пароль",
+                text = stringResource(R.string.login_first_launch),
                 color = TextSecondary,
                 fontSize = 13.sp
             )

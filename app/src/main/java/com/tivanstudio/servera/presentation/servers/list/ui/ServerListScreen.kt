@@ -13,12 +13,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.components.AppBottomBar
 import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.servers.list.viewmodel.ServerListViewModel
@@ -41,16 +43,16 @@ fun ServerListScreen(
     if (deleteTarget != null) {
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("Удалить сервер?") },
-            text  = { Text("Это действие нельзя отменить.") },
+            title = { Text(stringResource(R.string.delete_server_title)) },
+            text  = { Text(stringResource(R.string.delete_server_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteServer(deleteTarget!!)
                     deleteTarget = null
-                }) { Text("Удалить", color = DangerRed) }
+                }) { Text(stringResource(R.string.delete_confirm), color = DangerRed) }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTarget = null }) { Text("Отмена") }
+                TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.cancel)) }
             },
             containerColor = Surface
         )
@@ -64,7 +66,7 @@ fun ServerListScreen(
                         OutlinedTextField(
                             value = uiState.searchQuery,
                             onValueChange = viewModel::onSearch,
-                            placeholder = { Text("Поиск…", color = TextSecondary) },
+                            placeholder = { Text(stringResource(R.string.search_hint), color = TextSecondary) },
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor   = Elevated,
@@ -75,7 +77,7 @@ fun ServerListScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else {
-                        Text("Мои серверы", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.servers_title), fontWeight = FontWeight.Bold)
                     }
                 },
                 actions = {
@@ -113,7 +115,7 @@ fun ServerListScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, tint = PrimaryGreen)
                 Spacer(Modifier.width(8.dp))
-                Text("+ Добавить сервер", color = PrimaryGreen)
+                Text(stringResource(R.string.add_server_button), color = PrimaryGreen)
             }
 
             Spacer(Modifier.height(12.dp))
@@ -135,7 +137,7 @@ fun ServerListScreen(
                             )
                             Spacer(Modifier.height(16.dp))
                             Text(
-                                "Нет серверов.\nДобавьте первый!",
+                                stringResource(R.string.empty_servers),
                                 color = TextSecondary,
                                 style = MaterialTheme.typography.bodyMedium
                             )
@@ -224,9 +226,9 @@ private fun ServerListItem(
                     Spacer(Modifier.width(6.dp))
                     Text(
                         text = when {
-                            server.isChecking -> "Проверка…"
-                            server.isOnline   -> "В сети"
-                            else              -> "Не в сети"
+                            server.isChecking -> stringResource(R.string.status_checking)
+                            server.isOnline   -> stringResource(R.string.status_online)
+                            else              -> stringResource(R.string.status_offline)
                         },
                         color = statusColor,
                         fontSize = 11.sp

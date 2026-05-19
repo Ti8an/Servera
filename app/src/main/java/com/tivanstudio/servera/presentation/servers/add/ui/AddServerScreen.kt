@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -20,6 +21,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.servers.add.viewmodel.AddServerEvent
 import com.tivanstudio.servera.presentation.servers.add.viewmodel.AddServerViewModel
 import com.tivanstudio.servera.presentation.theme.*
@@ -46,7 +48,12 @@ fun AddServerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (uiState.isEditing) "Редактировать" else "Добавить сервер") },
+                title = {
+                    Text(
+                        if (uiState.isEditing) stringResource(R.string.edit_server_title)
+                        else stringResource(R.string.add_server_title)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = null)
@@ -66,20 +73,20 @@ fun AddServerScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
-            AppTextField(value = uiState.name, label = "Название", onValueChange = viewModel::onNameChange)
-            AppTextField(value = uiState.host, label = "Хост / IP", onValueChange = viewModel::onHostChange)
+            AppTextField(value = uiState.name,  label = stringResource(R.string.server_name_hint),  onValueChange = viewModel::onNameChange)
+            AppTextField(value = uiState.host,  label = stringResource(R.string.server_host_hint),  onValueChange = viewModel::onHostChange)
             AppTextField(
                 value = uiState.port,
-                label = "Порт",
+                label = stringResource(R.string.server_port_hint),
                 onValueChange = viewModel::onPortChange,
                 keyboardType = KeyboardType.Number
             )
-            AppTextField(value = uiState.login, label = "Логин", onValueChange = viewModel::onLoginChange)
+            AppTextField(value = uiState.login, label = stringResource(R.string.server_login_hint), onValueChange = viewModel::onLoginChange)
 
             OutlinedTextField(
                 value = uiState.password,
                 onValueChange = viewModel::onPasswordChange,
-                label = { Text("Пароль") },
+                label = { Text(stringResource(R.string.server_password_hint)) },
                 singleLine = true,
                 visualTransformation = if (uiState.isPasswordVisible) VisualTransformation.None
                                        else PasswordVisualTransformation(),
@@ -106,7 +113,7 @@ fun AddServerScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium
             ) {
-                Text("Дополнительно", color = TextSecondary)
+                Text(stringResource(R.string.server_advanced), color = TextSecondary)
                 Spacer(Modifier.weight(1f))
                 Icon(
                     if (uiState.isAdvancedExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
@@ -120,7 +127,7 @@ fun AddServerScreen(
                     OutlinedTextField(
                         value = uiState.privateKey,
                         onValueChange = viewModel::onPrivateKeyChange,
-                        label = { Text("Приватный ключ (PEM)") },
+                        label = { Text(stringResource(R.string.server_private_key_hint)) },
                         minLines = 4,
                         maxLines = 8,
                         colors = fieldColors(),
@@ -128,7 +135,7 @@ fun AddServerScreen(
                     )
                     AppTextField(
                         value = uiState.timeout,
-                        label = "Таймаут (сек)",
+                        label = stringResource(R.string.server_timeout_hint),
                         onValueChange = viewModel::onTimeoutChange,
                         keyboardType = KeyboardType.Number
                     )
@@ -153,7 +160,7 @@ fun AddServerScreen(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            if (ok) "Соединение успешно" else "Не удалось подключиться",
+                            stringResource(if (ok) R.string.connection_ok else R.string.connection_failed),
                             color = if (ok) PrimaryGreen else DangerRed
                         )
                     }
@@ -170,7 +177,7 @@ fun AddServerScreen(
                     if (uiState.isTesting) {
                         CircularProgressIndicator(modifier = Modifier.size(16.dp), color = PrimaryGreen)
                     } else {
-                        Text("Тест", color = PrimaryGreen)
+                        Text(stringResource(R.string.test_button), color = PrimaryGreen)
                     }
                 }
                 Button(
@@ -183,7 +190,7 @@ fun AddServerScreen(
                     if (uiState.isLoading) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
                     } else {
-                        Text("Сохранить", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
+                        Text(stringResource(R.string.save_button), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
