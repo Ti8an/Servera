@@ -14,6 +14,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -21,6 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.CommandHistory
 import com.tivanstudio.servera.presentation.components.AppBottomBar
+import com.tivanstudio.servera.presentation.history.viewmodel.HistoryUiState
 import com.tivanstudio.servera.presentation.history.viewmodel.HistoryViewModel
 import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.theme.*
@@ -35,6 +37,23 @@ fun HistoryScreen(
     onNavigateToSettings: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    HistoryContent(
+        uiState = uiState,
+        onNavigateToServers = onNavigateToServers,
+        onNavigateToSettings = onNavigateToSettings,
+        onClearAll = viewModel::clearAll
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HistoryContent(
+    uiState: HistoryUiState,
+    onNavigateToServers: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onClearAll: () -> Unit
+) {
     var showClearDialog by remember { mutableStateOf(false) }
 
     if (showClearDialog) {
@@ -43,7 +62,7 @@ fun HistoryScreen(
             title = { Text(stringResource(R.string.clear_history_title)) },
             text  = { Text(stringResource(R.string.delete_server_message)) },
             confirmButton = {
-                TextButton(onClick = { viewModel.clearAll(); showClearDialog = false }) {
+                TextButton(onClick = { onClearAll(); showClearDialog = false }) {
                     Text(stringResource(R.string.clear_history), color = DangerRed)
                 }
             },
@@ -152,5 +171,43 @@ private fun HistoryItemCard(item: CommandHistory) {
                 color = TextSecondary
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun HistoryContentPreview() {
+    ServeraTheme {
+        HistoryContent(
+            uiState = HistoryUiState(
+                isLoading = false,
+                history = listOf(
+                    CommandHistory(1, 1, "ls -la /etc", "total 256\ndrwxr-xr-x", "", 0, System.currentTimeMillis()),
+                    CommandHistory(2, 1, "df -h", "Filesystem 80%", "", 0, System.currentTimeMillis() - 60_000),
+                    CommandHistory(3, 1, "cat /etc/invalid", "", "No such file", 1, System.currentTimeMillis() - 120_000)
+                )
+            ),
+            onNavigateToServers = {},
+            onNavigateToSettings = {},
+            onClearAll = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun HistoryItemCardPreview() {
+    ServeraTheme {
+        HistoryItemCard(
+            item = CommandHistory(
+                id = 1,
+                serverId = 1,
+                command = "ls -la /etc",
+                stdout = "total 256\ndrwxr-xr-x 1 root root",
+                stderr = "",
+                exitCode = 0,
+                executedAt = System.currentTimeMillis()
+            )
+        )
     }
 }

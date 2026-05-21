@@ -18,12 +18,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.CommandResult
+import com.tivanstudio.servera.presentation.console.result.viewmodel.CommandResultUiState
 import com.tivanstudio.servera.presentation.console.result.viewmodel.CommandResultViewModel
 import com.tivanstudio.servera.presentation.theme.*
 
@@ -36,8 +38,27 @@ fun CommandResultScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val result = uiState.result
     val copiedText = stringResource(R.string.copied)
+
+    CommandResultContent(
+        uiState = uiState,
+        onBack = onBack,
+        onRepeat = onRepeat,
+        context = context,
+        copiedText = copiedText
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CommandResultContent(
+    uiState: CommandResultUiState,
+    onBack: () -> Unit,
+    onRepeat: () -> Unit,
+    context: Context,
+    copiedText: String
+) {
+    val result = uiState.result
 
     Scaffold(
         topBar = {
@@ -198,4 +219,41 @@ private fun ResultSection(title: String, content: String, context: Context, copi
 private fun copyToClipboard(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboard.setPrimaryClip(ClipData.newPlainText("output", text))
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun CommandResultContentPreview() {
+    val context = LocalContext.current
+    ServeraTheme {
+        CommandResultContent(
+            uiState = CommandResultUiState(
+                result = CommandResult(
+                    command = "ls -la /etc",
+                    stdout = "total 1234\ndrwxr-xr-x 1 root root\n-rw-r--r-- 1 root root",
+                    stderr = "",
+                    exitCode = 0,
+                    durationMs = 142
+                )
+            ),
+            onBack = {},
+            onRepeat = {},
+            context = context,
+            copiedText = "Copied!"
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ResultSectionPreview() {
+    val context = LocalContext.current
+    ServeraTheme {
+        ResultSection(
+            title = "STDOUT",
+            content = "total 1234\ndrwxr-xr-x 1 root root\n-rw-r--r-- 1 root root",
+            context = context,
+            copiedText = "Copied!"
+        )
+    }
 }

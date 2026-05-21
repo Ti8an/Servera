@@ -18,11 +18,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.servers.add.viewmodel.AddServerEvent
+import com.tivanstudio.servera.presentation.servers.add.viewmodel.AddServerUiState
 import com.tivanstudio.servera.presentation.servers.add.viewmodel.AddServerViewModel
 import com.tivanstudio.servera.presentation.theme.*
 
@@ -45,6 +47,40 @@ fun AddServerScreen(
         }
     }
 
+    AddServerContent(
+        uiState = uiState,
+        onNameChange = viewModel::onNameChange,
+        onHostChange = viewModel::onHostChange,
+        onPortChange = viewModel::onPortChange,
+        onLoginChange = viewModel::onLoginChange,
+        onPasswordChange = viewModel::onPasswordChange,
+        onTogglePassword = viewModel::onTogglePassword,
+        onToggleAdvanced = viewModel::onToggleAdvanced,
+        onPrivateKeyChange = viewModel::onPrivateKeyChange,
+        onTimeoutChange = viewModel::onTimeoutChange,
+        onTestConn = viewModel::testConn,
+        onSave = viewModel::save,
+        onBack = onBack
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddServerContent(
+    uiState: AddServerUiState,
+    onNameChange: (String) -> Unit,
+    onHostChange: (String) -> Unit,
+    onPortChange: (String) -> Unit,
+    onLoginChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onTogglePassword: () -> Unit,
+    onToggleAdvanced: () -> Unit,
+    onPrivateKeyChange: (String) -> Unit,
+    onTimeoutChange: (String) -> Unit,
+    onTestConn: () -> Unit,
+    onSave: () -> Unit,
+    onBack: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -73,26 +109,26 @@ fun AddServerScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
-            AppTextField(value = uiState.name,  label = stringResource(R.string.server_name_hint),  onValueChange = viewModel::onNameChange)
-            AppTextField(value = uiState.host,  label = stringResource(R.string.server_host_hint),  onValueChange = viewModel::onHostChange)
+            AppTextField(value = uiState.name,  label = stringResource(R.string.server_name_hint),  onValueChange = onNameChange)
+            AppTextField(value = uiState.host,  label = stringResource(R.string.server_host_hint),  onValueChange = onHostChange)
             AppTextField(
                 value = uiState.port,
                 label = stringResource(R.string.server_port_hint),
-                onValueChange = viewModel::onPortChange,
+                onValueChange = onPortChange,
                 keyboardType = KeyboardType.Number
             )
-            AppTextField(value = uiState.login, label = stringResource(R.string.server_login_hint), onValueChange = viewModel::onLoginChange)
+            AppTextField(value = uiState.login, label = stringResource(R.string.server_login_hint), onValueChange = onLoginChange)
 
             OutlinedTextField(
                 value = uiState.password,
-                onValueChange = viewModel::onPasswordChange,
+                onValueChange = onPasswordChange,
                 label = { Text(stringResource(R.string.server_password_hint)) },
                 singleLine = true,
                 visualTransformation = if (uiState.isPasswordVisible) VisualTransformation.None
                                        else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 trailingIcon = {
-                    IconButton(onClick = viewModel::onTogglePassword) {
+                    IconButton(onClick = onTogglePassword) {
                         Icon(
                             if (uiState.isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                             contentDescription = null,
@@ -109,7 +145,7 @@ fun AddServerScreen(
             }
 
             OutlinedButton(
-                onClick = viewModel::onToggleAdvanced,
+                onClick = onToggleAdvanced,
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium
             ) {
@@ -126,7 +162,7 @@ fun AddServerScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = uiState.privateKey,
-                        onValueChange = viewModel::onPrivateKeyChange,
+                        onValueChange = onPrivateKeyChange,
                         label = { Text(stringResource(R.string.server_private_key_hint)) },
                         minLines = 4,
                         maxLines = 8,
@@ -136,7 +172,7 @@ fun AddServerScreen(
                     AppTextField(
                         value = uiState.timeout,
                         label = stringResource(R.string.server_timeout_hint),
-                        onValueChange = viewModel::onTimeoutChange,
+                        onValueChange = onTimeoutChange,
                         keyboardType = KeyboardType.Number
                     )
                 }
@@ -169,7 +205,7 @@ fun AddServerScreen(
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(
-                    onClick = viewModel::testConn,
+                    onClick = onTestConn,
                     modifier = Modifier.weight(1f),
                     enabled = !uiState.isTesting && !uiState.isLoading,
                     shape = MaterialTheme.shapes.medium
@@ -181,7 +217,7 @@ fun AddServerScreen(
                     }
                 }
                 Button(
-                    onClick = viewModel::save,
+                    onClick = onSave,
                     modifier = Modifier.weight(2f),
                     enabled = !uiState.isLoading && !uiState.isTesting,
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
@@ -225,3 +261,42 @@ private fun fieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor      = PrimaryGreen,
     unfocusedBorderColor    = Surface
 )
+
+@Preview(showBackground = true)
+@Composable
+private fun AddServerContentPreview() {
+    ServeraTheme {
+        AddServerContent(
+            uiState = AddServerUiState(
+                name = "Production",
+                host = "192.168.1.1",
+                port = "22",
+                login = "root"
+            ),
+            onNameChange = {},
+            onHostChange = {},
+            onPortChange = {},
+            onLoginChange = {},
+            onPasswordChange = {},
+            onTogglePassword = {},
+            onToggleAdvanced = {},
+            onPrivateKeyChange = {},
+            onTimeoutChange = {},
+            onTestConn = {},
+            onSave = {},
+            onBack = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AppTextFieldPreview() {
+    ServeraTheme {
+        AppTextField(
+            value = "root",
+            label = "Login",
+            onValueChange = {}
+        )
+    }
+}
