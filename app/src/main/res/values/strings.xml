@@ -14,7 +14,7 @@
     <string name="create_password_button">Create</string>
     <!-- Servers -->
     <string name="servers_title">My Servers</string>
-    <string name="add_server_button">+ Add Server</string>
+    <string name="add_server_button">Add Server</string>
     <string name="empty_servers">No servers.\nAdd your first one!</string>
     <!-- Add Server -->
     <string name="add_server_title">Add Server</string>
@@ -35,14 +35,14 @@
     <!-- Console -->
     <string name="console_tab">Console</string>
     <string name="info_tab">Information</string>
-    <string name="new_command">+ New Command</string>
+    <string name="new_command">New Command</string>
     <string name="recent_commands">Recent Commands</string>
     <string name="quick_commands">Quick Commands</string>
     <string name="command_label">Command</string>
     <!-- Execute -->
     <string name="execute_title">Execute Command</string>
     <string name="execute_command_hint">Enter command…</string>
-    <string name="execute_button">▶ Execute</string>
+    <string name="execute_button">Execute</string>
     <string name="executing_label">Executing…</string>
     <string name="example_commands">Example Commands</string>
     <!-- Result -->
