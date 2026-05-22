@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -48,7 +49,8 @@ fun SettingsScreen(
         onNavigateToServers = onNavigateToServers,
         onNavigateToHistory = onNavigateToHistory,
         onToggleBiometric = viewModel::toggleBiometric,
-        onToggleDarkTheme = viewModel::toggleDarkTheme
+        onToggleDarkTheme = viewModel::toggleDarkTheme,
+        onToggleSaveCommandsAlways = viewModel::toggleSaveCommandsAlways
     )
 }
 
@@ -60,7 +62,8 @@ private fun SettingsContent(
     onNavigateToServers: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onToggleBiometric: (Boolean) -> Unit,
-    onToggleDarkTheme: (Boolean) -> Unit
+    onToggleDarkTheme: (Boolean) -> Unit,
+    onToggleSaveCommandsAlways: (Boolean) -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -173,6 +176,40 @@ private fun SettingsContent(
             Spacer(Modifier.height(8.dp))
 
             Text(
+                stringResource(R.string.section_commands),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = null, tint = InfoBlue, modifier = Modifier.size(28.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.save_commands_always_setting), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.save_commands_always_description), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    }
+                    Switch(
+                        checked = uiState.isSaveCommandsAlways,
+                        onCheckedChange = onToggleSaveCommandsAlways,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                            checkedTrackColor = PrimaryGreen
+                        )
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
                 stringResource(R.string.section_about),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
@@ -226,7 +263,8 @@ private fun SettingsContentDarkPreview() {
             onNavigateToServers = {},
             onNavigateToHistory = {},
             onToggleBiometric = {},
-            onToggleDarkTheme = {}
+            onToggleDarkTheme = {},
+            onToggleSaveCommandsAlways = {}
         )
     }
 }
@@ -241,7 +279,8 @@ private fun SettingsContentLightPreview() {
             onNavigateToServers = {},
             onNavigateToHistory = {},
             onToggleBiometric = {},
-            onToggleDarkTheme = {}
+            onToggleDarkTheme = {},
+            onToggleSaveCommandsAlways = {}
         )
     }
 }

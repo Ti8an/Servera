@@ -3,6 +3,7 @@ package com.tivanstudio.servera.presentation.console.execute.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tivanstudio.servera.data.preferences.AppPreferences
 import com.tivanstudio.servera.di.CommandResultHolder
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.ssh.ExecuteCommandUseCase
@@ -21,6 +22,7 @@ class ExecuteCommandViewModel @Inject constructor(
     private val executeCommand: ExecuteCommandUseCase,
     private val serverRepository: ServerRepository,
     private val resultHolder: CommandResultHolder,
+    private val appPreferences: AppPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -46,7 +48,7 @@ class ExecuteCommandViewModel @Inject constructor(
                 _uiState.update { it.copy(isExecuting = false, error = "Сервер не найден") }
                 return@launch
             }
-            executeCommand(server, cmd)
+            executeCommand(server, cmd, saveOnFailure = appPreferences.isSaveCommandsAlways.value)
                 .onSuccess { result ->
                     resultHolder.result   = result
                     resultHolder.serverId = serverId

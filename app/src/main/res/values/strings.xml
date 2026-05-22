@@ -70,6 +70,9 @@
     <string name="section_appearance">Appearance</string>
     <string name="dark_theme_setting">Dark Theme</string>
     <string name="dark_theme_description">Dark interface</string>
+    <string name="section_commands">Commands</string>
+    <string name="save_commands_always_setting">Save All Commands</string>
+    <string name="save_commands_always_description">Save to history even when connection fails</string>
     <string name="biometric_unavailable">Biometrics not available on this device</string>
     <string name="encryption_label">Encryption</string>
     <!-- Status -->
