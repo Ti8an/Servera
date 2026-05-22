@@ -1,6 +1,7 @@
 package com.tivanstudio.servera.presentation.console.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +30,7 @@ import com.tivanstudio.servera.domain.entity.ServerInfo
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleEvent
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleUiState
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleViewModel
+import com.tivanstudio.servera.presentation.console.viewmodel.QuickCommandStatus
 import com.tivanstudio.servera.presentation.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -50,15 +52,16 @@ fun ConsoleScreen(
     }
 
     ConsoleScreenContent(
-        uiState = uiState,
-        onBack = onBack,
-        onExecute = viewModel::navigateToExecute,
-        onSelectTab = viewModel::selectTab,
-        onAddCommand = viewModel::startAddCommand,
-        onEditCommand = viewModel::startEditCommand,
-        onDeleteCommand = viewModel::deleteCommand,
-        onDismissDialog = viewModel::dismissEditDialog,
-        onSaveCommand = viewModel::saveEditedCommand
+        uiState          = uiState,
+        onBack           = onBack,
+        onExecute        = viewModel::navigateToExecute,
+        onSelectTab      = viewModel::selectTab,
+        onAddCommand     = viewModel::startAddCommand,
+        onEditCommand    = viewModel::startEditCommand,
+        onDeleteCommand  = viewModel::deleteCommand,
+        onExecuteQuickCommand = viewModel::executeQuickCommand,
+        onDismissDialog  = viewModel::dismissEditDialog,
+        onSaveCommand    = viewModel::saveEditedCommand
     )
 }
 
@@ -72,14 +75,15 @@ private fun ConsoleScreenContent(
     onAddCommand: () -> Unit,
     onEditCommand: (QuickCommand) -> Unit,
     onDeleteCommand: (Long) -> Unit,
+    onExecuteQuickCommand: (QuickCommand) -> Unit,
     onDismissDialog: () -> Unit,
     onSaveCommand: (String, String) -> Unit
 ) {
     if (uiState.editingCommand != null) {
         QuickCommandDialog(
-            cmd = uiState.editingCommand,
+            cmd       = uiState.editingCommand,
             onDismiss = onDismissDialog,
-            onSave = onSaveCommand
+            onSave    = onSaveCommand
         )
     }
 
@@ -88,7 +92,10 @@ private fun ConsoleScreenContent(
             TopAppBar(
                 title = {
                     Column {
-                        Text(uiState.server?.name ?: stringResource(R.string.console_tab), fontWeight = FontWeight.Bold)
+                        Text(
+                            uiState.server?.name ?: stringResource(R.string.console_tab),
+                            fontWeight = FontWeight.Bold
+                        )
                         Text(
                             uiState.server?.host ?: "",
                             fontSize = 11.sp,
@@ -119,22 +126,23 @@ private fun ConsoleScreenContent(
                 Tab(
                     selected = uiState.selectedTab == 0,
                     onClick  = { onSelectTab(0) },
-                    text = { Text(stringResource(R.string.console_tab)) }
+                    text     = { Text(stringResource(R.string.console_tab)) }
                 )
                 Tab(
                     selected = uiState.selectedTab == 1,
                     onClick  = { onSelectTab(1) },
-                    text = { Text(stringResource(R.string.info_tab)) }
+                    text     = { Text(stringResource(R.string.info_tab)) }
                 )
             }
 
             when (uiState.selectedTab) {
                 0 -> ConsoleTab(
-                    uiState = uiState,
-                    onExecute = onExecute,
-                    onAddCommand = onAddCommand,
-                    onEditCommand = onEditCommand,
-                    onDeleteCommand = onDeleteCommand
+                    uiState               = uiState,
+                    onExecute             = onExecute,
+                    onAddCommand          = onAddCommand,
+                    onEditCommand         = onEditCommand,
+                    onDeleteCommand       = onDeleteCommand,
+                    onExecuteQuickCommand = onExecuteQuickCommand
                 )
                 1 -> InfoTab(uiState = uiState)
             }
@@ -149,22 +157,29 @@ private fun ConsoleTab(
     onExecute: () -> Unit,
     onAddCommand: () -> Unit,
     onEditCommand: (QuickCommand) -> Unit,
-    onDeleteCommand: (Long) -> Unit
+    onDeleteCommand: (Long) -> Unit,
+    onExecuteQuickCommand: (QuickCommand) -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
             Spacer(Modifier.height(8.dp))
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                modifier              = Modifier.fillMaxWidth(),
+                verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(stringResource(R.string.quick_commands), style = MaterialTheme.typography.titleMedium)
                 IconButton(onClick = onAddCommand, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_quick_command), tint = PrimaryGreen)
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = stringResource(R.string.add_quick_command),
+                        tint = PrimaryGreen
+                    )
                 }
             }
         }
@@ -173,7 +188,7 @@ private fun ConsoleTab(
             item {
                 Text(
                     stringResource(R.string.no_quick_commands),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
@@ -181,9 +196,10 @@ private fun ConsoleTab(
         } else {
             items(uiState.quickCommands, key = { it.id }) { cmd ->
                 QuickCommandItem(
-                    cmd = cmd,
-                    onTap = onExecute,
-                    onEdit = { onEditCommand(cmd) },
+                    cmd      = cmd,
+                    status   = uiState.commandStatuses[cmd.id],
+                    onTap    = { onExecuteQuickCommand(cmd) },
+                    onEdit   = { onEditCommand(cmd) },
                     onDelete = { onDeleteCommand(cmd.id) }
                 )
             }
@@ -193,12 +209,16 @@ private fun ConsoleTab(
             Button(
                 onClick = onExecute,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
-                shape = MaterialTheme.shapes.medium
+                colors   = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                shape    = MaterialTheme.shapes.medium
             ) {
                 Icon(Icons.Default.Terminal, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.new_command), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
+                Text(
+                    stringResource(R.string.new_command),
+                    fontWeight = FontWeight.Bold,
+                    color      = MaterialTheme.colorScheme.onPrimary
+                )
             }
         }
 
@@ -217,6 +237,7 @@ private fun ConsoleTab(
 @Composable
 private fun QuickCommandItem(
     cmd: QuickCommand,
+    status: QuickCommandStatus?,
     onTap: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -224,15 +245,9 @@ private fun QuickCommandItem(
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             when (value) {
-                SwipeToDismissBoxValue.StartToEnd -> {
-                    onDelete()
-                    true
-                }
-                SwipeToDismissBoxValue.EndToStart -> {
-                    onEdit()
-                    false
-                }
-                else -> false
+                SwipeToDismissBoxValue.StartToEnd -> { onDelete(); true  }
+                SwipeToDismissBoxValue.EndToStart -> { onEdit();  false }
+                else                              -> false
             }
         }
     )
@@ -245,69 +260,110 @@ private fun QuickCommandItem(
                 targetValue = when (direction) {
                     SwipeToDismissBoxValue.StartToEnd -> DangerRed.copy(alpha = 0.85f)
                     SwipeToDismissBoxValue.EndToStart -> InfoBlue.copy(alpha = 0.85f)
-                    else                              -> Color.Transparent
+                    else                             -> Color.Transparent
                 },
                 label = "swipe_bg"
             )
             val alignment = when (direction) {
                 SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-                else                              -> Alignment.CenterEnd
+                else                             -> Alignment.CenterEnd
             }
             val icon = when (direction) {
                 SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Delete
-                else                              -> Icons.Default.Edit
+                else                             -> Icons.Default.Edit
             }
             Box(
-                modifier = Modifier
+                modifier          = Modifier
                     .fillMaxSize()
                     .background(color, shape = MaterialTheme.shapes.medium)
                     .padding(horizontal = 16.dp),
-                contentAlignment = alignment
+                contentAlignment  = alignment
             ) {
                 if (direction != SwipeToDismissBoxValue.Settled) {
                     Icon(icon, contentDescription = null, tint = Color.White)
                 }
             }
-        },
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = true
+        }
     ) {
         Card(
             onClick = onTap,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth()
+            colors  = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape   = MaterialTheme.shapes.medium,
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize()
         ) {
-            Row(
-                modifier = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.Terminal,
-                    contentDescription = null,
-                    tint = InfoBlue,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = cmd.label,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+            Column {
+                Row(
+                    modifier          = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Terminal,
+                        contentDescription = null,
+                        tint     = InfoBlue,
+                        modifier = Modifier.size(20.dp)
                     )
-                    Text(
-                        text = cmd.command,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text       = cmd.label,
+                            fontWeight = FontWeight.Medium,
+                            fontSize   = 14.sp,
+                            maxLines   = 1,
+                            overflow   = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text       = cmd.command,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize   = 11.sp,
+                            color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines   = 1,
+                            overflow   = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                if (status != null) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                    QuickCommandStatusRow(status = status)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun QuickCommandStatusRow(status: QuickCommandStatus) {
+    val (icon, label, tint) = when (status) {
+        is QuickCommandStatus.Running -> Triple(null,                         stringResource(R.string.cmd_status_running), MaterialTheme.colorScheme.onSurfaceVariant)
+        is QuickCommandStatus.Success -> Triple(Icons.Default.CheckCircle,    stringResource(R.string.cmd_status_success), PrimaryGreen)
+        is QuickCommandStatus.Failure -> Triple(Icons.Default.ErrorOutline,   stringResource(R.string.cmd_status_failed),  DangerRed)
+    }
+
+    Row(
+        modifier          = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        if (status is QuickCommandStatus.Running) {
+            CircularProgressIndicator(
+                modifier  = Modifier.size(12.dp),
+                color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                strokeWidth = 1.5.dp
+            )
+        } else if (icon != null) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
+        }
+        Text(
+            text     = if (status is QuickCommandStatus.Failure) "$label: ${status.message}" else label,
+            fontSize = 11.sp,
+            color    = tint,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -321,32 +377,32 @@ private fun QuickCommandDialog(
     var command by remember(cmd.id) { mutableStateOf(cmd.command) }
 
     val isNew = cmd.id == 0L
-    val title = if (isNew) stringResource(R.string.add_quick_command)
-                else       stringResource(R.string.edit_quick_command)
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        title = {
+            Text(if (isNew) stringResource(R.string.add_quick_command) else stringResource(R.string.edit_quick_command))
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
-                    value = label,
+                    value         = label,
                     onValueChange = { label = it },
-                    label = { Text(stringResource(R.string.quick_command_label_hint)) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
+                    label         = { Text(stringResource(R.string.quick_command_label_hint)) },
+                    singleLine    = true,
+                    colors        = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor   = PrimaryGreen,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
-                    value = command,
+                    value         = command,
                     onValueChange = { command = it },
-                    label = { Text(stringResource(R.string.quick_command_command_hint)) },
-                    singleLine = true,
-                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
-                    colors = OutlinedTextFieldDefaults.colors(
+                    label         = { Text(stringResource(R.string.quick_command_command_hint)) },
+                    singleLine    = true,
+                    textStyle     = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
+                    colors        = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor   = PrimaryGreen,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline
                     ),
@@ -363,9 +419,7 @@ private fun QuickCommandDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
         containerColor = MaterialTheme.colorScheme.surface
     )
@@ -375,24 +429,24 @@ private fun QuickCommandDialog(
 private fun HistoryItem(history: CommandHistory, onRepeat: () -> Unit) {
     val fmt = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier          = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = history.command,
+                    text       = history.command,
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    fontSize   = 13.sp,
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = fmt.format(Date(history.executedAt)),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text     = fmt.format(Date(history.executedAt)),
+                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp
                 )
             }
@@ -415,8 +469,8 @@ private fun InfoTab(uiState: ConsoleUiState) {
             }
             uiState.serverInfoError != null -> {
                 Column(
-                    modifier = Modifier.align(Alignment.Center).padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier              = Modifier.align(Alignment.Center).padding(24.dp),
+                    horizontalAlignment   = Alignment.CenterHorizontally
                 ) {
                     Icon(Icons.Default.Error, contentDescription = null, tint = DangerRed, modifier = Modifier.size(48.dp))
                     Spacer(Modifier.height(8.dp))
@@ -432,7 +486,7 @@ private fun InfoTab(uiState: ConsoleUiState) {
 @Composable
 private fun ServerInfoContent(info: ServerInfo) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        modifier            = Modifier.fillMaxSize().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item { Spacer(Modifier.height(8.dp)) }
@@ -450,20 +504,15 @@ private fun ServerInfoContent(info: ServerInfo) {
 @Composable
 private fun InfoRow(label: String, value: String) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier              = Modifier.padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.weight(1f))
-            Text(
-                value.ifBlank { "—" },
-                fontSize = 13.sp,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier.weight(2f)
-            )
+            Text(value.ifBlank { "—" }, fontSize = 13.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(2f))
         }
     }
 }
@@ -473,53 +522,68 @@ private fun InfoRow(label: String, value: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true)
 @Composable
-private fun ConsoleScreenContentPreview() {
+private fun ConsoleTabPreview() {
     ServeraTheme {
         ConsoleScreenContent(
             uiState = ConsoleUiState(
                 server = Server(1, "Production", "192.168.1.1", 22, "root", ""),
-                selectedTab = 0,
                 quickCommands = listOf(
                     QuickCommand(1, "Uptime", "uptime", 0),
                     QuickCommand(2, "Disk usage", "df -h", 1)
                 ),
+                commandStatuses = mapOf(
+                    1L to QuickCommandStatus.Success,
+                    2L to QuickCommandStatus.Running
+                ),
                 recentHistory = listOf(
-                    CommandHistory(1, 1, "ls -la /etc", "file1\nfile2", "", 0, System.currentTimeMillis()),
-                    CommandHistory(2, 1, "df -h", "Filesystem 100%", "", 1, System.currentTimeMillis())
+                    CommandHistory(1, 1, "ls -la /etc", "output", "", 0, System.currentTimeMillis())
                 )
             ),
-            onBack = {},
-            onExecute = {},
-            onSelectTab = {},
-            onAddCommand = {},
-            onEditCommand = {},
-            onDeleteCommand = {},
-            onDismissDialog = {},
-            onSaveCommand = { _, _ -> }
+            onBack                = {},
+            onExecute             = {},
+            onSelectTab           = {},
+            onAddCommand          = {},
+            onEditCommand         = {},
+            onDeleteCommand       = {},
+            onExecuteQuickCommand = {},
+            onDismissDialog       = {},
+            onSaveCommand         = { _, _ -> }
         )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-private fun QuickCommandDialogAddPreview() {
+private fun QuickCommandItemRunningPreview() {
     ServeraTheme {
-        QuickCommandDialog(
-            cmd = QuickCommand(0, "", "", 0),
-            onDismiss = {},
-            onSave = { _, _ -> }
+        QuickCommandItem(
+            cmd    = QuickCommand(1, "Uptime", "uptime", 0),
+            status = QuickCommandStatus.Running,
+            onTap  = {}, onEdit = {}, onDelete = {}
         )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-private fun QuickCommandDialogEditPreview() {
+private fun QuickCommandItemSuccessPreview() {
     ServeraTheme {
-        QuickCommandDialog(
-            cmd = QuickCommand(1, "Uptime", "uptime", 0),
-            onDismiss = {},
-            onSave = { _, _ -> }
+        QuickCommandItem(
+            cmd    = QuickCommand(1, "Uptime", "uptime", 0),
+            status = QuickCommandStatus.Success,
+            onTap  = {}, onEdit = {}, onDelete = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun QuickCommandItemFailurePreview() {
+    ServeraTheme {
+        QuickCommandItem(
+            cmd    = QuickCommand(1, "Bad cmd", "invalid", 0),
+            status = QuickCommandStatus.Failure("Connection refused"),
+            onTap  = {}, onEdit = {}, onDelete = {}
         )
     }
 }

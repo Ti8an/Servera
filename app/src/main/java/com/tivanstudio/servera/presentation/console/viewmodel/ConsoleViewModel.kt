@@ -3,12 +3,14 @@ package com.tivanstudio.servera.presentation.console.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tivanstudio.servera.data.preferences.AppPreferences
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.history.GetCommandHistoryUseCase
 import com.tivanstudio.servera.domain.usecase.quickcommand.DeleteQuickCommandUseCase
 import com.tivanstudio.servera.domain.usecase.quickcommand.GetQuickCommandsUseCase
 import com.tivanstudio.servera.domain.usecase.quickcommand.SaveQuickCommandUseCase
+import com.tivanstudio.servera.domain.usecase.ssh.ExecuteCommandUseCase
 import com.tivanstudio.servera.domain.usecase.ssh.FetchServerInfoUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -28,6 +30,8 @@ class ConsoleViewModel @Inject constructor(
     private val saveQuickCommand: SaveQuickCommandUseCase,
     private val deleteQuickCommand: DeleteQuickCommandUseCase,
     private val fetchServerInfo: FetchServerInfoUseCase,
+    private val executeCommand: ExecuteCommandUseCase,
+    private val appPreferences: AppPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -93,6 +97,26 @@ class ConsoleViewModel @Inject constructor(
         viewModelScope.launch { _events.send(ConsoleEvent.NavigateToExecute(serverId)) }
     }
 
+    fun executeQuickCommand(cmd: QuickCommand) {
+        val server = _uiState.value.server ?: return
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(commandStatuses = it.commandStatuses + (cmd.id to QuickCommandStatus.Running))
+            }
+            executeCommand(server, cmd.command, saveOnFailure = appPreferences.isSaveCommandsAlways.value)
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(commandStatuses = it.commandStatuses + (cmd.id to QuickCommandStatus.Success))
+                    }
+                }
+                .onFailure { e ->
+                    _uiState.update {
+                        it.copy(commandStatuses = it.commandStatuses + (cmd.id to QuickCommandStatus.Failure(e.message ?: "Unknown error")))
+                    }
+                }
+        }
+    }
+
     fun startAddCommand() {
         val nextOrder = _uiState.value.quickCommands.size
         _uiState.update { it.copy(editingCommand = QuickCommand(id = 0, label = "", command = "", sortOrder = nextOrder)) }
@@ -115,6 +139,9 @@ class ConsoleViewModel @Inject constructor(
     }
 
     fun deleteCommand(id: Long) {
-        viewModelScope.launch { deleteQuickCommand(id) }
+        viewModelScope.launch {
+            deleteQuickCommand(id)
+            _uiState.update { it.copy(commandStatuses = it.commandStatuses - id) }
+        }
     }
 }

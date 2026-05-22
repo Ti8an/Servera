@@ -33,6 +33,9 @@
     <string name="connection_ok">Connection successful</string>
     <string name="connection_failed">Failed to connect</string>
     <!-- Console -->
+    <string name="cmd_status_running">In progress…</string>
+    <string name="cmd_status_success">Completed</string>
+    <string name="cmd_status_failed">Failed</string>
     <string name="console_tab">Console</string>
     <string name="info_tab">Information</string>
     <string name="new_command">New Command</string>
