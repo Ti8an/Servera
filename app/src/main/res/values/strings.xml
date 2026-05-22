@@ -38,6 +38,11 @@
     <string name="new_command">New Command</string>
     <string name="recent_commands">Recent Commands</string>
     <string name="quick_commands">Quick Commands</string>
+    <string name="no_quick_commands">No quick commands. Tap + to add one.</string>
+    <string name="add_quick_command">Add Quick Command</string>
+    <string name="edit_quick_command">Edit Quick Command</string>
+    <string name="quick_command_label_hint">Label</string>
+    <string name="quick_command_command_hint">Command</string>
     <string name="command_label">Command</string>
     <!-- Execute -->
     <string name="execute_title">Execute Command</string>

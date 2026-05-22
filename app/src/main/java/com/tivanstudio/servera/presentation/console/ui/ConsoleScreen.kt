@@ -1,8 +1,9 @@
 package com.tivanstudio.servera.presentation.console.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -10,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -51,7 +53,12 @@ fun ConsoleScreen(
         uiState = uiState,
         onBack = onBack,
         onExecute = viewModel::navigateToExecute,
-        onSelectTab = viewModel::selectTab
+        onSelectTab = viewModel::selectTab,
+        onAddCommand = viewModel::startAddCommand,
+        onEditCommand = viewModel::startEditCommand,
+        onDeleteCommand = viewModel::deleteCommand,
+        onDismissDialog = viewModel::dismissEditDialog,
+        onSaveCommand = viewModel::saveEditedCommand
     )
 }
 
@@ -61,8 +68,21 @@ private fun ConsoleScreenContent(
     uiState: ConsoleUiState,
     onBack: () -> Unit,
     onExecute: () -> Unit,
-    onSelectTab: (Int) -> Unit
+    onSelectTab: (Int) -> Unit,
+    onAddCommand: () -> Unit,
+    onEditCommand: (QuickCommand) -> Unit,
+    onDeleteCommand: (Long) -> Unit,
+    onDismissDialog: () -> Unit,
+    onSaveCommand: (String, String) -> Unit
 ) {
+    if (uiState.editingCommand != null) {
+        QuickCommandDialog(
+            cmd = uiState.editingCommand,
+            onDismiss = onDismissDialog,
+            onSave = onSaveCommand
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -109,37 +129,63 @@ private fun ConsoleScreenContent(
             }
 
             when (uiState.selectedTab) {
-                0 -> ConsoleTab(uiState = uiState, onExecute = onExecute)
+                0 -> ConsoleTab(
+                    uiState = uiState,
+                    onExecute = onExecute,
+                    onAddCommand = onAddCommand,
+                    onEditCommand = onEditCommand,
+                    onDeleteCommand = onDeleteCommand
+                )
                 1 -> InfoTab(uiState = uiState)
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ConsoleTab(uiState: ConsoleUiState, onExecute: () -> Unit) {
+private fun ConsoleTab(
+    uiState: ConsoleUiState,
+    onExecute: () -> Unit,
+    onAddCommand: () -> Unit,
+    onEditCommand: (QuickCommand) -> Unit,
+    onDeleteCommand: (Long) -> Unit
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
             Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.quick_commands), style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(stringResource(R.string.quick_commands), style = MaterialTheme.typography.titleMedium)
+                IconButton(onClick = onAddCommand, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_quick_command), tint = PrimaryGreen)
+                }
+            }
         }
 
-        if (uiState.quickCommands.isNotEmpty()) {
+        if (uiState.quickCommands.isEmpty()) {
             item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(uiState.quickCommands) { cmd ->
-                        SuggestionChip(
-                            onClick = onExecute,
-                            label = { Text(cmd.label, fontSize = 12.sp) },
-                            colors = SuggestionChipDefaults.suggestionChipColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
-                        )
-                    }
-                }
+                Text(
+                    stringResource(R.string.no_quick_commands),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+        } else {
+            items(uiState.quickCommands, key = { it.id }) { cmd ->
+                QuickCommandItem(
+                    cmd = cmd,
+                    onTap = onExecute,
+                    onEdit = { onEditCommand(cmd) },
+                    onDelete = { onDeleteCommand(cmd.id) }
+                )
             }
         }
 
@@ -165,6 +211,164 @@ private fun ConsoleTab(uiState: ConsoleUiState, onExecute: () -> Unit) {
 
         item { Spacer(Modifier.height(16.dp)) }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QuickCommandItem(
+    cmd: QuickCommand,
+    onTap: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    onDelete()
+                    true
+                }
+                SwipeToDismissBoxValue.EndToStart -> {
+                    onEdit()
+                    false
+                }
+                else -> false
+            }
+        }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            val direction = dismissState.dismissDirection
+            val color by animateColorAsState(
+                targetValue = when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd -> DangerRed.copy(alpha = 0.85f)
+                    SwipeToDismissBoxValue.EndToStart -> InfoBlue.copy(alpha = 0.85f)
+                    else                              -> Color.Transparent
+                },
+                label = "swipe_bg"
+            )
+            val alignment = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                else                              -> Alignment.CenterEnd
+            }
+            val icon = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Delete
+                else                              -> Icons.Default.Edit
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(color, shape = MaterialTheme.shapes.medium)
+                    .padding(horizontal = 16.dp),
+                contentAlignment = alignment
+            ) {
+                if (direction != SwipeToDismissBoxValue.Settled) {
+                    Icon(icon, contentDescription = null, tint = Color.White)
+                }
+            }
+        },
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true
+    ) {
+        Card(
+            onClick = onTap,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Terminal,
+                    contentDescription = null,
+                    tint = InfoBlue,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = cmd.label,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = cmd.command,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickCommandDialog(
+    cmd: QuickCommand,
+    onDismiss: () -> Unit,
+    onSave: (label: String, command: String) -> Unit
+) {
+    var label   by remember(cmd.id) { mutableStateOf(cmd.label) }
+    var command by remember(cmd.id) { mutableStateOf(cmd.command) }
+
+    val isNew = cmd.id == 0L
+    val title = if (isNew) stringResource(R.string.add_quick_command)
+                else       stringResource(R.string.edit_quick_command)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = label,
+                    onValueChange = { label = it },
+                    label = { Text(stringResource(R.string.quick_command_label_hint)) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor   = PrimaryGreen,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = command,
+                    onValueChange = { command = it },
+                    label = { Text(stringResource(R.string.quick_command_command_hint)) },
+                    singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor   = PrimaryGreen,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(label, command) },
+                enabled = label.isNotBlank() && command.isNotBlank()
+            ) {
+                Text(stringResource(R.string.save_button), color = PrimaryGreen)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
+    )
 }
 
 @Composable
@@ -219,12 +423,8 @@ private fun InfoTab(uiState: ConsoleUiState) {
                     Text(uiState.serverInfoError, color = DangerRed)
                 }
             }
-            uiState.serverInfo != null -> {
-                ServerInfoContent(info = uiState.serverInfo)
-            }
-            else -> {
-                Box(Modifier.fillMaxSize())
-            }
+            uiState.serverInfo != null -> ServerInfoContent(info = uiState.serverInfo)
+            else -> Box(Modifier.fillMaxSize())
         }
     }
 }
@@ -268,6 +468,9 @@ private fun InfoRow(label: String, value: String) {
     }
 }
 
+// ── Previews ─────────────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true)
 @Composable
 private fun ConsoleScreenContentPreview() {
@@ -277,8 +480,8 @@ private fun ConsoleScreenContentPreview() {
                 server = Server(1, "Production", "192.168.1.1", 22, "root", ""),
                 selectedTab = 0,
                 quickCommands = listOf(
-                    QuickCommand(1, "uptime", "uptime", 0),
-                    QuickCommand(2, "df -h", "df -h", 1)
+                    QuickCommand(1, "Uptime", "uptime", 0),
+                    QuickCommand(2, "Disk usage", "df -h", 1)
                 ),
                 recentHistory = listOf(
                     CommandHistory(1, 1, "ls -la /etc", "file1\nfile2", "", 0, System.currentTimeMillis()),
@@ -287,84 +490,36 @@ private fun ConsoleScreenContentPreview() {
             ),
             onBack = {},
             onExecute = {},
-            onSelectTab = {}
+            onSelectTab = {},
+            onAddCommand = {},
+            onEditCommand = {},
+            onDeleteCommand = {},
+            onDismissDialog = {},
+            onSaveCommand = { _, _ -> }
         )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-private fun ConsoleTabPreview() {
+private fun QuickCommandDialogAddPreview() {
     ServeraTheme {
-        ConsoleTab(
-            uiState = ConsoleUiState(
-                quickCommands = listOf(
-                    QuickCommand(1, "uptime", "uptime", 0),
-                    QuickCommand(2, "df -h", "df -h", 1)
-                ),
-                recentHistory = listOf(
-                    CommandHistory(1, 1, "ls -la", "output", "", 0, System.currentTimeMillis()),
-                    CommandHistory(2, 1, "df -h", "", "error", 1, System.currentTimeMillis())
-                )
-            ),
-            onExecute = {}
+        QuickCommandDialog(
+            cmd = QuickCommand(0, "", "", 0),
+            onDismiss = {},
+            onSave = { _, _ -> }
         )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-private fun HistoryItemPreview() {
+private fun QuickCommandDialogEditPreview() {
     ServeraTheme {
-        HistoryItem(
-            history = CommandHistory(1, 1, "ls -la /etc", "output", "", 0, System.currentTimeMillis()),
-            onRepeat = {}
+        QuickCommandDialog(
+            cmd = QuickCommand(1, "Uptime", "uptime", 0),
+            onDismiss = {},
+            onSave = { _, _ -> }
         )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun InfoTabPreview() {
-    ServeraTheme {
-        InfoTab(
-            uiState = ConsoleUiState(
-                serverInfo = ServerInfo(
-                    hostname = "prod-server-01",
-                    os = "Ubuntu 22.04",
-                    cpuInfo = "Intel Core i7",
-                    ramTotal = "16 GB",
-                    ramFree = "8 GB",
-                    diskUsage = "50%",
-                    uptime = "10 days"
-                )
-            )
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun ServerInfoContentPreview() {
-    ServeraTheme {
-        ServerInfoContent(
-            info = ServerInfo(
-                hostname = "prod-server-01",
-                os = "Ubuntu 22.04 LTS",
-                cpuInfo = "4x Intel Core i7",
-                ramTotal = "16 GB",
-                ramFree = "8 GB",
-                diskUsage = "45% used",
-                uptime = "10 days, 3:22"
-            )
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun InfoRowPreview() {
-    ServeraTheme {
-        InfoRow(label = "Hostname", value = "prod-server-01")
     }
 }

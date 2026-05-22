@@ -3,9 +3,12 @@ package com.tivanstudio.servera.presentation.console.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.history.GetCommandHistoryUseCase
+import com.tivanstudio.servera.domain.usecase.quickcommand.DeleteQuickCommandUseCase
 import com.tivanstudio.servera.domain.usecase.quickcommand.GetQuickCommandsUseCase
+import com.tivanstudio.servera.domain.usecase.quickcommand.SaveQuickCommandUseCase
 import com.tivanstudio.servera.domain.usecase.ssh.FetchServerInfoUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -22,6 +25,8 @@ class ConsoleViewModel @Inject constructor(
     private val serverRepository: ServerRepository,
     private val getHistory: GetCommandHistoryUseCase,
     private val getQuickCommands: GetQuickCommandsUseCase,
+    private val saveQuickCommand: SaveQuickCommandUseCase,
+    private val deleteQuickCommand: DeleteQuickCommandUseCase,
     private val fetchServerInfo: FetchServerInfoUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -86,5 +91,30 @@ class ConsoleViewModel @Inject constructor(
 
     fun navigateToExecute() {
         viewModelScope.launch { _events.send(ConsoleEvent.NavigateToExecute(serverId)) }
+    }
+
+    fun startAddCommand() {
+        val nextOrder = _uiState.value.quickCommands.size
+        _uiState.update { it.copy(editingCommand = QuickCommand(id = 0, label = "", command = "", sortOrder = nextOrder)) }
+    }
+
+    fun startEditCommand(cmd: QuickCommand) {
+        _uiState.update { it.copy(editingCommand = cmd) }
+    }
+
+    fun dismissEditDialog() {
+        _uiState.update { it.copy(editingCommand = null) }
+    }
+
+    fun saveEditedCommand(label: String, command: String) {
+        val editing = _uiState.value.editingCommand ?: return
+        viewModelScope.launch {
+            saveQuickCommand(editing.copy(label = label.trim(), command = command.trim()))
+            _uiState.update { it.copy(editingCommand = null) }
+        }
+    }
+
+    fun deleteCommand(id: Long) {
+        viewModelScope.launch { deleteQuickCommand(id) }
     }
 }

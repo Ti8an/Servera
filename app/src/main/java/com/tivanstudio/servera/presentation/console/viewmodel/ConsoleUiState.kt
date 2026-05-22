@@ -14,7 +14,8 @@ data class ConsoleUiState(
     val serverInfo: ServerInfo? = null,
     val isLoadingServerInfo: Boolean = false,
     val serverInfoError: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    val editingCommand: QuickCommand? = null
 )
 
 sealed class ConsoleEvent {
