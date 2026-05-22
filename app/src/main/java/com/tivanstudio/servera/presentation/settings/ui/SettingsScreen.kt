@@ -112,7 +112,7 @@ private fun SettingsContent(
                     )
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.dark_theme_setting), fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.dark_theme_setting), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
                         Text(stringResource(R.string.dark_theme_description), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
                     Switch(
@@ -146,7 +146,7 @@ private fun SettingsContent(
                     Icon(Icons.Default.Fingerprint, contentDescription = null, tint = InfoBlue, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.biometric_setting), fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.biometric_setting), color = MaterialTheme.colorScheme.onSurface,  fontWeight = FontWeight.Medium)
                         Text("Fingerprint / Face ID", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
                     Switch(
@@ -190,7 +190,7 @@ private fun SettingsContent(
                     Icon(Icons.Default.Info, contentDescription = null, tint = InfoBlue, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text("Servera", fontWeight = FontWeight.Medium)
+                        Text("Servera", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
                         Text("${stringResource(R.string.app_version)} ${uiState.appVersion}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
                 }
@@ -207,7 +207,7 @@ private fun SettingsContent(
                     Icon(Icons.Default.Security, contentDescription = null, tint = InfoBlue, modifier = Modifier.size(28.dp))
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text(stringResource(R.string.encryption_label), fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.encryption_label), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
                         Text("AES-256-GCM + Android Keystore", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
                 }
