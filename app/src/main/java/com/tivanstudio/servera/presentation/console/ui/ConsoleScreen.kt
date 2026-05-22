@@ -14,12 +14,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.CommandHistory
+import com.tivanstudio.servera.domain.entity.QuickCommand
+import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.domain.entity.ServerInfo
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleEvent
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleUiState
@@ -28,7 +31,6 @@ import com.tivanstudio.servera.presentation.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConsoleScreen(
     viewModel: ConsoleViewModel = hiltViewModel(),
@@ -45,6 +47,22 @@ fun ConsoleScreen(
         }
     }
 
+    ConsoleScreenContent(
+        uiState = uiState,
+        onBack = onBack,
+        onExecute = viewModel::navigateToExecute,
+        onSelectTab = viewModel::selectTab
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ConsoleScreenContent(
+    uiState: ConsoleUiState,
+    onBack: () -> Unit,
+    onExecute: () -> Unit,
+    onSelectTab: (Int) -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -64,7 +82,7 @@ fun ConsoleScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::navigateToExecute) {
+                    IconButton(onClick = onExecute) {
                         Icon(Icons.Default.Terminal, contentDescription = null, tint = PrimaryGreen)
                     }
                 },
@@ -80,18 +98,18 @@ fun ConsoleScreen(
             ) {
                 Tab(
                     selected = uiState.selectedTab == 0,
-                    onClick  = { viewModel.selectTab(0) },
+                    onClick  = { onSelectTab(0) },
                     text = { Text(stringResource(R.string.console_tab)) }
                 )
                 Tab(
                     selected = uiState.selectedTab == 1,
-                    onClick  = { viewModel.selectTab(1) },
+                    onClick  = { onSelectTab(1) },
                     text = { Text(stringResource(R.string.info_tab)) }
                 )
             }
 
             when (uiState.selectedTab) {
-                0 -> ConsoleTab(uiState = uiState, onExecute = viewModel::navigateToExecute)
+                0 -> ConsoleTab(uiState = uiState, onExecute = onExecute)
                 1 -> InfoTab(uiState = uiState)
             }
         }
@@ -247,5 +265,106 @@ private fun InfoRow(label: String, value: String) {
                 modifier = Modifier.weight(2f)
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ConsoleScreenContentPreview() {
+    ServeraTheme {
+        ConsoleScreenContent(
+            uiState = ConsoleUiState(
+                server = Server(1, "Production", "192.168.1.1", 22, "root", ""),
+                selectedTab = 0,
+                quickCommands = listOf(
+                    QuickCommand(1, "uptime", "uptime", 0),
+                    QuickCommand(2, "df -h", "df -h", 1)
+                ),
+                recentHistory = listOf(
+                    CommandHistory(1, 1, "ls -la /etc", "file1\nfile2", "", 0, System.currentTimeMillis()),
+                    CommandHistory(2, 1, "df -h", "Filesystem 100%", "", 1, System.currentTimeMillis())
+                )
+            ),
+            onBack = {},
+            onExecute = {},
+            onSelectTab = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ConsoleTabPreview() {
+    ServeraTheme {
+        ConsoleTab(
+            uiState = ConsoleUiState(
+                quickCommands = listOf(
+                    QuickCommand(1, "uptime", "uptime", 0),
+                    QuickCommand(2, "df -h", "df -h", 1)
+                ),
+                recentHistory = listOf(
+                    CommandHistory(1, 1, "ls -la", "output", "", 0, System.currentTimeMillis()),
+                    CommandHistory(2, 1, "df -h", "", "error", 1, System.currentTimeMillis())
+                )
+            ),
+            onExecute = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun HistoryItemPreview() {
+    ServeraTheme {
+        HistoryItem(
+            history = CommandHistory(1, 1, "ls -la /etc", "output", "", 0, System.currentTimeMillis()),
+            onRepeat = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun InfoTabPreview() {
+    ServeraTheme {
+        InfoTab(
+            uiState = ConsoleUiState(
+                serverInfo = ServerInfo(
+                    hostname = "prod-server-01",
+                    os = "Ubuntu 22.04",
+                    cpuInfo = "Intel Core i7",
+                    ramTotal = "16 GB",
+                    ramFree = "8 GB",
+                    diskUsage = "50%",
+                    uptime = "10 days"
+                )
+            )
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ServerInfoContentPreview() {
+    ServeraTheme {
+        ServerInfoContent(
+            info = ServerInfo(
+                hostname = "prod-server-01",
+                os = "Ubuntu 22.04 LTS",
+                cpuInfo = "4x Intel Core i7",
+                ramTotal = "16 GB",
+                ramFree = "8 GB",
+                diskUsage = "45% used",
+                uptime = "10 days, 3:22"
+            )
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun InfoRowPreview() {
+    ServeraTheme {
+        InfoRow(label = "Hostname", value = "prod-server-01")
     }
 }

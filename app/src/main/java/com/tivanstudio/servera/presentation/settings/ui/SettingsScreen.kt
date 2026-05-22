@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -20,6 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.components.AppBottomBar
 import com.tivanstudio.servera.presentation.navigation.Screen
+import com.tivanstudio.servera.presentation.settings.viewmodel.SettingsUiState
 import com.tivanstudio.servera.presentation.settings.viewmodel.SettingsViewModel
 import com.tivanstudio.servera.presentation.theme.*
 
@@ -39,6 +41,24 @@ fun SettingsScreen(
                 BiometricManager.BIOMETRIC_SUCCESS
     }
 
+    SettingsContent(
+        uiState = uiState,
+        isBiometricAvailable = isBiometricAvailable,
+        onNavigateToServers = onNavigateToServers,
+        onNavigateToHistory = onNavigateToHistory,
+        onToggleBiometric = viewModel::toggleBiometric
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsContent(
+    uiState: SettingsUiState,
+    isBiometricAvailable: Boolean,
+    onNavigateToServers: () -> Unit,
+    onNavigateToHistory: () -> Unit,
+    onToggleBiometric: (Boolean) -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -82,7 +102,7 @@ fun SettingsScreen(
                     }
                     Switch(
                         checked = uiState.isBiometricEnabled && isBiometricAvailable,
-                        onCheckedChange = { if (isBiometricAvailable) viewModel.toggleBiometric(it) },
+                        onCheckedChange = { if (isBiometricAvailable) onToggleBiometric(it) },
                         enabled = isBiometricAvailable,
                         colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.onPrimary, checkedTrackColor = PrimaryGreen)
                     )
@@ -136,5 +156,33 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SettingsContentPreview() {
+    ServeraTheme {
+        SettingsContent(
+            uiState = SettingsUiState(isBiometricEnabled = false, appVersion = "1.1.2"),
+            isBiometricAvailable = true,
+            onNavigateToServers = {},
+            onNavigateToHistory = {},
+            onToggleBiometric = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SettingsContentBiometricEnabledPreview() {
+    ServeraTheme {
+        SettingsContent(
+            uiState = SettingsUiState(isBiometricEnabled = true, appVersion = "1.1.2"),
+            isBiometricAvailable = true,
+            onNavigateToServers = {},
+            onNavigateToHistory = {},
+            onToggleBiometric = {}
+        )
     }
 }

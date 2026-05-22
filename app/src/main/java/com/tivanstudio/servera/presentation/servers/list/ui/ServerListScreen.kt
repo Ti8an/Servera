@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -23,11 +24,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.components.AppBottomBar
 import com.tivanstudio.servera.presentation.navigation.Screen
+import com.tivanstudio.servera.presentation.servers.list.viewmodel.ServerListUiState
 import com.tivanstudio.servera.presentation.servers.list.viewmodel.ServerListViewModel
 import com.tivanstudio.servera.presentation.servers.list.viewmodel.ServerUiModel
 import com.tivanstudio.servera.presentation.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ServerListScreen(
     viewModel: ServerListViewModel = hiltViewModel(),
@@ -37,6 +38,30 @@ fun ServerListScreen(
     onNavigateToSettings: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    ServerListContent(
+        uiState = uiState,
+        onNavigateToAdd = onNavigateToAdd,
+        onNavigateToConsole = onNavigateToConsole,
+        onNavigateToHistory = onNavigateToHistory,
+        onNavigateToSettings = onNavigateToSettings,
+        onSearch = viewModel::onSearch,
+        onDelete = viewModel::deleteServer,
+        onRefresh = viewModel::refreshStatus
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ServerListContent(
+    uiState: ServerListUiState,
+    onNavigateToAdd: () -> Unit,
+    onNavigateToConsole: (Long) -> Unit,
+    onNavigateToHistory: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onSearch: (String) -> Unit,
+    onDelete: (Long) -> Unit,
+    onRefresh: () -> Unit
+) {
     var searchVisible by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<Long?>(null) }
 
@@ -47,7 +72,7 @@ fun ServerListScreen(
             text  = { Text(stringResource(R.string.delete_server_message)) },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.deleteServer(deleteTarget!!)
+                    onDelete(deleteTarget!!)
                     deleteTarget = null
                 }) { Text(stringResource(R.string.delete_confirm), color = DangerRed) }
             },
@@ -65,7 +90,7 @@ fun ServerListScreen(
                     if (searchVisible) {
                         OutlinedTextField(
                             value = uiState.searchQuery,
-                            onValueChange = viewModel::onSearch,
+                            onValueChange = onSearch,
                             placeholder = { Text(stringResource(R.string.search_hint), color = TextSecondary) },
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
@@ -84,7 +109,7 @@ fun ServerListScreen(
                     IconButton(onClick = { searchVisible = !searchVisible }) {
                         Icon(if (searchVisible) Icons.Default.Close else Icons.Default.Search, contentDescription = null)
                     }
-                    IconButton(onClick = viewModel::refreshStatus) {
+                    IconButton(onClick = onRefresh) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                     }
                 },
@@ -156,7 +181,7 @@ fun ServerListScreen(
                                 server   = server,
                                 onClick  = { onNavigateToConsole(server.id) },
                                 onEdit   = { onNavigateToAdd() },
-                                onDelete = { deleteTarget = server.id }
+                                onDelete = { onDelete(server.id) }
                             )
                         }
                         item { Spacer(Modifier.height(8.dp)) }
@@ -239,5 +264,55 @@ private fun ServerListItem(
                 Icon(Icons.Default.Delete, contentDescription = null, tint = DangerRed)
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ServerListContentPreview() {
+    ServeraTheme {
+        ServerListContent(
+            uiState = ServerListUiState(
+                isLoading = false,
+                servers = listOf(
+                    ServerUiModel(1, "Production", "192.168.1.1", 22, "root", isOnline = true),
+                    ServerUiModel(2, "Staging", "10.0.0.1", 22, "deploy", isOnline = false),
+                    ServerUiModel(3, "Dev", "172.16.0.1", 2222, "admin", isChecking = true)
+                )
+            ),
+            onNavigateToAdd = {},
+            onNavigateToConsole = {},
+            onNavigateToHistory = {},
+            onNavigateToSettings = {},
+            onSearch = {},
+            onDelete = {},
+            onRefresh = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ServerListItemOnlinePreview() {
+    ServeraTheme {
+        ServerListItem(
+            server = ServerUiModel(1, "Production Server", "192.168.1.100", 22, "root", isOnline = true),
+            onClick = {},
+            onEdit = {},
+            onDelete = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ServerListItemOfflinePreview() {
+    ServeraTheme {
+        ServerListItem(
+            server = ServerUiModel(2, "Staging Server", "10.0.0.1", 22, "deploy", isOnline = false),
+            onClick = {},
+            onEdit = {},
+            onDelete = {}
+        )
     }
 }

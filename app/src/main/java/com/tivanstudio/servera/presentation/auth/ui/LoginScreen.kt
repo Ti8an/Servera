@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -29,9 +30,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.auth.viewmodel.LoginEvent
+import com.tivanstudio.servera.presentation.auth.viewmodel.LoginUiState
 import com.tivanstudio.servera.presentation.auth.viewmodel.LoginViewModel
 import com.tivanstudio.servera.presentation.theme.Elevated
 import com.tivanstudio.servera.presentation.theme.PrimaryGreen
+import com.tivanstudio.servera.presentation.theme.ServeraTheme
 import com.tivanstudio.servera.presentation.theme.Surface
 import com.tivanstudio.servera.presentation.theme.TextSecondary
 
@@ -57,6 +60,43 @@ fun LoginScreen(
         }
     }
 
+    LoginContent(
+        uiState = uiState,
+        onPasswordChange = viewModel::onPasswordChange,
+        onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
+        onLoginClick = viewModel::login,
+        onBiometricClick = {
+            val activity = context as? FragmentActivity ?: return@LoginContent
+            val executor = ContextCompat.getMainExecutor(context)
+            val callback = object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    viewModel.onBiometricSuccess()
+                }
+                override fun onAuthenticationError(code: Int, msg: CharSequence) {
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                }
+            }
+            val prompt = BiometricPrompt(activity, executor, callback)
+            val info = BiometricPrompt.PromptInfo.Builder()
+                .setTitle(biometricTitle)
+                .setSubtitle(biometricSubtitle)
+                .setNegativeButtonText(biometricCancel)
+                .build()
+            prompt.authenticate(info)
+        },
+        onNavigateToCreatePassword = viewModel::navigateToCreatePassword
+    )
+}
+
+@Composable
+private fun LoginContent(
+    uiState: LoginUiState,
+    onPasswordChange: (String) -> Unit,
+    onTogglePasswordVisibility: () -> Unit,
+    onLoginClick: () -> Unit,
+    onBiometricClick: () -> Unit,
+    onNavigateToCreatePassword: () -> Unit
+) {
     if (uiState.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = PrimaryGreen)
@@ -91,7 +131,7 @@ fun LoginScreen(
 
         OutlinedTextField(
             value = uiState.password,
-            onValueChange = viewModel::onPasswordChange,
+            onValueChange = onPasswordChange,
             label = { Text(stringResource(R.string.login_password_hint)) },
             singleLine = true,
             visualTransformation = if (uiState.isPasswordVisible) VisualTransformation.None
@@ -100,9 +140,9 @@ fun LoginScreen(
                 keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Done
             ),
-            keyboardActions = KeyboardActions(onDone = { viewModel.login() }),
+            keyboardActions = KeyboardActions(onDone = { onLoginClick() }),
             trailingIcon = {
-                IconButton(onClick = viewModel::onTogglePasswordVisibility) {
+                IconButton(onClick = onTogglePasswordVisibility) {
                     Icon(
                         imageVector = if (uiState.isPasswordVisible) Icons.Default.VisibilityOff
                                       else Icons.Default.Visibility,
@@ -135,7 +175,7 @@ fun LoginScreen(
         Spacer(Modifier.height(16.dp))
 
         Button(
-            onClick = viewModel::login,
+            onClick = onLoginClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
@@ -153,25 +193,7 @@ fun LoginScreen(
             Spacer(Modifier.height(4.dp))
 
             OutlinedButton(
-                onClick = {
-                    val activity = context as? FragmentActivity ?: return@OutlinedButton
-                    val executor = ContextCompat.getMainExecutor(context)
-                    val callback = object : BiometricPrompt.AuthenticationCallback() {
-                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                            viewModel.onBiometricSuccess()
-                        }
-                        override fun onAuthenticationError(code: Int, msg: CharSequence) {
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                    val prompt = BiometricPrompt(activity, executor, callback)
-                    val info = BiometricPrompt.PromptInfo.Builder()
-                        .setTitle(biometricTitle)
-                        .setSubtitle(biometricSubtitle)
-                        .setNegativeButtonText(biometricCancel)
-                        .build()
-                    prompt.authenticate(info)
-                },
+                onClick = onBiometricClick,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = MaterialTheme.shapes.medium
             ) {
@@ -183,12 +205,42 @@ fun LoginScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        TextButton(onClick = viewModel::navigateToCreatePassword) {
+        TextButton(onClick = onNavigateToCreatePassword) {
             Text(
                 text = stringResource(R.string.login_first_launch),
                 color = TextSecondary,
                 fontSize = 13.sp
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun LoginContentPreview() {
+    ServeraTheme {
+        LoginContent(
+            uiState = LoginUiState(isLoading = false, password = "", isBiometricEnabled = false),
+            onPasswordChange = {},
+            onTogglePasswordVisibility = {},
+            onLoginClick = {},
+            onBiometricClick = {},
+            onNavigateToCreatePassword = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun LoginContentWithBiometricPreview() {
+    ServeraTheme {
+        LoginContent(
+            uiState = LoginUiState(isLoading = false, password = "secret", isBiometricEnabled = true),
+            onPasswordChange = {},
+            onTogglePasswordVisibility = {},
+            onLoginClick = {},
+            onBiometricClick = {},
+            onNavigateToCreatePassword = {}
+        )
     }
 }

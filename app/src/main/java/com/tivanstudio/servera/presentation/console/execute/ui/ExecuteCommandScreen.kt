@@ -13,12 +13,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.console.execute.viewmodel.ExecuteCommandEvent
+import com.tivanstudio.servera.presentation.console.execute.viewmodel.ExecuteCommandUiState
 import com.tivanstudio.servera.presentation.console.execute.viewmodel.ExecuteCommandViewModel
 import com.tivanstudio.servera.presentation.theme.*
 
@@ -44,6 +46,24 @@ fun ExecuteCommandScreen(
         }
     }
 
+    ExecuteCommandContent(
+        uiState = uiState,
+        onCommandChange = viewModel::onCommandChange,
+        onSetCommand = viewModel::setCommand,
+        onExecute = viewModel::execute,
+        onBack = onBack
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExecuteCommandContent(
+    uiState: ExecuteCommandUiState,
+    onCommandChange: (String) -> Unit,
+    onSetCommand: (String) -> Unit,
+    onExecute: () -> Unit,
+    onBack: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -66,7 +86,7 @@ fun ExecuteCommandScreen(
 
             OutlinedTextField(
                 value = uiState.command,
-                onValueChange = viewModel::onCommandChange,
+                onValueChange = onCommandChange,
                 label = { Text(stringResource(R.string.command_label)) },
                 placeholder = { Text("uname -a", fontFamily = FontFamily.Monospace, color = TextSecondary) },
                 minLines = 4,
@@ -93,7 +113,7 @@ fun ExecuteCommandScreen(
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(EXAMPLE_COMMANDS) { cmd ->
                     SuggestionChip(
-                        onClick = { viewModel.setCommand(cmd) },
+                        onClick = { onSetCommand(cmd) },
                         label = { Text(cmd, fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
                         colors = SuggestionChipDefaults.suggestionChipColors(containerColor = Elevated)
                     )
@@ -103,7 +123,7 @@ fun ExecuteCommandScreen(
             Spacer(Modifier.weight(1f))
 
             Button(
-                onClick = viewModel::execute,
+                onClick = onExecute,
                 enabled = !uiState.isExecuting && uiState.command.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
@@ -122,5 +142,33 @@ fun ExecuteCommandScreen(
 
             Spacer(Modifier.height(16.dp))
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ExecuteCommandContentPreview() {
+    ServeraTheme {
+        ExecuteCommandContent(
+            uiState = ExecuteCommandUiState(command = "ls -la /etc"),
+            onCommandChange = {},
+            onSetCommand = {},
+            onExecute = {},
+            onBack = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ExecuteCommandContentExecutingPreview() {
+    ServeraTheme {
+        ExecuteCommandContent(
+            uiState = ExecuteCommandUiState(command = "top -bn1", isExecuting = true),
+            onCommandChange = {},
+            onSetCommand = {},
+            onExecute = {},
+            onBack = {}
+        )
     }
 }

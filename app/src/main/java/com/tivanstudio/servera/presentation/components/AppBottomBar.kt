@@ -7,9 +7,11 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.theme.PrimaryGreen
+import com.tivanstudio.servera.presentation.theme.ServeraTheme
 import com.tivanstudio.servera.presentation.theme.Surface
 import com.tivanstudio.servera.presentation.theme.TextSecondary
 
@@ -59,6 +61,32 @@ fun AppBottomBar(
                 unselectedTextColor = TextSecondary,
                 indicatorColor      = PrimaryGreen.copy(alpha = 0.15f)
             )
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AppBottomBarServersPreview() {
+    ServeraTheme {
+        AppBottomBar(
+            currentRoute = Screen.ServerList.route,
+            onServers = {},
+            onHistory = {},
+            onSettings = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AppBottomBarHistoryPreview() {
+    ServeraTheme {
+        AppBottomBar(
+            currentRoute = Screen.History.route,
+            onServers = {},
+            onHistory = {},
+            onSettings = {}
         )
     }
 }
