@@ -72,7 +72,7 @@ private fun ConsoleScreenContent(
                         Text(
                             uiState.server?.host ?: "",
                             fontSize = 11.sp,
-                            color = TextSecondary
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
@@ -86,14 +86,14 @@ private fun ConsoleScreenContent(
                         Icon(Icons.Default.Terminal, contentDescription = null, tint = PrimaryGreen)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             TabRow(
                 selectedTabIndex = uiState.selectedTab,
-                containerColor   = Surface,
+                containerColor   = MaterialTheme.colorScheme.surface,
                 contentColor     = PrimaryGreen
             ) {
                 Tab(
@@ -135,7 +135,7 @@ private fun ConsoleTab(uiState: ConsoleUiState, onExecute: () -> Unit) {
                             onClick = onExecute,
                             label = { Text(cmd.label, fontSize = 12.sp) },
                             colors = SuggestionChipDefaults.suggestionChipColors(
-                                containerColor = Elevated
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
                             )
                         )
                     }
@@ -171,7 +171,7 @@ private fun ConsoleTab(uiState: ConsoleUiState, onExecute: () -> Unit) {
 private fun HistoryItem(history: CommandHistory, onRepeat: () -> Unit) {
     val fmt = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
     Card(
-        colors = CardDefaults.cardColors(containerColor = Surface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -188,13 +188,13 @@ private fun HistoryItem(history: CommandHistory, onRepeat: () -> Unit) {
                 )
                 Text(
                     text = fmt.format(Date(history.executedAt)),
-                    color = TextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp
                 )
             }
             Badge(
                 containerColor = if (history.exitCode == 0) PrimaryGreen else DangerRed,
-                contentColor   = TextPrimary
+                contentColor   = MaterialTheme.colorScheme.onSurface
             ) {
                 Text("${history.exitCode}", modifier = Modifier.padding(4.dp))
             }
@@ -250,14 +250,14 @@ private fun ServerInfoContent(info: ServerInfo) {
 @Composable
 private fun InfoRow(label: String, value: String) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Surface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(label, color = TextSecondary, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.weight(1f))
             Text(
                 value.ifBlank { "—" },
                 fontSize = 13.sp,

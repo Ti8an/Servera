@@ -32,11 +32,8 @@ import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.auth.viewmodel.LoginEvent
 import com.tivanstudio.servera.presentation.auth.viewmodel.LoginUiState
 import com.tivanstudio.servera.presentation.auth.viewmodel.LoginViewModel
-import com.tivanstudio.servera.presentation.theme.Elevated
 import com.tivanstudio.servera.presentation.theme.PrimaryGreen
 import com.tivanstudio.servera.presentation.theme.ServeraTheme
-import com.tivanstudio.servera.presentation.theme.Surface
-import com.tivanstudio.servera.presentation.theme.TextSecondary
 
 @Composable
 fun LoginScreen(
@@ -97,11 +94,12 @@ private fun LoginContent(
     onBiometricClick: () -> Unit,
     onNavigateToCreatePassword: () -> Unit
 ) {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
     if (uiState.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = PrimaryGreen)
         }
-        return
+        return@Surface
     }
 
     Column(
@@ -147,15 +145,15 @@ private fun LoginContent(
                         imageVector = if (uiState.isPasswordVisible) Icons.Default.VisibilityOff
                                       else Icons.Default.Visibility,
                         contentDescription = null,
-                        tint = TextSecondary
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor   = Elevated,
-                unfocusedContainerColor = Elevated,
+                focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 focusedBorderColor      = PrimaryGreen,
-                unfocusedBorderColor    = Surface
+                unfocusedBorderColor    = MaterialTheme.colorScheme.surface
             ),
             modifier = Modifier.fillMaxWidth(),
             isError = uiState.error != null
@@ -187,9 +185,9 @@ private fun LoginContent(
 
         if (uiState.isBiometricEnabled) {
             Spacer(Modifier.height(12.dp))
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Surface)
-            Text(stringResource(R.string.or_divider), color = TextSecondary, fontSize = 12.sp)
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Surface)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.surface)
+            Text(stringResource(R.string.or_divider), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.surface)
             Spacer(Modifier.height(4.dp))
 
             OutlinedButton(
@@ -208,11 +206,12 @@ private fun LoginContent(
         TextButton(onClick = onNavigateToCreatePassword) {
             Text(
                 text = stringResource(R.string.login_first_launch),
-                color = TextSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp
             )
         }
     }
+    } // Surface
 }
 
 @Preview(showBackground = true)

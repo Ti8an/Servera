@@ -12,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -79,7 +78,7 @@ private fun ServerListContent(
             dismissButton = {
                 TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.cancel)) }
             },
-            containerColor = Surface
+            containerColor = MaterialTheme.colorScheme.surface
         )
     }
 
@@ -91,13 +90,13 @@ private fun ServerListContent(
                         OutlinedTextField(
                             value = uiState.searchQuery,
                             onValueChange = onSearch,
-                            placeholder = { Text(stringResource(R.string.search_hint), color = TextSecondary) },
+                            placeholder = { Text(stringResource(R.string.search_hint), color = MaterialTheme.colorScheme.onSurfaceVariant) },
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor   = Elevated,
-                                unfocusedContainerColor = Elevated,
+                                focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 focusedBorderColor      = PrimaryGreen,
-                                unfocusedBorderColor    = Surface
+                                unfocusedBorderColor    = MaterialTheme.colorScheme.surface
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -113,7 +112,7 @@ private fun ServerListContent(
                         Icon(Icons.Default.Refresh, contentDescription = null)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
         bottomBar = {
@@ -158,12 +157,12 @@ private fun ServerListContent(
                                 Icons.Default.Dns,
                                 contentDescription = null,
                                 modifier = Modifier.size(64.dp),
-                                tint = TextSecondary
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(Modifier.height(16.dp))
                             Text(
                                 stringResource(R.string.empty_servers),
-                                color = TextSecondary,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -201,7 +200,7 @@ private fun ServerListItem(
 ) {
     val statusColor by animateColorAsState(
         targetValue = when {
-            server.isChecking -> TextSecondary
+            server.isChecking -> MaterialTheme.colorScheme.onSurfaceVariant
             server.isOnline   -> PrimaryGreen
             else              -> DangerRed
         },
@@ -212,7 +211,7 @@ private fun ServerListItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = Surface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape  = MaterialTheme.shapes.medium
     ) {
         Row(
@@ -236,7 +235,7 @@ private fun ServerListItem(
                 )
                 Text(
                     text = "${server.login}@${server.host}:${server.port}",
-                    color = TextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis

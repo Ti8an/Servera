@@ -25,11 +25,8 @@ import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.auth.viewmodel.CreatePasswordEvent
 import com.tivanstudio.servera.presentation.auth.viewmodel.CreatePasswordUiState
 import com.tivanstudio.servera.presentation.auth.viewmodel.CreatePasswordViewModel
-import com.tivanstudio.servera.presentation.theme.Elevated
 import com.tivanstudio.servera.presentation.theme.PrimaryGreen
 import com.tivanstudio.servera.presentation.theme.ServeraTheme
-import com.tivanstudio.servera.presentation.theme.Surface
-import com.tivanstudio.servera.presentation.theme.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,7 +76,7 @@ private fun CreatePasswordContent(
                         Icon(Icons.Default.ArrowBack, contentDescription = null)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { padding ->
@@ -104,15 +101,15 @@ private fun CreatePasswordContent(
                         Icon(
                             if (uiState.isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                             contentDescription = null,
-                            tint = TextSecondary
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor   = Elevated,
-                    unfocusedContainerColor = Elevated,
+                    focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     focusedBorderColor      = PrimaryGreen,
-                    unfocusedBorderColor    = Surface
+                    unfocusedBorderColor    = MaterialTheme.colorScheme.surface
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -127,10 +124,10 @@ private fun CreatePasswordContent(
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor   = Elevated,
-                    unfocusedContainerColor = Elevated,
+                    focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     focusedBorderColor      = PrimaryGreen,
-                    unfocusedBorderColor    = Surface
+                    unfocusedBorderColor    = MaterialTheme.colorScheme.surface
                 ),
                 modifier = Modifier.fillMaxWidth(),
                 isError = uiState.error != null

@@ -95,7 +95,7 @@ private fun AddServerContent(
                         Icon(Icons.Default.ArrowBack, contentDescription = null)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { padding ->
@@ -132,7 +132,7 @@ private fun AddServerContent(
                         Icon(
                             if (uiState.isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                             contentDescription = null,
-                            tint = TextSecondary
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
@@ -149,12 +149,12 @@ private fun AddServerContent(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium
             ) {
-                Text(stringResource(R.string.server_advanced), color = TextSecondary)
+                Text(stringResource(R.string.server_advanced), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.weight(1f))
                 Icon(
                     if (uiState.isAdvancedExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                     contentDescription = null,
-                    tint = TextSecondary
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -256,10 +256,10 @@ private fun AppTextField(
 
 @Composable
 private fun fieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor   = Elevated,
-    unfocusedContainerColor = Elevated,
+    focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
     focusedBorderColor      = PrimaryGreen,
-    unfocusedBorderColor    = Surface
+    unfocusedBorderColor    = MaterialTheme.colorScheme.surface
 )
 
 @Preview(showBackground = true)

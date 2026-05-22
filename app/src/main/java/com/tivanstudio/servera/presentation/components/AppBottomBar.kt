@@ -12,8 +12,6 @@ import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.theme.PrimaryGreen
 import com.tivanstudio.servera.presentation.theme.ServeraTheme
-import com.tivanstudio.servera.presentation.theme.Surface
-import com.tivanstudio.servera.presentation.theme.TextSecondary
 
 @Composable
 fun AppBottomBar(
@@ -22,7 +20,7 @@ fun AppBottomBar(
     onHistory: () -> Unit,
     onSettings: () -> Unit
 ) {
-    NavigationBar(containerColor = Surface) {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
         NavigationBarItem(
             selected = currentRoute == Screen.ServerList.route,
             onClick  = onServers,
@@ -31,8 +29,8 @@ fun AppBottomBar(
             colors   = NavigationBarItemDefaults.colors(
                 selectedIconColor   = PrimaryGreen,
                 selectedTextColor   = PrimaryGreen,
-                unselectedIconColor = TextSecondary,
-                unselectedTextColor = TextSecondary,
+                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 indicatorColor      = PrimaryGreen.copy(alpha = 0.15f)
             )
         )
@@ -44,8 +42,8 @@ fun AppBottomBar(
             colors   = NavigationBarItemDefaults.colors(
                 selectedIconColor   = PrimaryGreen,
                 selectedTextColor   = PrimaryGreen,
-                unselectedIconColor = TextSecondary,
-                unselectedTextColor = TextSecondary,
+                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 indicatorColor      = PrimaryGreen.copy(alpha = 0.15f)
             )
         )
@@ -57,8 +55,8 @@ fun AppBottomBar(
             colors   = NavigationBarItemDefaults.colors(
                 selectedIconColor   = PrimaryGreen,
                 selectedTextColor   = PrimaryGreen,
-                unselectedIconColor = TextSecondary,
-                unselectedTextColor = TextSecondary,
+                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 indicatorColor      = PrimaryGreen.copy(alpha = 0.15f)
             )
         )

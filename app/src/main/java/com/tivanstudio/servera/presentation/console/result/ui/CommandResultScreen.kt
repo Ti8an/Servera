@@ -84,13 +84,13 @@ private fun CommandResultContent(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { padding ->
         if (result == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.no_data), color = TextSecondary)
+                Text(stringResource(R.string.no_data), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             return@Scaffold
         }
@@ -106,7 +106,7 @@ private fun CommandResultContent(
             Spacer(Modifier.height(8.dp))
 
             Card(
-                colors = CardDefaults.cardColors(containerColor = Surface),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -123,14 +123,14 @@ private fun CommandResultContent(
                         copyToClipboard(context, result.command)
                         Toast.makeText(context, copiedText, Toast.LENGTH_SHORT).show()
                     }) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = null, tint = TextSecondary)
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
 
             Badge(
                 containerColor = if (result.exitCode == 0) PrimaryGreen else DangerRed,
-                contentColor   = TextPrimary
+                contentColor   = MaterialTheme.colorScheme.onSurface
             ) {
                 Text(
                     "Exit code: ${result.exitCode}",
@@ -139,7 +139,7 @@ private fun CommandResultContent(
                 )
             }
 
-            Text(stringResource(R.string.duration_label, result.durationMs), color = TextSecondary, fontSize = 12.sp)
+            Text(stringResource(R.string.duration_label, result.durationMs), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
 
             ResultSection(title = stringResource(R.string.stdout_label), content = result.stdout, context = context, copiedText = copiedText)
             ResultSection(title = stringResource(R.string.stderr_label), content = result.stderr, context = context, copiedText = copiedText)
@@ -181,7 +181,7 @@ private fun ResultSection(title: String, content: String, context: Context, copi
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = TextSecondary)
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (content.isNotBlank()) {
                 IconButton(
                     onClick = {
@@ -190,12 +190,12 @@ private fun ResultSection(title: String, content: String, context: Context, copi
                     },
                     modifier = Modifier.size(28.dp)
                 ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.ContentCopy, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
             }
         }
         Card(
-            colors = CardDefaults.cardColors(containerColor = Elevated),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             modifier = Modifier.fillMaxWidth()
         ) {
             Box(
@@ -209,7 +209,7 @@ private fun ResultSection(title: String, content: String, context: Context, copi
                     text = content.ifBlank { stringResource(R.string.empty_output) },
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
-                    color = if (content.isBlank()) TextSecondary else TextPrimary
+                    color = if (content.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
                 )
             }
         }
