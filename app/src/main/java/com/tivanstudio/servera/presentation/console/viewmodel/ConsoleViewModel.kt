@@ -138,6 +138,31 @@ class ConsoleViewModel @Inject constructor(
         }
     }
 
+    fun saveAndRunEditedCommand(label: String, command: String) {
+        val editing = _uiState.value.editingCommand ?: return
+        val server = _uiState.value.server ?: return
+        val updatedCmd = editing.copy(label = label.trim(), command = command.trim())
+        viewModelScope.launch {
+            val savedId = saveQuickCommand(updatedCmd)
+            val runnableId = if (updatedCmd.id != 0L) updatedCmd.id else savedId
+            _uiState.update { it.copy(editingCommand = null) }
+            _uiState.update {
+                it.copy(commandStatuses = it.commandStatuses + (runnableId to QuickCommandStatus.Running))
+            }
+            executeCommand(server, updatedCmd.command, saveOnFailure = appPreferences.isSaveCommandsAlways.value)
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(commandStatuses = it.commandStatuses + (runnableId to QuickCommandStatus.Success))
+                    }
+                }
+                .onFailure { e ->
+                    _uiState.update {
+                        it.copy(commandStatuses = it.commandStatuses + (runnableId to QuickCommandStatus.Failure(e.message ?: "Unknown error")))
+                    }
+                }
+        }
+    }
+
     fun deleteCommand(id: Long) {
         viewModelScope.launch {
             deleteQuickCommand(id)

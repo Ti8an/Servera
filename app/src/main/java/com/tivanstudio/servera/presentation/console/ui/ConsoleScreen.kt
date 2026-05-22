@@ -5,6 +5,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -35,6 +36,10 @@ import com.tivanstudio.servera.presentation.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
+private val QUICK_COMMAND_EXAMPLES = listOf(
+    "uname -a", "df -h", "free -h", "uptime", "whoami", "ls -la", "ps aux", "top -bn1"
+)
+
 @Composable
 fun ConsoleScreen(
     viewModel: ConsoleViewModel = hiltViewModel(),
@@ -52,16 +57,17 @@ fun ConsoleScreen(
     }
 
     ConsoleScreenContent(
-        uiState          = uiState,
-        onBack           = onBack,
-        onExecute        = viewModel::navigateToExecute,
-        onSelectTab      = viewModel::selectTab,
-        onAddCommand     = viewModel::startAddCommand,
-        onEditCommand    = viewModel::startEditCommand,
-        onDeleteCommand  = viewModel::deleteCommand,
+        uiState               = uiState,
+        onBack                = onBack,
+        onExecute             = viewModel::navigateToExecute,
+        onSelectTab           = viewModel::selectTab,
+        onAddCommand          = viewModel::startAddCommand,
+        onEditCommand         = viewModel::startEditCommand,
+        onDeleteCommand       = viewModel::deleteCommand,
         onExecuteQuickCommand = viewModel::executeQuickCommand,
-        onDismissDialog  = viewModel::dismissEditDialog,
-        onSaveCommand    = viewModel::saveEditedCommand
+        onDismissDialog       = viewModel::dismissEditDialog,
+        onSaveCommand         = viewModel::saveEditedCommand,
+        onRunCommand          = viewModel::saveAndRunEditedCommand
     )
 }
 
@@ -77,13 +83,15 @@ private fun ConsoleScreenContent(
     onDeleteCommand: (Long) -> Unit,
     onExecuteQuickCommand: (QuickCommand) -> Unit,
     onDismissDialog: () -> Unit,
-    onSaveCommand: (String, String) -> Unit
+    onSaveCommand: (String, String) -> Unit,
+    onRunCommand: (String, String) -> Unit
 ) {
     if (uiState.editingCommand != null) {
         QuickCommandDialog(
             cmd       = uiState.editingCommand,
             onDismiss = onDismissDialog,
-            onSave    = onSaveCommand
+            onSave    = onSaveCommand,
+            onRun     = onRunCommand
         )
     }
 
@@ -367,62 +375,121 @@ private fun QuickCommandStatusRow(status: QuickCommandStatus) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun QuickCommandDialog(
     cmd: QuickCommand,
     onDismiss: () -> Unit,
-    onSave: (label: String, command: String) -> Unit
+    onSave: (label: String, command: String) -> Unit,
+    onRun: (label: String, command: String) -> Unit
 ) {
-    var label   by remember(cmd.id) { mutableStateOf(cmd.label) }
-    var command by remember(cmd.id) { mutableStateOf(cmd.command) }
+    var label     by remember(cmd.id) { mutableStateOf(cmd.label) }
+    var command   by remember(cmd.id) { mutableStateOf(cmd.command) }
+    val isNew      = cmd.id == 0L
+    val canSubmit  = label.isNotBlank() && command.isNotBlank()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val isNew = cmd.id == 0L
-
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = {
-            Text(if (isNew) stringResource(R.string.add_quick_command) else stringResource(R.string.edit_quick_command))
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value         = label,
-                    onValueChange = { label = it },
-                    label         = { Text(stringResource(R.string.quick_command_label_hint)) },
-                    singleLine    = true,
-                    colors        = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor   = PrimaryGreen,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value         = command,
-                    onValueChange = { command = it },
-                    label         = { Text(stringResource(R.string.quick_command_command_hint)) },
-                    singleLine    = true,
-                    textStyle     = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
-                    colors        = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor   = PrimaryGreen,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
+        sheetState       = sheetState,
+        containerColor   = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier            = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text      = if (isNew) stringResource(R.string.add_quick_command)
+                            else       stringResource(R.string.edit_quick_command),
+                style     = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            OutlinedTextField(
+                value         = label,
+                onValueChange = { label = it },
+                label         = { Text(stringResource(R.string.quick_command_label_hint)) },
+                singleLine    = true,
+                colors        = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor   = PrimaryGreen,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value         = command,
+                onValueChange = { command = it },
+                label         = { Text(stringResource(R.string.quick_command_command_hint)) },
+                minLines      = 3,
+                maxLines      = 6,
+                textStyle     = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = FontFamily.Monospace,
+                    fontSize   = 14.sp
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    focusedBorderColor      = PrimaryGreen,
+                    unfocusedBorderColor    = MaterialTheme.colorScheme.surface
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Text(
+                stringResource(R.string.example_commands),
+                color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(QUICK_COMMAND_EXAMPLES) { example ->
+                    SuggestionChip(
+                        onClick = { command = example },
+                        label   = { Text(example, fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
+                        colors  = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    )
+                }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onSave(label, command) },
-                enabled = label.isNotBlank() && command.isNotBlank()
+
+            Row(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(stringResource(R.string.save_button), color = PrimaryGreen)
+                OutlinedButton(
+                    onClick  = { onSave(label, command) },
+                    enabled  = canSubmit,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                    shape    = MaterialTheme.shapes.medium
+                ) {
+                    Text(
+                        stringResource(R.string.save_button),
+                        fontWeight = FontWeight.Medium,
+                        color      = if (canSubmit) PrimaryGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Button(
+                    onClick  = { onRun(label, command) },
+                    enabled  = canSubmit,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                    colors   = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                    shape    = MaterialTheme.shapes.medium
+                ) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.run_button), fontWeight = FontWeight.Bold)
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-        containerColor = MaterialTheme.colorScheme.surface
-    )
+        }
+    }
 }
 
 @Composable
@@ -547,7 +614,8 @@ private fun ConsoleTabPreview() {
             onDeleteCommand       = {},
             onExecuteQuickCommand = {},
             onDismissDialog       = {},
-            onSaveCommand         = { _, _ -> }
+            onSaveCommand         = { _, _ -> },
+            onRunCommand          = { _, _ -> }
         )
     }
 }

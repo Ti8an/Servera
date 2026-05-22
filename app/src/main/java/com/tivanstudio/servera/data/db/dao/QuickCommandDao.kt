@@ -10,7 +10,7 @@ interface QuickCommandDao {
     fun getAllQuickCommands(): Flow<List<QuickCommandEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(entity: QuickCommandEntity)
+    suspend fun insert(entity: QuickCommandEntity): Long
 
     @Query("DELETE FROM quick_commands WHERE id = :id")
     suspend fun deleteById(id: Long)

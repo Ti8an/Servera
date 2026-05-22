@@ -5,6 +5,6 @@ import kotlinx.coroutines.flow.Flow
 
 interface QuickCommandRepository {
     fun getQuickCommands(): Flow<List<QuickCommand>>
-    suspend fun saveQuickCommand(cmd: QuickCommand)
+    suspend fun saveQuickCommand(cmd: QuickCommand): Long
     suspend fun deleteQuickCommand(id: Long)
 }
