@@ -2,6 +2,7 @@ package com.tivanstudio.servera.presentation.settings.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tivanstudio.servera.BuildConfig
 import com.tivanstudio.servera.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +21,12 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
-        _uiState.update { it.copy(isBiometricEnabled = authRepository.isBiometricEnabled()) }
+        _uiState.update {
+            it.copy(
+                isBiometricEnabled = authRepository.isBiometricEnabled(),
+                appVersion = "${BuildConfig.VERSION_NAME}-${BuildConfig.VERSION_CODE}"
+            )
+        }
     }
 
     fun toggleBiometric(enabled: Boolean) {
