@@ -67,6 +67,9 @@
     <string name="app_version">Version</string>
     <string name="section_security">Security</string>
     <string name="section_about">About</string>
+    <string name="section_appearance">Appearance</string>
+    <string name="dark_theme_setting">Dark Theme</string>
+    <string name="dark_theme_description">Dark interface</string>
     <string name="biometric_unavailable">Biometrics not available on this device</string>
     <string name="encryption_label">Encryption</string>
     <!-- Status -->

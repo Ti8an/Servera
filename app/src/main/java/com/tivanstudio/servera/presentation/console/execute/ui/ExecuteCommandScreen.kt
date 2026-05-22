@@ -71,7 +71,7 @@ private fun ExecuteCommandContent(
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = null) }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { padding ->
@@ -88,7 +88,7 @@ private fun ExecuteCommandContent(
                 value = uiState.command,
                 onValueChange = onCommandChange,
                 label = { Text(stringResource(R.string.command_label)) },
-                placeholder = { Text("uname -a", fontFamily = FontFamily.Monospace, color = TextSecondary) },
+                placeholder = { Text("uname -a", fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 minLines = 4,
                 maxLines = 10,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
@@ -96,10 +96,10 @@ private fun ExecuteCommandContent(
                     fontSize = 14.sp
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor   = Elevated,
-                    unfocusedContainerColor = Elevated,
+                    focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     focusedBorderColor      = PrimaryGreen,
-                    unfocusedBorderColor    = Surface
+                    unfocusedBorderColor    = MaterialTheme.colorScheme.surface
                 ),
                 modifier = Modifier.fillMaxWidth(),
                 isError = uiState.error != null
@@ -109,13 +109,13 @@ private fun ExecuteCommandContent(
                 Text(uiState.error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
 
-            Text(stringResource(R.string.example_commands), color = TextSecondary, fontSize = 12.sp)
+            Text(stringResource(R.string.example_commands), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(EXAMPLE_COMMANDS) { cmd ->
                     SuggestionChip(
                         onClick = { onSetCommand(cmd) },
                         label = { Text(cmd, fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
-                        colors = SuggestionChipDefaults.suggestionChipColors(containerColor = Elevated)
+                        colors = SuggestionChipDefaults.suggestionChipColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     )
                 }
             }

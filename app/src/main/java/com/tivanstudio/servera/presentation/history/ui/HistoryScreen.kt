@@ -71,7 +71,7 @@ private fun HistoryContent(
                     Text(stringResource(R.string.cancel))
                 }
             },
-            containerColor = Surface
+            containerColor = MaterialTheme.colorScheme.surface
         )
     }
 
@@ -86,7 +86,7 @@ private fun HistoryContent(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
         bottomBar = {
@@ -107,9 +107,9 @@ private fun HistoryContent(
             uiState.history.isEmpty() -> {
                 Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(64.dp), tint = TextSecondary)
+                        Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(16.dp))
-                        Text(stringResource(R.string.empty_history), color = TextSecondary)
+                        Text(stringResource(R.string.empty_history), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -133,7 +133,7 @@ private fun HistoryContent(
 private fun HistoryItemCard(item: CommandHistory) {
     val fmt = remember { SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.getDefault()) }
     Card(
-        colors = CardDefaults.cardColors(containerColor = Surface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -149,7 +149,7 @@ private fun HistoryItemCard(item: CommandHistory) {
                 )
                 Badge(
                     containerColor = if (item.exitCode == 0) PrimaryGreen else DangerRed,
-                    contentColor   = TextPrimary
+                    contentColor   = MaterialTheme.colorScheme.onSurface
                 ) {
                     Text("${item.exitCode}", modifier = Modifier.padding(4.dp))
                 }
@@ -160,7 +160,7 @@ private fun HistoryItemCard(item: CommandHistory) {
                     text = item.stdout.lines().first(),
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp,
-                    color = TextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -168,7 +168,7 @@ private fun HistoryItemCard(item: CommandHistory) {
             Text(
                 text = fmt.format(Date(item.executedAt)),
                 fontSize = 10.sp,
-                color = TextSecondary
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

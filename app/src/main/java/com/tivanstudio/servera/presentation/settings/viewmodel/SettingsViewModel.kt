@@ -3,6 +3,7 @@ package com.tivanstudio.servera.presentation.settings.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.BuildConfig
+import com.tivanstudio.servera.data.preferences.ThemePreferences
 import com.tivanstudio.servera.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +15,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val themePreferences: ThemePreferences
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -24,8 +26,14 @@ class SettingsViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 isBiometricEnabled = authRepository.isBiometricEnabled(),
-                appVersion = "${BuildConfig.VERSION_NAME}-${BuildConfig.VERSION_CODE}"
+                appVersion = "${BuildConfig.VERSION_NAME}-${BuildConfig.VERSION_CODE}",
+                isDarkTheme = themePreferences.isDarkTheme.value
             )
+        }
+        viewModelScope.launch {
+            themePreferences.isDarkTheme.collect { dark ->
+                _uiState.update { it.copy(isDarkTheme = dark) }
+            }
         }
     }
 
@@ -34,5 +42,9 @@ class SettingsViewModel @Inject constructor(
             authRepository.setBiometricEnabled(enabled)
             _uiState.update { it.copy(isBiometricEnabled = enabled) }
         }
+    }
+
+    fun toggleDarkTheme(enabled: Boolean) {
+        themePreferences.setDarkTheme(enabled)
     }
 }

@@ -3,6 +3,7 @@ package com.tivanstudio.servera.presentation.settings.ui
 import androidx.biometric.BiometricManager
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Security
@@ -46,7 +47,8 @@ fun SettingsScreen(
         isBiometricAvailable = isBiometricAvailable,
         onNavigateToServers = onNavigateToServers,
         onNavigateToHistory = onNavigateToHistory,
-        onToggleBiometric = viewModel::toggleBiometric
+        onToggleBiometric = viewModel::toggleBiometric,
+        onToggleDarkTheme = viewModel::toggleDarkTheme
     )
 }
 
@@ -57,13 +59,16 @@ private fun SettingsContent(
     isBiometricAvailable: Boolean,
     onNavigateToServers: () -> Unit,
     onNavigateToHistory: () -> Unit,
-    onToggleBiometric: (Boolean) -> Unit
+    onToggleBiometric: (Boolean) -> Unit,
+    onToggleDarkTheme: (Boolean) -> Unit
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
             )
         },
         bottomBar = {
@@ -84,10 +89,54 @@ private fun SettingsContent(
         ) {
             Spacer(Modifier.height(16.dp))
 
-            Text(stringResource(R.string.section_security), color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(
+                stringResource(R.string.section_appearance),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
 
             Card(
-                colors = CardDefaults.cardColors(containerColor = Surface),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.DarkMode,
+                        contentDescription = null,
+                        tint = InfoBlue,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.dark_theme_setting), fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.dark_theme_description), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    }
+                    Switch(
+                        checked = uiState.isDarkTheme,
+                        onCheckedChange = onToggleDarkTheme,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                            checkedTrackColor = PrimaryGreen
+                        )
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                stringResource(R.string.section_security),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -98,13 +147,16 @@ private fun SettingsContent(
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.biometric_setting), fontWeight = FontWeight.Medium)
-                        Text("Fingerprint / Face ID", color = TextSecondary, fontSize = 12.sp)
+                        Text("Fingerprint / Face ID", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
                     Switch(
                         checked = uiState.isBiometricEnabled && isBiometricAvailable,
                         onCheckedChange = { if (isBiometricAvailable) onToggleBiometric(it) },
                         enabled = isBiometricAvailable,
-                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.onPrimary, checkedTrackColor = PrimaryGreen)
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                            checkedTrackColor = PrimaryGreen
+                        )
                     )
                 }
             }
@@ -112,7 +164,7 @@ private fun SettingsContent(
             if (!isBiometricAvailable) {
                 Text(
                     stringResource(R.string.biometric_unavailable),
-                    color = TextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(start = 4.dp)
                 )
@@ -120,10 +172,15 @@ private fun SettingsContent(
 
             Spacer(Modifier.height(8.dp))
 
-            Text(stringResource(R.string.section_about), color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(
+                stringResource(R.string.section_about),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
 
             Card(
-                colors = CardDefaults.cardColors(containerColor = Surface),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -134,13 +191,13 @@ private fun SettingsContent(
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text("Servera", fontWeight = FontWeight.Medium)
-                        Text("${stringResource(R.string.app_version)} ${uiState.appVersion}", color = TextSecondary, fontSize = 12.sp)
+                        Text("${stringResource(R.string.app_version)} ${uiState.appVersion}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
                 }
             }
 
             Card(
-                colors = CardDefaults.cardColors(containerColor = Surface),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -151,7 +208,7 @@ private fun SettingsContent(
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(stringResource(R.string.encryption_label), fontWeight = FontWeight.Medium)
-                        Text("AES-256-GCM + Android Keystore", color = TextSecondary, fontSize = 12.sp)
+                        Text("AES-256-GCM + Android Keystore", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
                 }
             }
@@ -161,28 +218,30 @@ private fun SettingsContent(
 
 @Preview(showBackground = true)
 @Composable
-private fun SettingsContentPreview() {
-    ServeraTheme {
+private fun SettingsContentDarkPreview() {
+    ServeraTheme(darkTheme = true) {
         SettingsContent(
-            uiState = SettingsUiState(isBiometricEnabled = false, appVersion = "1.1.2"),
+            uiState = SettingsUiState(isBiometricEnabled = false, appVersion = "1.1.2-3", isDarkTheme = true),
             isBiometricAvailable = true,
             onNavigateToServers = {},
             onNavigateToHistory = {},
-            onToggleBiometric = {}
+            onToggleBiometric = {},
+            onToggleDarkTheme = {}
         )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-private fun SettingsContentBiometricEnabledPreview() {
-    ServeraTheme {
+private fun SettingsContentLightPreview() {
+    ServeraTheme(darkTheme = false) {
         SettingsContent(
-            uiState = SettingsUiState(isBiometricEnabled = true, appVersion = "1.1.2"),
+            uiState = SettingsUiState(isBiometricEnabled = false, appVersion = "1.1.2-3", isDarkTheme = false),
             isBiometricAvailable = true,
             onNavigateToServers = {},
             onNavigateToHistory = {},
-            onToggleBiometric = {}
+            onToggleBiometric = {},
+            onToggleDarkTheme = {}
         )
     }
 }
