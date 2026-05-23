@@ -7,5 +7,5 @@ import javax.inject.Inject
 class SaveQuickCommandUseCase @Inject constructor(
     private val repository: QuickCommandRepository
 ) {
-    suspend operator fun invoke(cmd: QuickCommand) = repository.saveQuickCommand(cmd)
+    suspend operator fun invoke(cmd: QuickCommand): Long = repository.saveQuickCommand(cmd)
 }
