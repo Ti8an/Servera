@@ -12,6 +12,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,6 +34,7 @@ import com.tivanstudio.servera.presentation.theme.*
 fun ServerListScreen(
     viewModel: ServerListViewModel = hiltViewModel(),
     onNavigateToAdd: () -> Unit,
+    onNavigateToEdit: (Long) -> Unit,
     onNavigateToConsole: (Long) -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit
@@ -40,6 +43,7 @@ fun ServerListScreen(
     ServerListContent(
         uiState = uiState,
         onNavigateToAdd = onNavigateToAdd,
+        onNavigateToEdit = onNavigateToEdit,
         onNavigateToConsole = onNavigateToConsole,
         onNavigateToHistory = onNavigateToHistory,
         onNavigateToSettings = onNavigateToSettings,
@@ -54,6 +58,7 @@ fun ServerListScreen(
 private fun ServerListContent(
     uiState: ServerListUiState,
     onNavigateToAdd: () -> Unit,
+    onNavigateToEdit: (Long) -> Unit,
     onNavigateToConsole: (Long) -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -179,8 +184,8 @@ private fun ServerListContent(
                             ServerListItem(
                                 server   = server,
                                 onClick  = { onNavigateToConsole(server.id) },
-                                onEdit   = { onNavigateToAdd() },
-                                onDelete = { onDelete(server.id) }
+                                onEdit   = { onNavigateToEdit(server.id) },
+                                onDelete = { deleteTarget = server.id }
                             )
                         }
                         item { Spacer(Modifier.height(8.dp)) }
@@ -191,6 +196,7 @@ private fun ServerListContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ServerListItem(
     server: ServerUiModel,
@@ -207,60 +213,109 @@ private fun ServerListItem(
         label = "status_color"
     )
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape  = MaterialTheme.shapes.medium
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.Dns,
-                contentDescription = null,
-                tint = InfoBlue,
-                modifier = Modifier.size(40.dp)
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { true }
+    )
+
+    LaunchedEffect(dismissState.currentValue) {
+        when (dismissState.currentValue) {
+            SwipeToDismissBoxValue.EndToStart -> {
+                onDelete()
+                dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+            }
+            SwipeToDismissBoxValue.StartToEnd -> {
+                onEdit()
+                dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+            }
+            else -> {}
+        }
+    }
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            val swipeDir = dismissState.targetValue
+            val bgColor by animateColorAsState(
+                targetValue = when (swipeDir) {
+                    SwipeToDismissBoxValue.EndToStart -> DangerRed
+                    SwipeToDismissBoxValue.StartToEnd -> PrimaryGreen
+                    else                             -> Color.Transparent
+                },
+                label = "swipe_bg_color"
             )
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = server.name,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "${server.login}@${server.host}:${server.port}",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier
-                            .size(8.dp)
-                            .background(statusColor, shape = MaterialTheme.shapes.small)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = when {
-                            server.isChecking -> stringResource(R.string.status_checking)
-                            server.isOnline   -> stringResource(R.string.status_online)
-                            else              -> stringResource(R.string.status_offline)
-                        },
-                        color = statusColor,
-                        fontSize = 11.sp
-                    )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(bgColor)
+                    .padding(horizontal = 20.dp),
+                contentAlignment = when (swipeDir) {
+                    SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
+                    else                             -> Alignment.CenterStart
+                }
+            ) {
+                when (swipeDir) {
+                    SwipeToDismissBoxValue.EndToStart ->
+                        Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
+                    SwipeToDismissBoxValue.StartToEnd ->
+                        Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White)
+                    else -> {}
                 }
             }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = null, tint = DangerRed)
+        }
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape  = MaterialTheme.shapes.medium
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Dns,
+                    contentDescription = null,
+                    tint = InfoBlue,
+                    modifier = Modifier.size(40.dp)
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = server.name,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "${server.login}@${server.host}:${server.port}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .size(8.dp)
+                                .background(statusColor, shape = MaterialTheme.shapes.small)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = when {
+                                server.isChecking -> stringResource(R.string.status_checking)
+                                server.isOnline   -> stringResource(R.string.status_online)
+                                else              -> stringResource(R.string.status_offline)
+                            },
+                            color = statusColor,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
             }
         }
     }
@@ -280,6 +335,7 @@ private fun ServerListContentPreview() {
                 )
             ),
             onNavigateToAdd = {},
+            onNavigateToEdit = {},
             onNavigateToConsole = {},
             onNavigateToHistory = {},
             onNavigateToSettings = {},

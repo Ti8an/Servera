@@ -47,6 +47,7 @@ fun AppNavGraph(navController: NavHostController) {
         composable(Screen.ServerList.route) {
             ServerListScreen(
                 onNavigateToAdd     = { navController.navigate(Screen.AddServer.createRoute()) },
+                onNavigateToEdit    = { id -> navController.navigate(Screen.AddServer.createRoute(id)) },
                 onNavigateToConsole = { id -> navController.navigate(Screen.Console.createRoute(id)) },
                 onNavigateToHistory  = { navController.navigate(Screen.History.route) { launchSingleTop = true } },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } }
