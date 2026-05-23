@@ -28,16 +28,25 @@
     <string name="server_private_key_hint">Private Key (PEM)</string>
     <string name="server_timeout_hint">Timeout (sec)</string>
     <string name="save_button">Save</string>
+    <string name="run_button">Run</string>
     <string name="test_button">Test</string>
     <string name="test_connection">Test Connection</string>
     <string name="connection_ok">Connection successful</string>
     <string name="connection_failed">Failed to connect</string>
     <!-- Console -->
+    <string name="cmd_status_running">In progress…</string>
+    <string name="cmd_status_success">Completed</string>
+    <string name="cmd_status_failed">Failed</string>
     <string name="console_tab">Console</string>
     <string name="info_tab">Information</string>
     <string name="new_command">New Command</string>
     <string name="recent_commands">Recent Commands</string>
     <string name="quick_commands">Quick Commands</string>
+    <string name="no_quick_commands">No quick commands. Tap + to add one.</string>
+    <string name="add_quick_command">Add Quick Command</string>
+    <string name="edit_quick_command">Edit Quick Command</string>
+    <string name="quick_command_label_hint">Label</string>
+    <string name="quick_command_command_hint">Command</string>
     <string name="command_label">Command</string>
     <!-- Execute -->
     <string name="execute_title">Execute Command</string>
@@ -70,6 +79,9 @@
     <string name="section_appearance">Appearance</string>
     <string name="dark_theme_setting">Dark Theme</string>
     <string name="dark_theme_description">Dark interface</string>
+    <string name="section_commands">Commands</string>
+    <string name="save_commands_always_setting">Save All Commands</string>
+    <string name="save_commands_always_description">Save to history even when connection fails</string>
     <string name="biometric_unavailable">Biometrics not available on this device</string>
     <string name="encryption_label">Encryption</string>
     <!-- Status -->

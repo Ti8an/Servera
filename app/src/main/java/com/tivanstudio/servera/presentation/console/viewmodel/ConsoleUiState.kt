@@ -14,8 +14,16 @@ data class ConsoleUiState(
     val serverInfo: ServerInfo? = null,
     val isLoadingServerInfo: Boolean = false,
     val serverInfoError: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    val editingCommand: QuickCommand? = null,
+    val commandStatuses: Map<Long, QuickCommandStatus> = emptyMap()
 )
+
+sealed class QuickCommandStatus {
+    object Running : QuickCommandStatus()
+    object Success : QuickCommandStatus()
+    data class Failure(val message: String) : QuickCommandStatus()
+}
 
 sealed class ConsoleEvent {
     data class NavigateToExecute(val serverId: Long) : ConsoleEvent()
