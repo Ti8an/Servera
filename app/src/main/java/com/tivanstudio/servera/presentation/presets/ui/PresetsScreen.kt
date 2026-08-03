@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -30,6 +29,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.Preset
 import com.tivanstudio.servera.domain.entity.PresetSource
+import com.tivanstudio.servera.presentation.components.AppBottomBar
+import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsUiState
 import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsViewModel
 import com.tivanstudio.servera.presentation.theme.*
@@ -37,13 +38,17 @@ import com.tivanstudio.servera.presentation.theme.*
 @Composable
 fun PresetsScreen(
     viewModel: PresetsViewModel = hiltViewModel(),
-    onBack: () -> Unit
+    onNavigateToServers: () -> Unit,
+    onNavigateToHistory: () -> Unit,
+    onNavigateToSettings: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     PresetsScreenContent(
-        uiState         = uiState,
-        onBack          = onBack,
+        uiState              = uiState,
+        onNavigateToServers  = onNavigateToServers,
+        onNavigateToHistory  = onNavigateToHistory,
+        onNavigateToSettings = onNavigateToSettings,
         onAdd           = viewModel::startAdd,
         onEdit          = viewModel::startEdit,
         onCopyToCustom  = viewModel::copyBuiltinToCustom,
@@ -57,7 +62,9 @@ fun PresetsScreen(
 @Composable
 private fun PresetsScreenContent(
     uiState: PresetsUiState,
-    onBack: () -> Unit,
+    onNavigateToServers: () -> Unit,
+    onNavigateToHistory: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     onAdd: () -> Unit,
     onEdit: (Preset) -> Unit,
     onCopyToCustom: (Preset) -> Unit,
@@ -81,14 +88,18 @@ private fun PresetsScreenContent(
                 title = {
                     Text(stringResource(R.string.presets_title), fontWeight = FontWeight.Bold)
                 },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
+            )
+        },
+        bottomBar = {
+            AppBottomBar(
+                currentRoute = Screen.Presets.route,
+                onServers    = onNavigateToServers,
+                onPresets    = {},
+                onHistory    = onNavigateToHistory,
+                onSettings   = onNavigateToSettings
             )
         },
         floatingActionButton = {
@@ -450,7 +461,9 @@ private fun PresetsScreenContentPreview() {
                     Preset(2, "System", "Disk free", "df -h", PresetSource.CUSTOM, 0)
                 )
             ),
-            onBack          = {},
+            onNavigateToServers  = {},
+            onNavigateToHistory  = {},
+            onNavigateToSettings = {},
             onAdd           = {},
             onEdit          = {},
             onCopyToCustom  = {},

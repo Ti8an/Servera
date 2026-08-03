@@ -34,6 +34,7 @@ import java.util.*
 fun HistoryScreen(
     viewModel: HistoryViewModel = hiltViewModel(),
     onNavigateToServers: () -> Unit,
+    onNavigateToPresets: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -41,6 +42,7 @@ fun HistoryScreen(
     HistoryContent(
         uiState = uiState,
         onNavigateToServers = onNavigateToServers,
+        onNavigateToPresets = onNavigateToPresets,
         onNavigateToSettings = onNavigateToSettings,
         onClearAll = viewModel::clearAll
     )
@@ -51,6 +53,7 @@ fun HistoryScreen(
 private fun HistoryContent(
     uiState: HistoryUiState,
     onNavigateToServers: () -> Unit,
+    onNavigateToPresets: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onClearAll: () -> Unit
 ) {
@@ -93,6 +96,7 @@ private fun HistoryContent(
             AppBottomBar(
                 currentRoute = Screen.History.route,
                 onServers    = onNavigateToServers,
+                onPresets    = onNavigateToPresets,
                 onHistory    = {},
                 onSettings   = onNavigateToSettings
             )
@@ -188,6 +192,7 @@ private fun HistoryContentPreview() {
                 )
             ),
             onNavigateToServers = {},
+            onNavigateToPresets = {},
             onNavigateToSettings = {},
             onClearAll = {}
         )

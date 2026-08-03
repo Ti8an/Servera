@@ -50,6 +50,7 @@ fun AppNavGraph(navController: NavHostController) {
                 onNavigateToAdd     = { navController.navigate(Screen.AddServer.createRoute()) },
                 onNavigateToEdit    = { id -> navController.navigate(Screen.AddServer.createRoute(id)) },
                 onNavigateToConsole = { id -> navController.navigate(Screen.Console.createRoute(id)) },
+                onNavigateToPresets  = { navController.navigate(Screen.Presets.route) { launchSingleTop = true } },
                 onNavigateToHistory  = { navController.navigate(Screen.History.route) { launchSingleTop = true } },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } }
             )
@@ -98,6 +99,7 @@ fun AppNavGraph(navController: NavHostController) {
         composable(Screen.History.route) {
             HistoryScreen(
                 onNavigateToServers  = { navController.navigate(Screen.ServerList.route) { launchSingleTop = true } },
+                onNavigateToPresets  = { navController.navigate(Screen.Presets.route) { launchSingleTop = true } },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } }
             )
         }
@@ -105,13 +107,17 @@ fun AppNavGraph(navController: NavHostController) {
         composable(Screen.Settings.route) {
             SettingsScreen(
                 onNavigateToServers  = { navController.navigate(Screen.ServerList.route) { launchSingleTop = true } },
-                onNavigateToHistory  = { navController.navigate(Screen.History.route) { launchSingleTop = true } },
-                onNavigateToPresets  = { navController.navigate(Screen.Presets.route) }
+                onNavigateToPresets  = { navController.navigate(Screen.Presets.route) { launchSingleTop = true } },
+                onNavigateToHistory  = { navController.navigate(Screen.History.route) { launchSingleTop = true } }
             )
         }
 
         composable(Screen.Presets.route) {
-            PresetsScreen(onBack = { navController.popBackStack() })
+            PresetsScreen(
+                onNavigateToServers  = { navController.navigate(Screen.ServerList.route) { launchSingleTop = true } },
+                onNavigateToHistory  = { navController.navigate(Screen.History.route) { launchSingleTop = true } },
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } }
+            )
         }
     }
 }

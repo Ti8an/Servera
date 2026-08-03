@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.StarRate
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -117,6 +116,7 @@ private fun SettingsContent(
             AppBottomBar(
                 currentRoute = Screen.Settings.route,
                 onServers    = onNavigateToServers,
+                onPresets    = onNavigateToPresets,
                 onHistory    = onNavigateToHistory,
                 onSettings   = {}
             )
@@ -176,13 +176,6 @@ private fun SettingsContent(
                 subtitle = stringResource(R.string.save_commands_always_description),
                 checked = uiState.isSaveCommandsAlways,
                 onCheckedChange = onToggleSaveCommandsAlways
-            )
-
-            ActionCard(
-                icon = Icons.Default.Tune,
-                title = stringResource(R.string.presets_title),
-                subtitle = stringResource(R.string.presets_subtitle),
-                onClick = onNavigateToPresets
             )
 
             Spacer(Modifier.height(8.dp))
