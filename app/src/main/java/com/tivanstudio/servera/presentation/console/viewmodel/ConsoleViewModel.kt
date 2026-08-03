@@ -4,9 +4,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.data.preferences.AppPreferences
+import com.tivanstudio.servera.di.CommandResultHolder
+import com.tivanstudio.servera.domain.entity.Preset
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.history.GetCommandHistoryUseCase
+import com.tivanstudio.servera.domain.usecase.preset.GetPresetsUseCase
 import com.tivanstudio.servera.domain.usecase.quickcommand.DeleteQuickCommandUseCase
 import com.tivanstudio.servera.domain.usecase.quickcommand.GetQuickCommandsUseCase
 import com.tivanstudio.servera.domain.usecase.quickcommand.SaveQuickCommandUseCase
@@ -31,6 +34,8 @@ class ConsoleViewModel @Inject constructor(
     private val deleteQuickCommand: DeleteQuickCommandUseCase,
     private val fetchServerInfo: FetchServerInfoUseCase,
     private val executeCommand: ExecuteCommandUseCase,
+    private val getPresets: GetPresetsUseCase,
+    private val resultHolder: CommandResultHolder,
     private val appPreferences: AppPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -47,6 +52,7 @@ class ConsoleViewModel @Inject constructor(
         loadServer()
         observeHistory()
         observeQuickCommands()
+        observePresets()
     }
 
     private fun loadServer() {
@@ -69,6 +75,44 @@ class ConsoleViewModel @Inject constructor(
             getQuickCommands().collect { cmds ->
                 _uiState.update { it.copy(quickCommands = cmds) }
             }
+        }
+    }
+
+    private fun observePresets() {
+        viewModelScope.launch {
+            getPresets().collect { presets ->
+                _uiState.update { it.copy(presets = presets) }
+            }
+        }
+    }
+
+    fun openPresetPicker() {
+        _uiState.update { it.copy(showPresetPicker = true, presetError = null) }
+    }
+
+    fun dismissPresetPicker() {
+        _uiState.update { it.copy(showPresetPicker = false, presetError = null) }
+    }
+
+    fun runPreset(preset: Preset) {
+        val server = _uiState.value.server ?: return
+        if (_uiState.value.runningPresetId != null) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(runningPresetId = preset.id, presetError = null) }
+            executeCommand(server, preset.command, saveOnFailure = appPreferences.isSaveCommandsAlways.value)
+                .onSuccess { result ->
+                    resultHolder.result   = result
+                    resultHolder.serverId = serverId
+                    _uiState.update {
+                        it.copy(runningPresetId = null, showPresetPicker = false, presetError = null)
+                    }
+                    _events.send(ConsoleEvent.NavigateToResult)
+                }
+                .onFailure { e ->
+                    _uiState.update {
+                        it.copy(runningPresetId = null, presetError = e.message ?: "Unknown error")
+                    }
+                }
         }
     }
 

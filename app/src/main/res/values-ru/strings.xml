@@ -117,4 +117,7 @@
     <string name="preset_label">Название</string>
     <string name="preset_command">Команда</string>
     <string name="preset_new_category">Новая категория</string>
+    <string name="presets_picker_open">Выбрать из пресетов</string>
+    <string name="presets_picker_title">Пресеты команд</string>
+    <string name="presets_picker_empty">Пресетов пока нет</string>
 </resources>

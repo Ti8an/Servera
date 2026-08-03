@@ -1,6 +1,7 @@
 package com.tivanstudio.servera.presentation.console.viewmodel
 
 import com.tivanstudio.servera.domain.entity.CommandHistory
+import com.tivanstudio.servera.domain.entity.Preset
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.domain.entity.ServerInfo
@@ -16,8 +17,14 @@ data class ConsoleUiState(
     val serverInfoError: String? = null,
     val error: String? = null,
     val editingCommand: QuickCommand? = null,
-    val commandStatuses: Map<Long, QuickCommandStatus> = emptyMap()
-)
+    val commandStatuses: Map<Long, QuickCommandStatus> = emptyMap(),
+    val presets: List<Preset> = emptyList(),
+    val showPresetPicker: Boolean = false,
+    val runningPresetId: Long? = null,
+    val presetError: String? = null
+) {
+    val groupedPresets: Map<String, List<Preset>> get() = presets.groupBy { it.category }
+}
 
 sealed class QuickCommandStatus {
     object Running : QuickCommandStatus()
@@ -27,4 +34,5 @@ sealed class QuickCommandStatus {
 
 sealed class ConsoleEvent {
     data class NavigateToExecute(val serverId: Long) : ConsoleEvent()
+    object NavigateToResult : ConsoleEvent()
 }

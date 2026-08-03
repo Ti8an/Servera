@@ -4,10 +4,11 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,6 +26,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.CommandHistory
+import com.tivanstudio.servera.domain.entity.Preset
+import com.tivanstudio.servera.domain.entity.PresetSource
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.domain.entity.ServerInfo
@@ -36,14 +39,11 @@ import com.tivanstudio.servera.presentation.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
-private val QUICK_COMMAND_EXAMPLES = listOf(
-    "uname -a", "df -h", "free -h", "uptime", "whoami", "ls -la", "ps aux", "top -bn1"
-)
-
 @Composable
 fun ConsoleScreen(
     viewModel: ConsoleViewModel = hiltViewModel(),
     onNavigateToExecute: (Long) -> Unit,
+    onNavigateToResult: () -> Unit,
     onBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -52,6 +52,7 @@ fun ConsoleScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is ConsoleEvent.NavigateToExecute -> onNavigateToExecute(event.serverId)
+                is ConsoleEvent.NavigateToResult  -> onNavigateToResult()
             }
         }
     }
@@ -67,7 +68,10 @@ fun ConsoleScreen(
         onExecuteQuickCommand = viewModel::executeQuickCommand,
         onDismissDialog       = viewModel::dismissEditDialog,
         onSaveCommand         = viewModel::saveEditedCommand,
-        onRunCommand          = viewModel::saveAndRunEditedCommand
+        onRunCommand          = viewModel::saveAndRunEditedCommand,
+        onOpenPresetPicker    = viewModel::openPresetPicker,
+        onDismissPresetPicker = viewModel::dismissPresetPicker,
+        onRunPreset           = viewModel::runPreset
     )
 }
 
@@ -84,7 +88,10 @@ private fun ConsoleScreenContent(
     onExecuteQuickCommand: (QuickCommand) -> Unit,
     onDismissDialog: () -> Unit,
     onSaveCommand: (String, String) -> Unit,
-    onRunCommand: (String, String) -> Unit
+    onRunCommand: (String, String) -> Unit,
+    onOpenPresetPicker: () -> Unit,
+    onDismissPresetPicker: () -> Unit,
+    onRunPreset: (Preset) -> Unit
 ) {
     if (uiState.editingCommand != null) {
         QuickCommandDialog(
@@ -92,6 +99,14 @@ private fun ConsoleScreenContent(
             onDismiss = onDismissDialog,
             onSave    = onSaveCommand,
             onRun     = onRunCommand
+        )
+    }
+
+    if (uiState.showPresetPicker) {
+        PresetPickerSheet(
+            uiState     = uiState,
+            onDismiss   = onDismissPresetPicker,
+            onRunPreset = onRunPreset
         )
     }
 
@@ -150,7 +165,8 @@ private fun ConsoleScreenContent(
                     onAddCommand          = onAddCommand,
                     onEditCommand         = onEditCommand,
                     onDeleteCommand       = onDeleteCommand,
-                    onExecuteQuickCommand = onExecuteQuickCommand
+                    onExecuteQuickCommand = onExecuteQuickCommand,
+                    onOpenPresetPicker    = onOpenPresetPicker
                 )
                 1 -> InfoTab(uiState = uiState)
             }
@@ -166,7 +182,8 @@ private fun ConsoleTab(
     onAddCommand: () -> Unit,
     onEditCommand: (QuickCommand) -> Unit,
     onDeleteCommand: (Long) -> Unit,
-    onExecuteQuickCommand: (QuickCommand) -> Unit
+    onExecuteQuickCommand: (QuickCommand) -> Unit,
+    onOpenPresetPicker: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -182,12 +199,22 @@ private fun ConsoleTab(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(stringResource(R.string.quick_commands), style = MaterialTheme.typography.titleMedium)
-                IconButton(onClick = onAddCommand, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = stringResource(R.string.add_quick_command),
-                        tint = PrimaryGreen
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onOpenPresetPicker, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            Icons.Default.Bolt,
+                            contentDescription = stringResource(R.string.presets_picker_open),
+                            tint = PrimaryGreen
+                        )
+                    }
+                    Spacer(Modifier.width(4.dp))
+                    IconButton(onClick = onAddCommand, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = stringResource(R.string.add_quick_command),
+                            tint = PrimaryGreen
+                        )
+                    }
                 }
             }
         }
@@ -439,23 +466,6 @@ private fun QuickCommandDialog(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Text(
-                stringResource(R.string.example_commands),
-                color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp
-            )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(QUICK_COMMAND_EXAMPLES) { example ->
-                    SuggestionChip(
-                        onClick = { command = example },
-                        label   = { Text(example, fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
-                        colors  = SuggestionChipDefaults.suggestionChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    )
-                }
-            }
-
             Row(
                 modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -488,6 +498,135 @@ private fun QuickCommandDialog(
                     Text(stringResource(R.string.run_button), fontWeight = FontWeight.Bold)
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PresetPickerSheet(
+    uiState: ConsoleUiState,
+    onDismiss: () -> Unit,
+    onRunPreset: (Preset) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState       = sheetState,
+        containerColor   = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text       = stringResource(R.string.presets_picker_title),
+                style      = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            if (uiState.presetError != null) {
+                Text(
+                    text     = uiState.presetError,
+                    color    = DangerRed,
+                    fontSize = 12.sp
+                )
+            }
+
+            if (uiState.presets.isEmpty()) {
+                Text(
+                    stringResource(R.string.presets_picker_empty),
+                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+            } else {
+                val isBusy = uiState.runningPresetId != null
+
+                LazyColumn(
+                    modifier            = Modifier.heightIn(max = 420.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    uiState.groupedPresets.forEach { (category, presets) ->
+                        item(key = "header_$category") {
+                            Text(
+                                text     = category,
+                                style    = MaterialTheme.typography.titleSmall,
+                                color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                            )
+                        }
+                        items(
+                            items = presets,
+                            key   = { preset ->
+                                when (preset.source) {
+                                    PresetSource.BUILTIN -> "builtin_${preset.category}_${preset.label}"
+                                    PresetSource.CUSTOM  -> "custom_${preset.id}"
+                                }
+                            }
+                        ) { preset ->
+                            PresetPickerRow(
+                                preset    = preset,
+                                isRunning = uiState.runningPresetId == preset.id,
+                                enabled   = !isBusy,
+                                onClick   = { onRunPreset(preset) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PresetPickerRow(
+    preset: Preset,
+    isRunning: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text       = preset.label,
+                fontWeight = FontWeight.Medium,
+                fontSize   = 14.sp,
+                maxLines   = 1,
+                overflow   = TextOverflow.Ellipsis
+            )
+            Text(
+                text       = preset.command,
+                fontFamily = FontFamily.Monospace,
+                fontSize   = 12.sp,
+                color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines   = 1,
+                overflow   = TextOverflow.Ellipsis
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        if (isRunning) {
+            CircularProgressIndicator(
+                modifier    = Modifier.size(16.dp),
+                color       = PrimaryGreen,
+                strokeWidth = 2.dp
+            )
+        } else {
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
@@ -604,7 +743,12 @@ private fun ConsoleTabPreview() {
                 ),
                 recentHistory = listOf(
                     CommandHistory(1, 1, "ls -la /etc", "output", "", 0, System.currentTimeMillis())
-                )
+                ),
+                presets = listOf(
+                    Preset(0, "Docker", "Running containers", "docker ps", PresetSource.BUILTIN, 0),
+                    Preset(1, "System", "Disk free", "df -h", PresetSource.CUSTOM, 0)
+                ),
+                showPresetPicker = false
             ),
             onBack                = {},
             onExecute             = {},
@@ -615,7 +759,10 @@ private fun ConsoleTabPreview() {
             onExecuteQuickCommand = {},
             onDismissDialog       = {},
             onSaveCommand         = { _, _ -> },
-            onRunCommand          = { _, _ -> }
+            onRunCommand          = { _, _ -> },
+            onOpenPresetPicker    = {},
+            onDismissPresetPicker = {},
+            onRunPreset           = {}
         )
     }
 }

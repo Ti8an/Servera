@@ -132,4 +132,7 @@
     <string name="preset_label">Name</string>
     <string name="preset_command">Command</string>
     <string name="preset_new_category">New category</string>
+    <string name="presets_picker_open">Pick from presets</string>
+    <string name="presets_picker_title">Command presets</string>
+    <string name="presets_picker_empty">No presets yet</string>
 </resources>
