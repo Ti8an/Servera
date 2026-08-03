@@ -20,7 +20,8 @@
       "PowerShell(.\\\\gradlew assembleDebug --console=plain -q 2>&1 | Select-Object -Last 40)",
       "PowerShell(.\\\\gradlew assembleDebug --console=plain 2>&1 | Select-Object -Last 8)",
       "PowerShell(.\\\\gradlew assembleDebug --console=plain 2>&1 | Select-Object -Last 15)",
-      "PowerShell(.\\\\gradlew assembleDebugAndroidTest --console=plain 2>&1 | Select-Object -Last 12)"
+      "PowerShell(.\\\\gradlew assembleDebugAndroidTest --console=plain 2>&1 | Select-Object -Last 12)",
+      "PowerShell(.\\\\gradlew assembleDebug --console=plain 2>&1 | Select-Object -Last 12)"
     ]
   }
 }
