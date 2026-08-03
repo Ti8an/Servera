@@ -84,6 +84,10 @@
     <string name="save_commands_always_description">Save to history even when connection fails</string>
     <string name="biometric_unavailable">Biometrics not available on this device</string>
     <string name="encryption_label">Encryption</string>
+    <string name="section_support">SUPPORT</string>
+    <string name="rate_app_title">Rate the app</string>
+    <string name="rate_app_subtitle">Leave a review on Google Play</string>
+    <string name="rate_app_error">Google Play is not available</string>
     <!-- Status -->
     <string name="status_online">Online</string>
     <string name="status_offline">Offline</string>
