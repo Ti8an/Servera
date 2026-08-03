@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.StarRate
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,7 +43,8 @@ import com.tivanstudio.servera.presentation.theme.*
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onNavigateToServers: () -> Unit,
-    onNavigateToHistory: () -> Unit
+    onNavigateToHistory: () -> Unit,
+    onNavigateToPresets: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -81,6 +83,7 @@ fun SettingsScreen(
         isBiometricAvailable = isBiometricAvailable,
         onNavigateToServers = onNavigateToServers,
         onNavigateToHistory = onNavigateToHistory,
+        onNavigateToPresets = onNavigateToPresets,
         onToggleBiometric = viewModel::toggleBiometric,
         onToggleDarkTheme = viewModel::toggleDarkTheme,
         onToggleSaveCommandsAlways = viewModel::toggleSaveCommandsAlways,
@@ -95,6 +98,7 @@ private fun SettingsContent(
     isBiometricAvailable: Boolean,
     onNavigateToServers: () -> Unit,
     onNavigateToHistory: () -> Unit,
+    onNavigateToPresets: () -> Unit,
     onToggleBiometric: (Boolean) -> Unit,
     onToggleDarkTheme: (Boolean) -> Unit,
     onToggleSaveCommandsAlways: (Boolean) -> Unit,
@@ -172,6 +176,13 @@ private fun SettingsContent(
                 subtitle = stringResource(R.string.save_commands_always_description),
                 checked = uiState.isSaveCommandsAlways,
                 onCheckedChange = onToggleSaveCommandsAlways
+            )
+
+            ActionCard(
+                icon = Icons.Default.Tune,
+                title = stringResource(R.string.presets_title),
+                subtitle = stringResource(R.string.presets_subtitle),
+                onClick = onNavigateToPresets
             )
 
             Spacer(Modifier.height(8.dp))
@@ -311,6 +322,7 @@ private fun SettingsContentDarkPreview() {
             isBiometricAvailable = true,
             onNavigateToServers = {},
             onNavigateToHistory = {},
+            onNavigateToPresets = {},
             onToggleBiometric = {},
             onToggleDarkTheme = {},
             onToggleSaveCommandsAlways = {},
@@ -328,6 +340,7 @@ private fun SettingsContentLightPreview() {
             isBiometricAvailable = true,
             onNavigateToServers = {},
             onNavigateToHistory = {},
+            onNavigateToPresets = {},
             onToggleBiometric = {},
             onToggleDarkTheme = {},
             onToggleSaveCommandsAlways = {},
