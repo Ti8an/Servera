@@ -4,10 +4,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.theme.PrimaryGreen
@@ -20,48 +22,48 @@ fun AppBottomBar(
     onHistory: () -> Unit,
     onSettings: () -> Unit
 ) {
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-        NavigationBarItem(
-            selected = currentRoute == Screen.ServerList.route,
-            onClick  = onServers,
-            icon     = { Icon(Icons.Default.Dns, contentDescription = null) },
-            label    = { Text(stringResource(R.string.nav_servers)) },
-            colors   = NavigationBarItemDefaults.colors(
-                selectedIconColor   = PrimaryGreen,
-                selectedTextColor   = PrimaryGreen,
-                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                indicatorColor      = PrimaryGreen.copy(alpha = 0.15f)
-            )
+    Column {
+        HorizontalDivider(
+            thickness = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
         )
-        NavigationBarItem(
-            selected = currentRoute == Screen.History.route,
-            onClick  = onHistory,
-            icon     = { Icon(Icons.Default.History, contentDescription = null) },
-            label    = { Text(stringResource(R.string.nav_history)) },
-            colors   = NavigationBarItemDefaults.colors(
-                selectedIconColor   = PrimaryGreen,
-                selectedTextColor   = PrimaryGreen,
-                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                indicatorColor      = PrimaryGreen.copy(alpha = 0.15f)
+        NavigationBar(
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
+            NavigationBarItem(
+                selected = currentRoute == Screen.ServerList.route,
+                onClick  = onServers,
+                icon     = { Icon(Icons.Default.Dns, contentDescription = null) },
+                label    = { Text(stringResource(R.string.nav_servers)) },
+                colors   = barItemColors()
             )
-        )
-        NavigationBarItem(
-            selected = currentRoute == Screen.Settings.route,
-            onClick  = onSettings,
-            icon     = { Icon(Icons.Default.Settings, contentDescription = null) },
-            label    = { Text(stringResource(R.string.nav_settings)) },
-            colors   = NavigationBarItemDefaults.colors(
-                selectedIconColor   = PrimaryGreen,
-                selectedTextColor   = PrimaryGreen,
-                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                indicatorColor      = PrimaryGreen.copy(alpha = 0.15f)
+            NavigationBarItem(
+                selected = currentRoute == Screen.History.route,
+                onClick  = onHistory,
+                icon     = { Icon(Icons.Default.History, contentDescription = null) },
+                label    = { Text(stringResource(R.string.nav_history)) },
+                colors   = barItemColors()
             )
-        )
+            NavigationBarItem(
+                selected = currentRoute == Screen.Settings.route,
+                onClick  = onSettings,
+                icon     = { Icon(Icons.Default.Settings, contentDescription = null) },
+                label    = { Text(stringResource(R.string.nav_settings)) },
+                colors   = barItemColors()
+            )
+        }
     }
 }
+
+@Composable
+private fun barItemColors() = NavigationBarItemDefaults.colors(
+    selectedIconColor   = PrimaryGreen,
+    selectedTextColor   = PrimaryGreen,
+    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    indicatorColor      = PrimaryGreen.copy(alpha = 0.15f)
+)
 
 @Preview(showBackground = true)
 @Composable
@@ -82,6 +84,19 @@ private fun AppBottomBarHistoryPreview() {
     ServeraTheme {
         AppBottomBar(
             currentRoute = Screen.History.route,
+            onServers = {},
+            onHistory = {},
+            onSettings = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AppBottomBarLightPreview() {
+    ServeraTheme(darkTheme = false) {
+        AppBottomBar(
+            currentRoute = Screen.ServerList.route,
             onServers = {},
             onHistory = {},
             onSettings = {}

@@ -2,9 +2,11 @@ package com.tivanstudio.servera
 
 import android.os.Bundle
 import android.view.WindowManager
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation.compose.rememberNavController
@@ -26,6 +28,18 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         setContent {
             val isDarkTheme by themePreferences.isDarkTheme.collectAsState()
+            LaunchedEffect(isDarkTheme) {
+                enableEdgeToEdge(
+                    statusBarStyle = SystemBarStyle.auto(
+                        android.graphics.Color.TRANSPARENT,
+                        android.graphics.Color.TRANSPARENT
+                    ) { isDarkTheme },
+                    navigationBarStyle = SystemBarStyle.auto(
+                        android.graphics.Color.TRANSPARENT,
+                        android.graphics.Color.TRANSPARENT
+                    ) { isDarkTheme }
+                )
+            }
             ServeraTheme(darkTheme = isDarkTheme) {
                 val navController = rememberNavController()
                 AppNavGraph(navController = navController)
