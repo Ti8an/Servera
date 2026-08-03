@@ -2,6 +2,8 @@ package com.tivanstudio.servera.presentation.settings.ui
 
 import androidx.biometric.BiometricManager
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Fingerprint
@@ -12,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -83,86 +86,40 @@ private fun SettingsContent(
             )
         }
     ) { padding ->
+        val scrollState = rememberScrollState()
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Spacer(Modifier.height(16.dp))
 
-            Text(
-                stringResource(R.string.section_appearance),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
+            SectionTitle(stringResource(R.string.section_appearance))
 
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.DarkMode,
-                        contentDescription = null,
-                        tint = InfoBlue,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.dark_theme_setting), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
-                        Text(stringResource(R.string.dark_theme_description), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                    }
-                    Switch(
-                        checked = uiState.isDarkTheme,
-                        onCheckedChange = onToggleDarkTheme,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                            checkedTrackColor = PrimaryGreen
-                        )
-                    )
-                }
-            }
+            SettingSwitchCard(
+                icon = Icons.Default.DarkMode,
+                title = stringResource(R.string.dark_theme_setting),
+                subtitle = stringResource(R.string.dark_theme_description),
+                checked = uiState.isDarkTheme,
+                onCheckedChange = onToggleDarkTheme
+            )
 
             Spacer(Modifier.height(8.dp))
 
-            Text(
-                stringResource(R.string.section_security),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
+            SectionTitle(stringResource(R.string.section_security))
 
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Fingerprint, contentDescription = null, tint = InfoBlue, modifier = Modifier.size(28.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.biometric_setting), color = MaterialTheme.colorScheme.onSurface,  fontWeight = FontWeight.Medium)
-                        Text("Fingerprint / Face ID", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                    }
-                    Switch(
-                        checked = uiState.isBiometricEnabled && isBiometricAvailable,
-                        onCheckedChange = { if (isBiometricAvailable) onToggleBiometric(it) },
-                        enabled = isBiometricAvailable,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                            checkedTrackColor = PrimaryGreen
-                        )
-                    )
-                }
-            }
+            SettingSwitchCard(
+                icon = Icons.Default.Fingerprint,
+                title = stringResource(R.string.biometric_setting),
+                subtitle = "Fingerprint / Face ID",
+                checked = uiState.isBiometricEnabled && isBiometricAvailable,
+                onCheckedChange = { if (isBiometricAvailable) onToggleBiometric(it) },
+                enabled = isBiometricAvailable
+            )
 
             if (!isBiometricAvailable) {
                 Text(
@@ -175,80 +132,101 @@ private fun SettingsContent(
 
             Spacer(Modifier.height(8.dp))
 
-            Text(
-                stringResource(R.string.section_commands),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
+            SectionTitle(stringResource(R.string.section_commands))
 
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Save, contentDescription = null, tint = InfoBlue, modifier = Modifier.size(28.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.save_commands_always_setting), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
-                        Text(stringResource(R.string.save_commands_always_description), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                    }
-                    Switch(
-                        checked = uiState.isSaveCommandsAlways,
-                        onCheckedChange = onToggleSaveCommandsAlways,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                            checkedTrackColor = PrimaryGreen
-                        )
-                    )
-                }
-            }
+            SettingSwitchCard(
+                icon = Icons.Default.Save,
+                title = stringResource(R.string.save_commands_always_setting),
+                subtitle = stringResource(R.string.save_commands_always_description),
+                checked = uiState.isSaveCommandsAlways,
+                onCheckedChange = onToggleSaveCommandsAlways
+            )
 
             Spacer(Modifier.height(8.dp))
 
-            Text(
-                stringResource(R.string.section_about),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
+            SectionTitle(stringResource(R.string.section_about))
+
+            InfoCard(
+                icon = Icons.Default.Info,
+                title = "Servera",
+                subtitle = "${stringResource(R.string.app_version)} ${uiState.appVersion}"
             )
 
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Info, contentDescription = null, tint = InfoBlue, modifier = Modifier.size(28.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text("Servera", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
-                        Text("${stringResource(R.string.app_version)} ${uiState.appVersion}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                    }
-                }
-            }
+            InfoCard(
+                icon = Icons.Default.Security,
+                title = stringResource(R.string.encryption_label),
+                subtitle = "AES-256-GCM + Android Keystore"
+            )
 
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Security, contentDescription = null, tint = InfoBlue, modifier = Modifier.size(28.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text(stringResource(R.string.encryption_label), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
-                        Text("AES-256-GCM + Android Keystore", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                    }
-                }
-            }
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(
+        text,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium
+    )
+}
+
+@Composable
+private fun SettingCard(content: @Composable RowScope.() -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content
+        )
+    }
+}
+
+@Composable
+private fun SettingSwitchCard(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true
+) {
+    SettingCard {
+        Icon(icon, contentDescription = null, tint = InfoBlue, modifier = Modifier.size(28.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                checkedTrackColor = PrimaryGreen
+            )
+        )
+    }
+}
+
+@Composable
+private fun InfoCard(
+    icon: ImageVector,
+    title: String,
+    subtitle: String
+) {
+    SettingCard {
+        Icon(icon, contentDescription = null, tint = InfoBlue, modifier = Modifier.size(28.dp))
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         }
     }
 }
