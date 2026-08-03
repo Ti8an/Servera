@@ -1,15 +1,22 @@
 package com.tivanstudio.servera.presentation.settings.ui
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.biometric.BiometricManager
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.StarRate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,6 +53,29 @@ fun SettingsScreen(
                 BiometricManager.BIOMETRIC_SUCCESS
     }
 
+    val rateAppError = stringResource(R.string.rate_app_error)
+
+    val onRateApp: () -> Unit = {
+        val pkg = context.packageName.removeSuffix(".debug")
+        try {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pkg"))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (_: ActivityNotFoundException) {
+            try {
+                context.startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://play.google.com/store/apps/details?id=$pkg")
+                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            } catch (_: ActivityNotFoundException) {
+                Toast.makeText(context, rateAppError, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     SettingsContent(
         uiState = uiState,
         isBiometricAvailable = isBiometricAvailable,
@@ -53,7 +83,8 @@ fun SettingsScreen(
         onNavigateToHistory = onNavigateToHistory,
         onToggleBiometric = viewModel::toggleBiometric,
         onToggleDarkTheme = viewModel::toggleDarkTheme,
-        onToggleSaveCommandsAlways = viewModel::toggleSaveCommandsAlways
+        onToggleSaveCommandsAlways = viewModel::toggleSaveCommandsAlways,
+        onRateApp = onRateApp
     )
 }
 
@@ -66,7 +97,8 @@ private fun SettingsContent(
     onNavigateToHistory: () -> Unit,
     onToggleBiometric: (Boolean) -> Unit,
     onToggleDarkTheme: (Boolean) -> Unit,
-    onToggleSaveCommandsAlways: (Boolean) -> Unit
+    onToggleSaveCommandsAlways: (Boolean) -> Unit,
+    onRateApp: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -158,6 +190,17 @@ private fun SettingsContent(
                 subtitle = "AES-256-GCM + Android Keystore"
             )
 
+            Spacer(Modifier.height(8.dp))
+
+            SectionTitle(stringResource(R.string.section_support))
+
+            ActionCard(
+                icon = Icons.Default.StarRate,
+                title = stringResource(R.string.rate_app_title),
+                subtitle = stringResource(R.string.rate_app_subtitle),
+                onClick = onRateApp
+            )
+
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -174,10 +217,15 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun SettingCard(content: @Composable RowScope.() -> Unit) {
+private fun SettingCard(
+    onClick: (() -> Unit)? = null,
+    content: @Composable RowScope.() -> Unit
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -231,6 +279,29 @@ private fun InfoCard(
     }
 }
 
+@Composable
+private fun ActionCard(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    SettingCard(onClick = onClick) {
+        Icon(icon, contentDescription = null, tint = InfoBlue, modifier = Modifier.size(28.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium)
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        }
+        Icon(
+            Icons.AutoMirrored.Filled.OpenInNew,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 private fun SettingsContentDarkPreview() {
@@ -242,7 +313,8 @@ private fun SettingsContentDarkPreview() {
             onNavigateToHistory = {},
             onToggleBiometric = {},
             onToggleDarkTheme = {},
-            onToggleSaveCommandsAlways = {}
+            onToggleSaveCommandsAlways = {},
+            onRateApp = {}
         )
     }
 }
@@ -258,7 +330,8 @@ private fun SettingsContentLightPreview() {
             onNavigateToHistory = {},
             onToggleBiometric = {},
             onToggleDarkTheme = {},
-            onToggleSaveCommandsAlways = {}
+            onToggleSaveCommandsAlways = {},
+            onRateApp = {}
         )
     }
 }

@@ -69,6 +69,10 @@
     <string name="section_about">О приложении</string>
     <string name="biometric_unavailable">Биометрия недоступна на этом устройстве</string>
     <string name="encryption_label">Шифрование</string>
+    <string name="section_support">ПОДДЕРЖКА</string>
+    <string name="rate_app_title">Оценить приложение</string>
+    <string name="rate_app_subtitle">Оставить отзыв в Google Play</string>
+    <string name="rate_app_error">Google Play недоступен</string>
     <!-- Status -->
     <string name="status_online">В сети</string>
     <string name="status_offline">Не в сети</string>
