@@ -13,7 +13,7 @@ android {
     defaultConfig {
         applicationId = "com.tivanstudio.servera"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 5
         versionName = "1.1.4"
 

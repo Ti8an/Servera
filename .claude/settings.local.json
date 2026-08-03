@@ -6,7 +6,17 @@
       "Bash(Sort-Object)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\tim\\\\Desktop\\\\work\\\\Android\\\\Servera\\\\app\\\\Servera\" -Depth 1 -File | Where-Object {$_.Name -notmatch '^\\\\.'} | Select-Object -ExpandProperty FullName | Sort-Object)",
       "Bash(Remove-Item *)",
-      "PowerShell(Remove-Item *)"
+      "PowerShell(Remove-Item *)",
+      "Read(//c/Users/tim/.gradle/caches/modules-2/files-2.1/com.android.tools.build/gradle/**)",
+      "Read(//c/Users/tim/.gradle/caches/modules-2/files-2.1/androidx.compose/compose-bom/**)",
+      "Read(//c/Users/tim/.gradle/wrapper/dists/**)",
+      "Bash(curl -s -m 25 https://dl.google.com/dl/android/maven2/com/android/tools/build/gradle/maven-metadata.xml)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(curl -s -m 25 https://dl.google.com/dl/android/maven2/androidx/compose/compose-bom/maven-metadata.xml)",
+      "Bash(curl -s -m 30 \"https://dl.google.com/dl/android/maven2/androidx/compose/compose-bom/maven-metadata.xml\" -o /tmp/bom.xml -w \"http=%{http_code} size=%{size_download}\\\\n\")",
+      "Bash(./gradlew assembleDebug --console=plain)",
+      "Bash(curl -s -m 25 https://services.gradle.org/versions/current)",
+      "Bash(git *)"
     ]
   }
 }
