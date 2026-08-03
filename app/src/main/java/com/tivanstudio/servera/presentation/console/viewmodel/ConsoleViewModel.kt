@@ -6,13 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.data.preferences.AppPreferences
 import com.tivanstudio.servera.di.CommandResultHolder
 import com.tivanstudio.servera.domain.entity.Preset
-import com.tivanstudio.servera.domain.entity.QuickCommand
+import com.tivanstudio.servera.domain.entity.PresetSource
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.history.GetCommandHistoryUseCase
+import com.tivanstudio.servera.domain.usecase.preset.AddCustomPresetUseCase
+import com.tivanstudio.servera.domain.usecase.preset.DeleteCustomPresetUseCase
 import com.tivanstudio.servera.domain.usecase.preset.GetPresetsUseCase
-import com.tivanstudio.servera.domain.usecase.quickcommand.DeleteQuickCommandUseCase
-import com.tivanstudio.servera.domain.usecase.quickcommand.GetQuickCommandsUseCase
-import com.tivanstudio.servera.domain.usecase.quickcommand.SaveQuickCommandUseCase
 import com.tivanstudio.servera.domain.usecase.ssh.ExecuteCommandUseCase
 import com.tivanstudio.servera.domain.usecase.ssh.FetchServerInfoUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,12 +28,11 @@ import javax.inject.Inject
 class ConsoleViewModel @Inject constructor(
     private val serverRepository: ServerRepository,
     private val getHistory: GetCommandHistoryUseCase,
-    private val getQuickCommands: GetQuickCommandsUseCase,
-    private val saveQuickCommand: SaveQuickCommandUseCase,
-    private val deleteQuickCommand: DeleteQuickCommandUseCase,
     private val fetchServerInfo: FetchServerInfoUseCase,
     private val executeCommand: ExecuteCommandUseCase,
     private val getPresets: GetPresetsUseCase,
+    private val addCustomPreset: AddCustomPresetUseCase,
+    private val deleteCustomPreset: DeleteCustomPresetUseCase,
     private val resultHolder: CommandResultHolder,
     private val appPreferences: AppPreferences,
     savedStateHandle: SavedStateHandle
@@ -51,7 +49,6 @@ class ConsoleViewModel @Inject constructor(
     init {
         loadServer()
         observeHistory()
-        observeQuickCommands()
         observePresets()
     }
 
@@ -70,49 +67,11 @@ class ConsoleViewModel @Inject constructor(
         }
     }
 
-    private fun observeQuickCommands() {
-        viewModelScope.launch {
-            getQuickCommands().collect { cmds ->
-                _uiState.update { it.copy(quickCommands = cmds) }
-            }
-        }
-    }
-
     private fun observePresets() {
         viewModelScope.launch {
             getPresets().collect { presets ->
                 _uiState.update { it.copy(presets = presets) }
             }
-        }
-    }
-
-    fun openPresetPicker() {
-        _uiState.update { it.copy(showPresetPicker = true, presetError = null) }
-    }
-
-    fun dismissPresetPicker() {
-        _uiState.update { it.copy(showPresetPicker = false, presetError = null) }
-    }
-
-    fun runPreset(preset: Preset) {
-        val server = _uiState.value.server ?: return
-        if (_uiState.value.runningPresetId != null) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(runningPresetId = preset.id, presetError = null) }
-            executeCommand(server, preset.command, saveOnFailure = appPreferences.isSaveCommandsAlways.value)
-                .onSuccess { result ->
-                    resultHolder.result   = result
-                    resultHolder.serverId = serverId
-                    _uiState.update {
-                        it.copy(runningPresetId = null, showPresetPicker = false, presetError = null)
-                    }
-                    _events.send(ConsoleEvent.NavigateToResult)
-                }
-                .onFailure { e ->
-                    _uiState.update {
-                        it.copy(runningPresetId = null, presetError = e.message ?: "Unknown error")
-                    }
-                }
         }
     }
 
@@ -141,76 +100,66 @@ class ConsoleViewModel @Inject constructor(
         viewModelScope.launch { _events.send(ConsoleEvent.NavigateToExecute(serverId)) }
     }
 
-    fun executeQuickCommand(cmd: QuickCommand) {
+    fun runPreset(preset: Preset) {
         val server = _uiState.value.server ?: return
+        if (_uiState.value.runningPresetId != null) return
         viewModelScope.launch {
-            _uiState.update {
-                it.copy(commandStatuses = it.commandStatuses + (cmd.id to QuickCommandStatus.Running))
-            }
-            executeCommand(server, cmd.command, saveOnFailure = appPreferences.isSaveCommandsAlways.value)
-                .onSuccess {
-                    _uiState.update {
-                        it.copy(commandStatuses = it.commandStatuses + (cmd.id to QuickCommandStatus.Success))
-                    }
+            _uiState.update { it.copy(runningPresetId = preset.id, presetError = null) }
+            executeCommand(server, preset.command, saveOnFailure = appPreferences.isSaveCommandsAlways.value)
+                .onSuccess { result ->
+                    resultHolder.result   = result
+                    resultHolder.serverId = serverId
+                    _uiState.update { it.copy(runningPresetId = null, presetError = null) }
+                    _events.send(ConsoleEvent.NavigateToResult)
                 }
                 .onFailure { e ->
                     _uiState.update {
-                        it.copy(commandStatuses = it.commandStatuses + (cmd.id to QuickCommandStatus.Failure(e.message ?: "Unknown error")))
+                        it.copy(runningPresetId = null, presetError = e.message ?: "Unknown error")
                     }
                 }
         }
     }
 
-    fun startAddCommand() {
-        val nextOrder = _uiState.value.quickCommands.size
-        _uiState.update { it.copy(editingCommand = QuickCommand(id = 0, label = "", command = "", sortOrder = nextOrder)) }
-    }
-
-    fun startEditCommand(cmd: QuickCommand) {
-        _uiState.update { it.copy(editingCommand = cmd) }
-    }
-
-    fun dismissEditDialog() {
-        _uiState.update { it.copy(editingCommand = null) }
-    }
-
-    fun saveEditedCommand(label: String, command: String) {
-        val editing = _uiState.value.editingCommand ?: return
-        viewModelScope.launch {
-            saveQuickCommand(editing.copy(label = label.trim(), command = command.trim()))
-            _uiState.update { it.copy(editingCommand = null) }
+    fun startAddPreset() {
+        val nextOrder = _uiState.value.presets.size
+        _uiState.update {
+            it.copy(
+                editingPreset = Preset(
+                    id = 0,
+                    category = "",
+                    label = "",
+                    command = "",
+                    source = PresetSource.CUSTOM,
+                    sortOrder = nextOrder
+                )
+            )
         }
     }
 
-    fun saveAndRunEditedCommand(label: String, command: String) {
-        val editing = _uiState.value.editingCommand ?: return
-        val server = _uiState.value.server ?: return
-        val updatedCmd = editing.copy(label = label.trim(), command = command.trim())
+    fun startEditPreset(preset: Preset) {
+        _uiState.update { it.copy(editingPreset = preset) }
+    }
+
+    fun dismissPresetDialog() {
+        _uiState.update { it.copy(editingPreset = null) }
+    }
+
+    fun savePreset(category: String, label: String, command: String) {
+        val editing = _uiState.value.editingPreset ?: return
         viewModelScope.launch {
-            val savedId: Long = saveQuickCommand(updatedCmd)
-            val runnableId: Long = if (updatedCmd.id != 0L) updatedCmd.id else savedId
-            _uiState.update { it.copy(editingCommand = null) }
-            _uiState.update {
-                it.copy(commandStatuses = it.commandStatuses + (runnableId to QuickCommandStatus.Running))
-            }
-            executeCommand(server, updatedCmd.command, saveOnFailure = appPreferences.isSaveCommandsAlways.value)
-                .onSuccess {
-                    _uiState.update {
-                        it.copy(commandStatuses = it.commandStatuses + (runnableId to QuickCommandStatus.Success))
-                    }
-                }
-                .onFailure { e ->
-                    _uiState.update {
-                        it.copy(commandStatuses = it.commandStatuses + (runnableId to QuickCommandStatus.Failure(e.message ?: "Unknown error")))
-                    }
-                }
+            addCustomPreset(
+                editing.copy(
+                    category = category.trim(),
+                    label    = label.trim(),
+                    command  = command.trim(),
+                    source   = PresetSource.CUSTOM
+                )
+            )
+            _uiState.update { it.copy(editingPreset = null) }
         }
     }
 
-    fun deleteCommand(id: Long) {
-        viewModelScope.launch {
-            deleteQuickCommand(id)
-            _uiState.update { it.copy(commandStatuses = it.commandStatuses - id) }
-        }
+    fun deletePreset(id: Long) {
+        viewModelScope.launch { deleteCustomPreset(id) }
     }
 }
