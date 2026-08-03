@@ -13,8 +13,8 @@ class QuickCommandRepositoryImpl @Inject constructor(
     private val dao: QuickCommandDao
 ) : QuickCommandRepository {
 
-    override fun getQuickCommands(): Flow<List<QuickCommand>> =
-        dao.getAllQuickCommands().map { list -> list.map { it.toDomain() } }
+    override fun getQuickCommands(serverId: Long): Flow<List<QuickCommand>> =
+        dao.getForServer(serverId).map { list -> list.map { it.toDomain() } }
 
     override suspend fun saveQuickCommand(cmd: QuickCommand) =
         dao.insert(cmd.toEntity())

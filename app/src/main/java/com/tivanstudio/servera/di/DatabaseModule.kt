@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.tivanstudio.servera.data.db.AppDatabase
 import com.tivanstudio.servera.data.db.MIGRATION_1_2
+import com.tivanstudio.servera.data.db.MIGRATION_2_3
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -19,7 +20,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext ctx: Context): AppDatabase =
         Room.databaseBuilder(ctx, AppDatabase::class.java, "servera.db")
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .build()
 
     @Provides

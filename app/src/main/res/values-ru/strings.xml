@@ -118,6 +118,8 @@
     <string name="preset_command">Команда</string>
     <string name="preset_new_category">Новая категория</string>
     <string name="presets_picker_open">Выбрать из пресетов</string>
-    <string name="presets_picker_title">Пресеты команд</string>
+    <string name="presets_picker_title">Выберите команду</string>
     <string name="presets_picker_empty">Пресетов пока нет</string>
+    <string name="no_attached_commands">Добавьте команды кнопкой +</string>
+    <string name="executed_commands">Выполненные команды</string>
 </resources>

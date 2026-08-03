@@ -6,8 +6,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface QuickCommandDao {
-    @Query("SELECT * FROM quick_commands ORDER BY sortOrder ASC")
-    fun getAllQuickCommands(): Flow<List<QuickCommandEntity>>
+    @Query("SELECT * FROM quick_commands WHERE serverId = :serverId ORDER BY sortOrder ASC")
+    fun getForServer(serverId: Long): Flow<List<QuickCommandEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: QuickCommandEntity): Long
