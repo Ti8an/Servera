@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -16,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -55,16 +57,17 @@ fun ConsoleScreen(
     }
 
     ConsoleScreenContent(
-        uiState         = uiState,
-        onBack          = onBack,
-        onExecute       = viewModel::navigateToExecute,
-        onSelectTab     = viewModel::selectTab,
-        onOpenPicker    = viewModel::openPicker,
-        onDismissPicker = viewModel::dismissPicker,
-        onAttach        = viewModel::attachPreset,
-        onRun           = viewModel::runAttached,
-        onRemove        = viewModel::removeAttached,
-        onToggleHistory = viewModel::toggleHistory
+        uiState            = uiState,
+        onBack             = onBack,
+        onExecute          = viewModel::navigateToExecute,
+        onSelectTab        = viewModel::selectTab,
+        onOpenAddDialog    = viewModel::openAddDialog,
+        onDismissAddDialog = viewModel::dismissAddDialog,
+        onSaveTyped        = viewModel::attachTyped,
+        onSaveAndRun       = viewModel::attachAndRun,
+        onRun              = viewModel::runAttached,
+        onRemove           = viewModel::removeAttached,
+        onToggleHistory    = viewModel::toggleHistory
     )
 }
 
@@ -75,18 +78,20 @@ private fun ConsoleScreenContent(
     onBack: () -> Unit,
     onExecute: () -> Unit,
     onSelectTab: (Int) -> Unit,
-    onOpenPicker: () -> Unit,
-    onDismissPicker: () -> Unit,
-    onAttach: (Preset) -> Unit,
+    onOpenAddDialog: () -> Unit,
+    onDismissAddDialog: () -> Unit,
+    onSaveTyped: (label: String, command: String) -> Unit,
+    onSaveAndRun: (label: String, command: String) -> Unit,
     onRun: (QuickCommand) -> Unit,
     onRemove: (Long) -> Unit,
     onToggleHistory: () -> Unit
 ) {
-    if (uiState.showPicker) {
-        PresetPickerSheet(
-            uiState   = uiState,
-            onDismiss = onDismissPicker,
-            onAttach  = onAttach
+    if (uiState.showAddDialog) {
+        AddCommandDialog(
+            uiState      = uiState,
+            onDismiss    = onDismissAddDialog,
+            onSave       = onSaveTyped,
+            onSaveAndRun = onSaveAndRun
         )
     }
 
@@ -142,7 +147,7 @@ private fun ConsoleScreenContent(
                 0 -> ConsoleTab(
                     uiState         = uiState,
                     onExecute       = onExecute,
-                    onOpenPicker    = onOpenPicker,
+                    onOpenAddDialog = onOpenAddDialog,
                     onRun           = onRun,
                     onRemove        = onRemove,
                     onToggleHistory = onToggleHistory
@@ -158,7 +163,7 @@ private fun ConsoleScreenContent(
 private fun ConsoleTab(
     uiState: ConsoleUiState,
     onExecute: () -> Unit,
-    onOpenPicker: () -> Unit,
+    onOpenAddDialog: () -> Unit,
     onRun: (QuickCommand) -> Unit,
     onRemove: (Long) -> Unit,
     onToggleHistory: () -> Unit
@@ -179,10 +184,10 @@ private fun ConsoleTab(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(stringResource(R.string.quick_commands), style = MaterialTheme.typography.titleMedium)
-                IconButton(onClick = onOpenPicker, modifier = Modifier.size(32.dp)) {
+                IconButton(onClick = onOpenAddDialog, modifier = Modifier.size(32.dp)) {
                     Icon(
                         Icons.Default.Add,
-                        contentDescription = stringResource(R.string.presets_picker_title),
+                        contentDescription = stringResource(R.string.add_command_title),
                         tint = PrimaryGreen
                     )
                 }
@@ -382,79 +387,149 @@ private fun AttachedCommandItem(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PresetPickerSheet(
+private fun AddCommandDialog(
     uiState: ConsoleUiState,
     onDismiss: () -> Unit,
-    onAttach: (Preset) -> Unit
+    onSave: (label: String, command: String) -> Unit,
+    onSaveAndRun: (label: String, command: String) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var label   by remember { mutableStateOf("") }
+    var command by remember { mutableStateOf("") }
 
-    ModalBottomSheet(
+    val canSubmit = label.isNotBlank() && command.isNotBlank()
+    val attached  = uiState.attachedCommandStrings
+
+    AlertDialog(
         onDismissRequest = onDismiss,
-        sheetState       = sheetState,
-        containerColor   = MaterialTheme.colorScheme.surface
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        containerColor   = MaterialTheme.colorScheme.surface,
+        title = {
             Text(
-                text       = stringResource(R.string.presets_picker_title),
+                text       = stringResource(R.string.add_command_title),
                 style      = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
-
-            if (uiState.presets.isEmpty()) {
-                Text(
-                    stringResource(R.string.presets_picker_empty),
-                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value         = label,
+                    onValueChange = { label = it },
+                    label         = { Text(stringResource(R.string.command_label_field)) },
+                    singleLine    = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor   = PrimaryGreen,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    ),
+                    modifier = Modifier.fillMaxWidth()
                 )
-            } else {
-                val attached = uiState.attachedCommandStrings
 
-                LazyColumn(
-                    modifier            = Modifier.heightIn(max = 420.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    uiState.groupedPresets.forEach { (category, presets) ->
-                        item(key = "header_$category") {
-                            Text(
-                                text     = category,
-                                style    = MaterialTheme.typography.titleSmall,
-                                color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                            )
-                        }
-                        items(
-                            items = presets,
-                            key   = { preset ->
-                                when (preset.source) {
-                                    PresetSource.BUILTIN -> "builtin_${preset.category}_${preset.label}"
-                                    PresetSource.CUSTOM  -> "custom_${preset.id}"
-                                }
+                OutlinedTextField(
+                    value         = command,
+                    onValueChange = { command = it },
+                    label         = { Text(stringResource(R.string.command_label)) },
+                    singleLine    = false,
+                    minLines      = 3,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization     = KeyboardCapitalization.None,
+                        autoCorrectEnabled = false
+                    ),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize   = 14.sp
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedBorderColor      = PrimaryGreen,
+                        unfocusedBorderColor    = MaterialTheme.colorScheme.surface
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Text(
+                    text       = stringResource(R.string.common_commands),
+                    style      = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium
+                )
+
+                if (uiState.presets.isEmpty()) {
+                    Text(
+                        stringResource(R.string.no_common_commands),
+                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp
+                    )
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 240.dp)) {
+                        uiState.groupedPresets.forEach { (category, presets) ->
+                            item(key = "header_$category") {
+                                Text(
+                                    text     = category,
+                                    style    = MaterialTheme.typography.labelSmall,
+                                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+                                )
                             }
-                        ) { preset ->
-                            PresetPickerRow(
-                                preset     = preset,
-                                isAttached = preset.command in attached,
-                                onClick    = { onAttach(preset) }
-                            )
+                            items(
+                                items = presets,
+                                key   = { preset ->
+                                    when (preset.source) {
+                                        PresetSource.BUILTIN -> "builtin_${preset.category}_${preset.label}"
+                                        PresetSource.CUSTOM  -> "custom_${preset.id}"
+                                    }
+                                }
+                            ) { preset ->
+                                PresetSuggestionRow(
+                                    preset     = preset,
+                                    isAttached = preset.command in attached,
+                                    onClick    = {
+                                        label   = preset.label
+                                        command = preset.command
+                                    }
+                                )
+                            }
                         }
                     }
                 }
             }
+        },
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(
+                    onClick = { onSave(label, command) },
+                    enabled = canSubmit
+                ) {
+                    Text(
+                        stringResource(R.string.save_button),
+                        fontWeight = FontWeight.Medium,
+                        color = if (canSubmit) PrimaryGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                TextButton(
+                    onClick = { onSaveAndRun(label, command) },
+                    enabled = canSubmit
+                ) {
+                    Text(
+                        stringResource(R.string.run_button),
+                        fontWeight = FontWeight.Medium,
+                        color = if (canSubmit) PrimaryGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    stringResource(R.string.cancel),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
-    }
+    )
 }
 
 @Composable
-private fun PresetPickerRow(
+private fun PresetSuggestionRow(
     preset: Preset,
     isAttached: Boolean,
     onClick: () -> Unit
@@ -462,8 +537,8 @@ private fun PresetPickerRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !isAttached, onClick = onClick)
-            .padding(vertical = 10.dp),
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -471,8 +546,6 @@ private fun PresetPickerRow(
                 text       = preset.label,
                 fontWeight = FontWeight.Medium,
                 fontSize   = 14.sp,
-                color      = if (isAttached) MaterialTheme.colorScheme.onSurfaceVariant
-                             else MaterialTheme.colorScheme.onSurface,
                 maxLines   = 1,
                 overflow   = TextOverflow.Ellipsis
             )
@@ -491,7 +564,7 @@ private fun PresetPickerRow(
                 Icons.Default.Check,
                 contentDescription = null,
                 tint     = PrimaryGreen,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(16.dp)
             )
         }
     }
@@ -607,21 +680,22 @@ private fun ConsoleTabPreview() {
                     Preset(0, "Docker", "Running containers", "docker ps", PresetSource.BUILTIN, 0),
                     Preset(1, "System", "Disk free", "df -h", PresetSource.CUSTOM, 0)
                 ),
-                showPicker  = false,
-                showHistory = false,
+                showAddDialog = false,
+                showHistory   = false,
                 recentHistory = listOf(
                     CommandHistory(1, 1, "ls -la /etc", "output", "", 0, System.currentTimeMillis())
                 )
             ),
-            onBack          = {},
-            onExecute       = {},
-            onSelectTab     = {},
-            onOpenPicker    = {},
-            onDismissPicker = {},
-            onAttach        = {},
-            onRun           = {},
-            onRemove        = {},
-            onToggleHistory = {}
+            onBack             = {},
+            onExecute          = {},
+            onSelectTab        = {},
+            onOpenAddDialog    = {},
+            onDismissAddDialog = {},
+            onSaveTyped        = { _, _ -> },
+            onSaveAndRun       = { _, _ -> },
+            onRun              = {},
+            onRemove           = {},
+            onToggleHistory    = {}
         )
     }
 }
@@ -636,15 +710,16 @@ private fun ConsoleTabEmptyPreview() {
                 server = Server(1, "Staging", "10.0.0.1", 22, "deploy", ""),
                 attachedCommands = emptyList()
             ),
-            onBack          = {},
-            onExecute       = {},
-            onSelectTab     = {},
-            onOpenPicker    = {},
-            onDismissPicker = {},
-            onAttach        = {},
-            onRun           = {},
-            onRemove        = {},
-            onToggleHistory = {}
+            onBack             = {},
+            onExecute          = {},
+            onSelectTab        = {},
+            onOpenAddDialog    = {},
+            onDismissAddDialog = {},
+            onSaveTyped        = { _, _ -> },
+            onSaveAndRun       = { _, _ -> },
+            onRun              = {},
+            onRemove           = {},
+            onToggleHistory    = {}
         )
     }
 }

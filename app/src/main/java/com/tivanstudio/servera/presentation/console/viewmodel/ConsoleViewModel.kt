@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.data.preferences.AppPreferences
 import com.tivanstudio.servera.di.CommandResultHolder
-import com.tivanstudio.servera.domain.entity.Preset
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.history.GetCommandHistoryUseCase
@@ -111,31 +110,67 @@ class ConsoleViewModel @Inject constructor(
         viewModelScope.launch { _events.send(ConsoleEvent.NavigateToExecute(serverId)) }
     }
 
-    fun openPicker() {
-        _uiState.update { it.copy(showPicker = true) }
+    fun openAddDialog() {
+        _uiState.update { it.copy(showAddDialog = true) }
     }
 
-    fun dismissPicker() {
-        _uiState.update { it.copy(showPicker = false) }
+    fun dismissAddDialog() {
+        _uiState.update { it.copy(showAddDialog = false) }
     }
 
     fun toggleHistory() {
         _uiState.update { it.copy(showHistory = !it.showHistory) }
     }
 
-    fun attachPreset(preset: Preset) {
+    fun attachTyped(label: String, command: String) {
         val state = _uiState.value
-        if (preset.command in state.attachedCommandStrings) return
+        if (label.isBlank() || command.isBlank()) return
         viewModelScope.launch {
             saveQuickCommand(
                 QuickCommand(
                     id        = 0,
                     serverId  = serverId,
-                    label     = preset.label,
-                    command   = preset.command,
+                    label     = label.trim(),
+                    command   = command.trim(),
                     sortOrder = state.attachedCommands.size
                 )
             )
+            _uiState.update { it.copy(showAddDialog = false) }
+        }
+    }
+
+    fun attachAndRun(label: String, command: String) {
+        val state  = _uiState.value
+        val server = state.server ?: return
+        if (label.isBlank() || command.isBlank()) return
+        if (state.runningId != null) return
+
+        val trimmed = command.trim()
+        viewModelScope.launch {
+            val newId = saveQuickCommand(
+                QuickCommand(
+                    id        = 0,
+                    serverId  = serverId,
+                    label     = label.trim(),
+                    command   = trimmed,
+                    sortOrder = state.attachedCommands.size
+                )
+            )
+            _uiState.update {
+                it.copy(showAddDialog = false, runningId = newId, runError = null)
+            }
+            executeCommand(server, trimmed, saveOnFailure = appPreferences.isSaveCommandsAlways.value)
+                .onSuccess { result ->
+                    resultHolder.result   = result
+                    resultHolder.serverId = serverId
+                    _uiState.update { it.copy(runningId = null, runError = null) }
+                    _events.send(ConsoleEvent.NavigateToResult)
+                }
+                .onFailure { e ->
+                    _uiState.update {
+                        it.copy(runningId = null, runError = e.message ?: "Unknown error")
+                    }
+                }
         }
     }
 

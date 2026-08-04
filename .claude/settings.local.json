@@ -24,7 +24,9 @@
       "PowerShell(.\\\\gradlew assembleDebug --console=plain 2>&1 | Select-Object -Last 12)",
       "PowerShell(.\\\\gradlew.bat assembleDebug --console=plain)",
       "PowerShell(.\\\\gradlew.bat assembleDebug --console=plain -q)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "PowerShell(.\\\\gradlew assembleDebug --console=plain -q)",
+      "PowerShell(.\\\\gradlew assembleDebug --console=plain | Select-Object -Last 15)"
     ]
   }
 }

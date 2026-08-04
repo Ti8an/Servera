@@ -12,7 +12,7 @@ data class ConsoleUiState(
     val selectedTab: Int = 0,
     val presets: List<Preset> = emptyList(),
     val attachedCommands: List<QuickCommand> = emptyList(),
-    val showPicker: Boolean = false,
+    val showAddDialog: Boolean = false,
     val runningId: Long? = null,
     val runError: String? = null,
     val showHistory: Boolean = false,
