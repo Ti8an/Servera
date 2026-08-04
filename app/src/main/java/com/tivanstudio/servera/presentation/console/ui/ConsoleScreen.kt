@@ -369,19 +369,6 @@ private fun AttachedCommandItem(
                         )
                     }
                 }
-
-                IconButton(
-                    onClick  = onRemove,
-                    enabled  = enabled,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = null,
-                        tint     = DangerRed,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
             }
         }
     }
