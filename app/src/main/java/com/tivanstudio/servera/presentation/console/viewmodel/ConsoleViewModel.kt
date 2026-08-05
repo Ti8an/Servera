@@ -92,10 +92,8 @@ class ConsoleViewModel @Inject constructor(
     }
 
     fun onInfoTabSelected() {
-        val cached = serverCache.infoOf(serverId)
-        when {
-            cached != null -> _uiState.update { it.copy(serverInfo = cached, serverInfoError = null) }
-            _uiState.value.serverInfo == null -> refreshServerInfo()
+        serverCache.infoOf(serverId)?.let { info ->
+            _uiState.update { it.copy(serverInfo = info) }
         }
     }
 

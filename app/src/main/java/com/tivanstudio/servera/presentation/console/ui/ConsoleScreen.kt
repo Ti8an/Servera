@@ -6,10 +6,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -594,59 +598,41 @@ private fun HistoryItem(history: CommandHistory, onRepeat: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun InfoTab(uiState: ConsoleUiState, onRefresh: () -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            modifier              = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.End
-        ) {
-            IconButton(onClick = onRefresh, enabled = !uiState.isLoadingServerInfo) {
-                Icon(
-                    Icons.Default.Refresh,
-                    contentDescription = stringResource(R.string.refresh_info),
-                    tint = PrimaryGreen
+    PullToRefreshBox(
+        isRefreshing = uiState.isLoadingServerInfo,
+        onRefresh    = onRefresh,
+        modifier     = Modifier.fillMaxSize()
+    ) {
+        when {
+            uiState.serverInfo != null -> ServerInfoContent(info = uiState.serverInfo)
+
+            uiState.serverInfoError != null -> Box(
+                modifier         = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text      = uiState.serverInfoError,
+                    color     = DangerRed,
+                    textAlign = TextAlign.Center,
+                    modifier  = Modifier.padding(32.dp)
                 )
             }
-        }
 
-        Box(Modifier.fillMaxSize()) {
-            when {
-                uiState.isLoadingServerInfo -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = PrimaryGreen)
-                }
-                uiState.serverInfoError != null -> {
-                    Column(
-                        modifier              = Modifier.align(Alignment.Center).padding(24.dp),
-                        horizontalAlignment   = Alignment.CenterHorizontally
-                    ) {
-                        Icon(Icons.Default.Error, contentDescription = null, tint = DangerRed, modifier = Modifier.size(48.dp))
-                        Spacer(Modifier.height(8.dp))
-                        Text(uiState.serverInfoError, color = DangerRed)
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(onClick = onRefresh) {
-                            Text(stringResource(R.string.refresh_info), color = PrimaryGreen)
-                        }
-                    }
-                }
-                uiState.serverInfo != null -> ServerInfoContent(info = uiState.serverInfo)
-                else -> {
-                    Column(
-                        modifier            = Modifier.align(Alignment.Center).padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text     = stringResource(R.string.info_not_loaded),
-                            color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 13.sp
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(onClick = onRefresh) {
-                            Text(stringResource(R.string.refresh_info), color = PrimaryGreen)
-                        }
-                    }
-                }
+            else -> Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text      = stringResource(R.string.info_swipe_hint),
+                    color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier  = Modifier.padding(32.dp)
+                )
             }
         }
     }
@@ -654,19 +640,22 @@ private fun InfoTab(uiState: ConsoleUiState, onRefresh: () -> Unit) {
 
 @Composable
 private fun ServerInfoContent(info: ServerInfo) {
-    LazyColumn(
-        modifier            = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        item { Spacer(Modifier.height(8.dp)) }
-        item { InfoRow(stringResource(R.string.info_hostname), info.hostname) }
-        item { InfoRow(stringResource(R.string.info_os), info.os) }
-        item { InfoRow(stringResource(R.string.info_cpu), info.cpuInfo) }
-        item { InfoRow(stringResource(R.string.info_ram_total), info.ramTotal) }
-        item { InfoRow(stringResource(R.string.info_ram_free), info.ramFree) }
-        item { InfoRow(stringResource(R.string.info_disk), info.diskUsage) }
-        item { InfoRow(stringResource(R.string.info_uptime), info.uptime) }
-        item { Spacer(Modifier.height(16.dp)) }
+        Spacer(Modifier.height(8.dp))
+        InfoRow(stringResource(R.string.info_hostname), info.hostname)
+        InfoRow(stringResource(R.string.info_os), info.os)
+        InfoRow(stringResource(R.string.info_cpu), info.cpuInfo)
+        InfoRow(stringResource(R.string.info_ram_total), info.ramTotal)
+        InfoRow(stringResource(R.string.info_ram_free), info.ramFree)
+        InfoRow(stringResource(R.string.info_disk), info.diskUsage)
+        InfoRow(stringResource(R.string.info_uptime), info.uptime)
+        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -742,6 +731,32 @@ private fun ConsoleTabEmptyPreview() {
             uiState = ConsoleUiState(
                 server = Server(1, "Staging", "10.0.0.1", 22, "deploy", ""),
                 attachedCommands = emptyList()
+            ),
+            onBack              = {},
+            onExecute           = {},
+            onSelectTab         = {},
+            onInfoTabSelected   = {},
+            onRefreshServerInfo = {},
+            onOpenAddDialog    = {},
+            onDismissAddDialog = {},
+            onSaveTyped        = { _, _, _ -> },
+            onRun              = {},
+            onRemove           = {},
+            onToggleHistory    = {}
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true)
+@Composable
+private fun InfoTabEmptyPreview() {
+    ServeraTheme {
+        ConsoleScreenContent(
+            uiState = ConsoleUiState(
+                server      = Server(1, "Production", "192.168.1.1", 22, "root", ""),
+                selectedTab = 1,
+                serverInfo  = null
             ),
             onBack              = {},
             onExecute           = {},
