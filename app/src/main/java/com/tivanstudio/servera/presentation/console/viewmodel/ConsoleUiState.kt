@@ -33,4 +33,5 @@ sealed interface CommandRunState {
 
 sealed class ConsoleEvent {
     data class NavigateToExecute(val serverId: Long) : ConsoleEvent()
+    object NavigateToResult : ConsoleEvent()
 }

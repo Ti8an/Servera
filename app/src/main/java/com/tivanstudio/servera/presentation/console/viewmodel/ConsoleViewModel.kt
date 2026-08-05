@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.data.preferences.AppPreferences
+import com.tivanstudio.servera.di.CommandResultHolder
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.history.GetCommandHistoryUseCase
@@ -33,6 +34,7 @@ class ConsoleViewModel @Inject constructor(
     private val deleteQuickCommand: DeleteQuickCommandUseCase,
     private val fetchServerInfo: FetchServerInfoUseCase,
     private val executeCommand: ExecuteCommandUseCase,
+    private val resultHolder: CommandResultHolder,
     private val appPreferences: AppPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -157,6 +159,11 @@ class ConsoleViewModel @Inject constructor(
                             exitCode = result.exitCode
                         )
                     )
+                    if (cmd.showOutput) {
+                        resultHolder.result   = result
+                        resultHolder.serverId = serverId
+                        _events.send(ConsoleEvent.NavigateToResult)
+                    }
                 }
                 .onFailure { e ->
                     setRunState(cmd.id, CommandRunState.Failure(e.message ?: "Unknown error"))

@@ -6,10 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -46,6 +43,7 @@ import java.util.*
 fun ConsoleScreen(
     viewModel: ConsoleViewModel = hiltViewModel(),
     onNavigateToExecute: (Long) -> Unit,
+    onNavigateToResult: () -> Unit,
     onBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -54,6 +52,7 @@ fun ConsoleScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is ConsoleEvent.NavigateToExecute -> onNavigateToExecute(event.serverId)
+                is ConsoleEvent.NavigateToResult  -> onNavigateToResult()
             }
         }
     }
@@ -202,19 +201,12 @@ private fun ConsoleTab(
             }
         } else {
             items(uiState.attachedCommands, key = { it.id }) { cmd ->
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    AttachedCommandItem(
-                        cmd      = cmd,
-                        runState = uiState.runStates[cmd.id],
-                        onRun    = { onRun(cmd) },
-                        onRemove = { onRemove(cmd.id) }
-                    )
-
-                    val runState = uiState.runStates[cmd.id]
-                    if (cmd.showOutput && (runState is CommandRunState.Done || runState is CommandRunState.Failure)) {
-                        InlineOutput(runState)
-                    }
-                }
+                AttachedCommandItem(
+                    cmd      = cmd,
+                    runState = uiState.runStates[cmd.id],
+                    onRun    = { onRun(cmd) },
+                    onRemove = { onRemove(cmd.id) }
+                )
             }
         }
 
@@ -365,63 +357,6 @@ private fun AttachedCommandItem(
                     )
                     null -> Unit
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun InlineOutput(runState: CommandRunState) {
-    Surface(
-        color    = MaterialTheme.colorScheme.surfaceVariant,
-        shape    = MaterialTheme.shapes.small,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .heightIn(max = 200.dp)
-                .verticalScroll(rememberScrollState())
-                .padding(8.dp)
-        ) {
-            SelectionContainer {
-                Column {
-                    when (runState) {
-                        is CommandRunState.Done -> {
-                            if (runState.stdout.isNotBlank()) {
-                                Text(
-                                    text       = runState.stdout.trimEnd(),
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize   = 12.sp
-                                )
-                            }
-                            if (runState.stderr.isNotBlank()) {
-                                Text(
-                                    text       = runState.stderr.trimEnd(),
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize   = 12.sp,
-                                    color      = DangerRed
-                                )
-                            }
-                        }
-                        is CommandRunState.Failure -> Text(
-                            text       = runState.message,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize   = 12.sp,
-                            color      = DangerRed
-                        )
-                        CommandRunState.Running -> Unit
-                    }
-                }
-            }
-
-            if (runState is CommandRunState.Done) {
-                Text(
-                    text       = "exit ${runState.exitCode}",
-                    fontFamily = FontFamily.Monospace,
-                    fontSize   = 11.sp,
-                    color      = if (runState.exitCode == 0) PrimaryGreen else DangerRed,
-                    modifier   = Modifier.padding(top = 4.dp)
-                )
             }
         }
     }
