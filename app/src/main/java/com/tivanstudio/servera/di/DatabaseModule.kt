@@ -3,6 +3,9 @@ package com.tivanstudio.servera.di
 import android.content.Context
 import androidx.room.Room
 import com.tivanstudio.servera.data.db.AppDatabase
+import com.tivanstudio.servera.data.db.MIGRATION_1_2
+import com.tivanstudio.servera.data.db.MIGRATION_2_3
+import com.tivanstudio.servera.data.db.MIGRATION_3_4
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -17,7 +20,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext ctx: Context): AppDatabase =
-        Room.databaseBuilder(ctx, AppDatabase::class.java, "servera.db").build()
+        Room.databaseBuilder(ctx, AppDatabase::class.java, "servera.db")
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .build()
 
     @Provides
     fun provideServerDao(db: AppDatabase) = db.serverDao()
@@ -27,4 +32,7 @@ object DatabaseModule {
 
     @Provides
     fun provideQuickCommandDao(db: AppDatabase) = db.quickCommandDao()
+
+    @Provides
+    fun providePresetDao(db: AppDatabase) = db.presetDao()
 }

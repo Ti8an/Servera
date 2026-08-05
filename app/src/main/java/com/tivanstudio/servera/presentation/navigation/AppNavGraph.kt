@@ -12,6 +12,7 @@ import com.tivanstudio.servera.presentation.console.ui.ConsoleScreen
 import com.tivanstudio.servera.presentation.console.execute.ui.ExecuteCommandScreen
 import com.tivanstudio.servera.presentation.console.result.ui.CommandResultScreen
 import com.tivanstudio.servera.presentation.history.ui.HistoryScreen
+import com.tivanstudio.servera.presentation.presets.ui.PresetsScreen
 import com.tivanstudio.servera.presentation.servers.add.ui.AddServerScreen
 import com.tivanstudio.servera.presentation.servers.list.ui.ServerListScreen
 import com.tivanstudio.servera.presentation.settings.ui.SettingsScreen
@@ -49,6 +50,7 @@ fun AppNavGraph(navController: NavHostController) {
                 onNavigateToAdd     = { navController.navigate(Screen.AddServer.createRoute()) },
                 onNavigateToEdit    = { id -> navController.navigate(Screen.AddServer.createRoute(id)) },
                 onNavigateToConsole = { id -> navController.navigate(Screen.Console.createRoute(id)) },
+                onNavigateToPresets  = { navController.navigate(Screen.Presets.route) { launchSingleTop = true } },
                 onNavigateToHistory  = { navController.navigate(Screen.History.route) { launchSingleTop = true } },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } }
             )
@@ -73,6 +75,7 @@ fun AppNavGraph(navController: NavHostController) {
         ) {
             ConsoleScreen(
                 onNavigateToExecute = { id -> navController.navigate(Screen.Execute.createRoute(id)) },
+                onNavigateToResult  = { navController.navigate(Screen.Result.route) },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -97,6 +100,7 @@ fun AppNavGraph(navController: NavHostController) {
         composable(Screen.History.route) {
             HistoryScreen(
                 onNavigateToServers  = { navController.navigate(Screen.ServerList.route) { launchSingleTop = true } },
+                onNavigateToPresets  = { navController.navigate(Screen.Presets.route) { launchSingleTop = true } },
                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } }
             )
         }
@@ -104,7 +108,16 @@ fun AppNavGraph(navController: NavHostController) {
         composable(Screen.Settings.route) {
             SettingsScreen(
                 onNavigateToServers  = { navController.navigate(Screen.ServerList.route) { launchSingleTop = true } },
+                onNavigateToPresets  = { navController.navigate(Screen.Presets.route) { launchSingleTop = true } },
                 onNavigateToHistory  = { navController.navigate(Screen.History.route) { launchSingleTop = true } }
+            )
+        }
+
+        composable(Screen.Presets.route) {
+            PresetsScreen(
+                onNavigateToServers  = { navController.navigate(Screen.ServerList.route) { launchSingleTop = true } },
+                onNavigateToHistory  = { navController.navigate(Screen.History.route) { launchSingleTop = true } },
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } }
             )
         }
     }

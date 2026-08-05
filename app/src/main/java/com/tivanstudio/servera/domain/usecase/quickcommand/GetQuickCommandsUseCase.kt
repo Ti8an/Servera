@@ -8,5 +8,6 @@ import javax.inject.Inject
 class GetQuickCommandsUseCase @Inject constructor(
     private val repository: QuickCommandRepository
 ) {
-    operator fun invoke(): Flow<List<QuickCommand>> = repository.getQuickCommands()
+    operator fun invoke(serverId: Long): Flow<List<QuickCommand>> =
+        repository.getQuickCommands(serverId)
 }

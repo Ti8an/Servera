@@ -95,6 +95,7 @@
     <!-- Bottom Nav -->
     <string name="nav_servers">Servers</string>
     <string name="nav_history">History</string>
+    <string name="nav_presets">Presets</string>
     <string name="nav_settings">Settings</string>
     <!-- Server Info -->
     <string name="info_hostname">Host</string>
@@ -123,4 +124,22 @@
     <string name="error_wrong_password">Wrong password</string>
     <string name="error_passwords_dont_match">Passwords do not match</string>
     <string name="error_password_too_short">Password is too short (min. 4 characters)</string>
+    <!-- Presets -->
+    <string name="presets_title">Command presets</string>
+    <string name="presets_subtitle">Manage and add your own commands</string>
+    <string name="preset_builtin">built-in</string>
+    <string name="preset_category">Category</string>
+    <string name="preset_label">Name</string>
+    <string name="preset_command">Command</string>
+    <string name="preset_new_category">New category</string>
+    <string name="presets_picker_open">Pick from presets</string>
+    <string name="presets_picker_title">Choose a command</string>
+    <string name="presets_picker_empty">No presets yet</string>
+    <string name="no_attached_commands">Add commands with +</string>
+    <string name="add_command_title">New command</string>
+    <string name="command_label_field">Name</string>
+    <string name="common_commands">Common commands</string>
+    <string name="no_common_commands">No common commands yet</string>
+    <string name="show_output_field">Show output</string>
+    <string name="executed_commands">Executed commands</string>
 </resources>

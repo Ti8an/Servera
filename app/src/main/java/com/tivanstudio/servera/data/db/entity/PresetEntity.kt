@@ -3,12 +3,11 @@ package com.tivanstudio.servera.data.db.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "quick_commands")
-data class QuickCommandEntity(
+@Entity(tableName = "presets")
+data class PresetEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val serverId: Long,
+    val category: String,
     val label: String,
     val command: String,
-    val sortOrder: Int,
-    val showOutput: Boolean = true
+    val sortOrder: Int
 )

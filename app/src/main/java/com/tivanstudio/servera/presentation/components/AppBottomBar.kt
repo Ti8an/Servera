@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -19,6 +20,7 @@ import com.tivanstudio.servera.presentation.theme.ServeraTheme
 fun AppBottomBar(
     currentRoute: String,
     onServers: () -> Unit,
+    onPresets: () -> Unit,
     onHistory: () -> Unit,
     onSettings: () -> Unit
 ) {
@@ -36,6 +38,13 @@ fun AppBottomBar(
                 onClick  = onServers,
                 icon     = { Icon(Icons.Default.Dns, contentDescription = null) },
                 label    = { Text(stringResource(R.string.nav_servers)) },
+                colors   = barItemColors()
+            )
+            NavigationBarItem(
+                selected = currentRoute == Screen.Presets.route,
+                onClick  = onPresets,
+                icon     = { Icon(Icons.Default.Terminal, contentDescription = null) },
+                label    = { Text(stringResource(R.string.nav_presets)) },
                 colors   = barItemColors()
             )
             NavigationBarItem(
@@ -72,6 +81,7 @@ private fun AppBottomBarServersPreview() {
         AppBottomBar(
             currentRoute = Screen.ServerList.route,
             onServers = {},
+            onPresets = {},
             onHistory = {},
             onSettings = {}
         )
@@ -85,6 +95,7 @@ private fun AppBottomBarHistoryPreview() {
         AppBottomBar(
             currentRoute = Screen.History.route,
             onServers = {},
+            onPresets = {},
             onHistory = {},
             onSettings = {}
         )
@@ -98,6 +109,7 @@ private fun AppBottomBarLightPreview() {
         AppBottomBar(
             currentRoute = Screen.ServerList.route,
             onServers = {},
+            onPresets = {},
             onHistory = {},
             onSettings = {}
         )

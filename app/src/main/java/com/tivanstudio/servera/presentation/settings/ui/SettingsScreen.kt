@@ -42,7 +42,8 @@ import com.tivanstudio.servera.presentation.theme.*
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onNavigateToServers: () -> Unit,
-    onNavigateToHistory: () -> Unit
+    onNavigateToHistory: () -> Unit,
+    onNavigateToPresets: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -81,6 +82,7 @@ fun SettingsScreen(
         isBiometricAvailable = isBiometricAvailable,
         onNavigateToServers = onNavigateToServers,
         onNavigateToHistory = onNavigateToHistory,
+        onNavigateToPresets = onNavigateToPresets,
         onToggleBiometric = viewModel::toggleBiometric,
         onToggleDarkTheme = viewModel::toggleDarkTheme,
         onToggleSaveCommandsAlways = viewModel::toggleSaveCommandsAlways,
@@ -95,6 +97,7 @@ private fun SettingsContent(
     isBiometricAvailable: Boolean,
     onNavigateToServers: () -> Unit,
     onNavigateToHistory: () -> Unit,
+    onNavigateToPresets: () -> Unit,
     onToggleBiometric: (Boolean) -> Unit,
     onToggleDarkTheme: (Boolean) -> Unit,
     onToggleSaveCommandsAlways: (Boolean) -> Unit,
@@ -113,6 +116,7 @@ private fun SettingsContent(
             AppBottomBar(
                 currentRoute = Screen.Settings.route,
                 onServers    = onNavigateToServers,
+                onPresets    = onNavigateToPresets,
                 onHistory    = onNavigateToHistory,
                 onSettings   = {}
             )
@@ -311,6 +315,7 @@ private fun SettingsContentDarkPreview() {
             isBiometricAvailable = true,
             onNavigateToServers = {},
             onNavigateToHistory = {},
+            onNavigateToPresets = {},
             onToggleBiometric = {},
             onToggleDarkTheme = {},
             onToggleSaveCommandsAlways = {},
@@ -328,6 +333,7 @@ private fun SettingsContentLightPreview() {
             isBiometricAvailable = true,
             onNavigateToServers = {},
             onNavigateToHistory = {},
+            onNavigateToPresets = {},
             onToggleBiometric = {},
             onToggleDarkTheme = {},
             onToggleSaveCommandsAlways = {},

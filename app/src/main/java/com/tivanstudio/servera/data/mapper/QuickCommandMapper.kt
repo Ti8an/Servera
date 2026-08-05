@@ -5,14 +5,18 @@ import com.tivanstudio.servera.domain.entity.QuickCommand
 
 fun QuickCommandEntity.toDomain(): QuickCommand = QuickCommand(
     id = id,
+    serverId = serverId,
     label = label,
     command = command,
-    sortOrder = sortOrder
+    sortOrder = sortOrder,
+    showOutput = showOutput
 )
 
 fun QuickCommand.toEntity(): QuickCommandEntity = QuickCommandEntity(
     id = id,
+    serverId = serverId,
     label = label,
     command = command,
-    sortOrder = sortOrder
+    sortOrder = sortOrder,
+    showOutput = showOutput
 )

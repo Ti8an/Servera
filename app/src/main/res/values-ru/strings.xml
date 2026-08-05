@@ -28,6 +28,7 @@
     <string name="server_private_key_hint">Приватный ключ (PEM)</string>
     <string name="server_timeout_hint">Таймаут (сек)</string>
     <string name="save_button">Сохранить</string>
+    <string name="run_button">Запустить</string>
     <string name="test_button">Тест</string>
     <string name="test_connection">Тест соединения</string>
     <string name="connection_ok">Соединение успешно</string>
@@ -80,6 +81,7 @@
     <!-- Bottom Nav -->
     <string name="nav_servers">Серверы</string>
     <string name="nav_history">История</string>
+    <string name="nav_presets">Команды</string>
     <string name="nav_settings">Настройки</string>
     <!-- Server Info -->
     <string name="info_hostname">Хост</string>
@@ -108,4 +110,22 @@
     <string name="error_wrong_password">Неверный пароль</string>
     <string name="error_passwords_dont_match">Пароли не совпадают</string>
     <string name="error_password_too_short">Пароль слишком короткий (мин. 4 символа)</string>
+    <!-- Presets -->
+    <string name="presets_title">Пресеты команд</string>
+    <string name="presets_subtitle">Управление и свои команды</string>
+    <string name="preset_builtin">встроенный</string>
+    <string name="preset_category">Категория</string>
+    <string name="preset_label">Название</string>
+    <string name="preset_command">Команда</string>
+    <string name="preset_new_category">Новая категория</string>
+    <string name="presets_picker_open">Выбрать из пресетов</string>
+    <string name="presets_picker_title">Выберите команду</string>
+    <string name="presets_picker_empty">Пресетов пока нет</string>
+    <string name="no_attached_commands">Добавьте команды кнопкой +</string>
+    <string name="add_command_title">Новая команда</string>
+    <string name="command_label_field">Название</string>
+    <string name="common_commands">Общие команды</string>
+    <string name="no_common_commands">Общих команд пока нет</string>
+    <string name="show_output_field">Показывать результат</string>
+    <string name="executed_commands">Выполненные команды</string>
 </resources>

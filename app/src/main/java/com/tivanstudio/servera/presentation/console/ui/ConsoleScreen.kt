@@ -1,12 +1,12 @@
 package com.tivanstudio.servera.presentation.console.ui
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -25,25 +26,24 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.CommandHistory
+import com.tivanstudio.servera.domain.entity.Preset
+import com.tivanstudio.servera.domain.entity.PresetSource
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.domain.entity.ServerInfo
+import com.tivanstudio.servera.presentation.console.viewmodel.CommandRunState
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleEvent
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleUiState
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleViewModel
-import com.tivanstudio.servera.presentation.console.viewmodel.QuickCommandStatus
 import com.tivanstudio.servera.presentation.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
-
-private val QUICK_COMMAND_EXAMPLES = listOf(
-    "uname -a", "df -h", "free -h", "uptime", "whoami", "ls -la", "ps aux", "top -bn1"
-)
 
 @Composable
 fun ConsoleScreen(
     viewModel: ConsoleViewModel = hiltViewModel(),
     onNavigateToExecute: (Long) -> Unit,
+    onNavigateToResult: () -> Unit,
     onBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -52,22 +52,22 @@ fun ConsoleScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is ConsoleEvent.NavigateToExecute -> onNavigateToExecute(event.serverId)
+                is ConsoleEvent.NavigateToResult  -> onNavigateToResult()
             }
         }
     }
 
     ConsoleScreenContent(
-        uiState               = uiState,
-        onBack                = onBack,
-        onExecute             = viewModel::navigateToExecute,
-        onSelectTab           = viewModel::selectTab,
-        onAddCommand          = viewModel::startAddCommand,
-        onEditCommand         = viewModel::startEditCommand,
-        onDeleteCommand       = viewModel::deleteCommand,
-        onExecuteQuickCommand = viewModel::executeQuickCommand,
-        onDismissDialog       = viewModel::dismissEditDialog,
-        onSaveCommand         = viewModel::saveEditedCommand,
-        onRunCommand          = viewModel::saveAndRunEditedCommand
+        uiState            = uiState,
+        onBack             = onBack,
+        onExecute          = viewModel::navigateToExecute,
+        onSelectTab        = viewModel::selectTab,
+        onOpenAddDialog    = viewModel::openAddDialog,
+        onDismissAddDialog = viewModel::dismissAddDialog,
+        onSaveTyped        = viewModel::attachTyped,
+        onRun              = viewModel::runAttached,
+        onRemove           = viewModel::removeAttached,
+        onToggleHistory    = viewModel::toggleHistory
     )
 }
 
@@ -78,20 +78,18 @@ private fun ConsoleScreenContent(
     onBack: () -> Unit,
     onExecute: () -> Unit,
     onSelectTab: (Int) -> Unit,
-    onAddCommand: () -> Unit,
-    onEditCommand: (QuickCommand) -> Unit,
-    onDeleteCommand: (Long) -> Unit,
-    onExecuteQuickCommand: (QuickCommand) -> Unit,
-    onDismissDialog: () -> Unit,
-    onSaveCommand: (String, String) -> Unit,
-    onRunCommand: (String, String) -> Unit
+    onOpenAddDialog: () -> Unit,
+    onDismissAddDialog: () -> Unit,
+    onSaveTyped: (label: String, command: String, showOutput: Boolean) -> Unit,
+    onRun: (QuickCommand) -> Unit,
+    onRemove: (Long) -> Unit,
+    onToggleHistory: () -> Unit
 ) {
-    if (uiState.editingCommand != null) {
-        QuickCommandDialog(
-            cmd       = uiState.editingCommand,
-            onDismiss = onDismissDialog,
-            onSave    = onSaveCommand,
-            onRun     = onRunCommand
+    if (uiState.showAddDialog) {
+        AddCommandDialog(
+            uiState   = uiState,
+            onDismiss = onDismissAddDialog,
+            onSave    = onSaveTyped
         )
     }
 
@@ -145,12 +143,12 @@ private fun ConsoleScreenContent(
 
             when (uiState.selectedTab) {
                 0 -> ConsoleTab(
-                    uiState               = uiState,
-                    onExecute             = onExecute,
-                    onAddCommand          = onAddCommand,
-                    onEditCommand         = onEditCommand,
-                    onDeleteCommand       = onDeleteCommand,
-                    onExecuteQuickCommand = onExecuteQuickCommand
+                    uiState         = uiState,
+                    onExecute       = onExecute,
+                    onOpenAddDialog = onOpenAddDialog,
+                    onRun           = onRun,
+                    onRemove        = onRemove,
+                    onToggleHistory = onToggleHistory
                 )
                 1 -> InfoTab(uiState = uiState)
             }
@@ -163,10 +161,10 @@ private fun ConsoleScreenContent(
 private fun ConsoleTab(
     uiState: ConsoleUiState,
     onExecute: () -> Unit,
-    onAddCommand: () -> Unit,
-    onEditCommand: (QuickCommand) -> Unit,
-    onDeleteCommand: (Long) -> Unit,
-    onExecuteQuickCommand: (QuickCommand) -> Unit
+    onOpenAddDialog: () -> Unit,
+    onRun: (QuickCommand) -> Unit,
+    onRemove: (Long) -> Unit,
+    onToggleHistory: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -182,33 +180,32 @@ private fun ConsoleTab(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(stringResource(R.string.quick_commands), style = MaterialTheme.typography.titleMedium)
-                IconButton(onClick = onAddCommand, modifier = Modifier.size(32.dp)) {
+                IconButton(onClick = onOpenAddDialog, modifier = Modifier.size(32.dp)) {
                     Icon(
                         Icons.Default.Add,
-                        contentDescription = stringResource(R.string.add_quick_command),
+                        contentDescription = stringResource(R.string.add_command_title),
                         tint = PrimaryGreen
                     )
                 }
             }
         }
 
-        if (uiState.quickCommands.isEmpty()) {
+        if (uiState.attachedCommands.isEmpty()) {
             item {
                 Text(
-                    stringResource(R.string.no_quick_commands),
+                    stringResource(R.string.no_attached_commands),
                     color    = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
         } else {
-            items(uiState.quickCommands, key = { it.id }) { cmd ->
-                QuickCommandItem(
+            items(uiState.attachedCommands, key = { it.id }) { cmd ->
+                AttachedCommandItem(
                     cmd      = cmd,
-                    status   = uiState.commandStatuses[cmd.id],
-                    onTap    = { onExecuteQuickCommand(cmd) },
-                    onEdit   = { onEditCommand(cmd) },
-                    onDelete = { onDeleteCommand(cmd.id) }
+                    runState = uiState.runStates[cmd.id],
+                    onRun    = { onRun(cmd) },
+                    onRemove = { onRemove(cmd.id) }
                 )
             }
         }
@@ -231,9 +228,31 @@ private fun ConsoleTab(
         }
 
         if (uiState.recentHistory.isNotEmpty()) {
-            item { Text(stringResource(R.string.recent_commands), style = MaterialTheme.typography.titleMedium) }
-            items(uiState.recentHistory) { history ->
-                HistoryItem(history = history, onRepeat = onExecute)
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onToggleHistory)
+                        .padding(vertical = 4.dp),
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        stringResource(R.string.executed_commands),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Icon(
+                        if (uiState.showHistory) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (uiState.showHistory) {
+                items(uiState.recentHistory) { history ->
+                    HistoryItem(history = history, onRepeat = onExecute)
+                }
             }
         }
 
@@ -243,98 +262,100 @@ private fun ConsoleTab(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QuickCommandItem(
+private fun AttachedCommandItem(
     cmd: QuickCommand,
-    status: QuickCommandStatus?,
-    onTap: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    runState: CommandRunState?,
+    onRun: () -> Unit,
+    onRemove: () -> Unit
 ) {
+    val isRunning = runState is CommandRunState.Running
+
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            when (value) {
-                SwipeToDismissBoxValue.StartToEnd -> { onDelete(); true  }
-                SwipeToDismissBoxValue.EndToStart -> { onEdit();  false }
-                else                              -> false
+            if (value == SwipeToDismissBoxValue.EndToStart) {
+                onRemove()
+                true
+            } else {
+                false
             }
         }
     )
 
     SwipeToDismissBox(
         state = dismissState,
+        enableDismissFromStartToEnd = false,
+        enableDismissFromEndToStart = true,
         backgroundContent = {
-            val direction = dismissState.dismissDirection
             val color by animateColorAsState(
-                targetValue = when (direction) {
-                    SwipeToDismissBoxValue.StartToEnd -> DangerRed.copy(alpha = 0.85f)
-                    SwipeToDismissBoxValue.EndToStart -> InfoBlue.copy(alpha = 0.85f)
-                    else                             -> Color.Transparent
+                targetValue = when (dismissState.dismissDirection) {
+                    SwipeToDismissBoxValue.EndToStart -> DangerRed.copy(alpha = 0.85f)
+                    else                              -> Color.Transparent
                 },
-                label = "swipe_bg"
+                label = "attached_swipe_bg"
             )
-            val alignment = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-                else                             -> Alignment.CenterEnd
-            }
-            val icon = when (direction) {
-                SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Delete
-                else                             -> Icons.Default.Edit
-            }
             Box(
-                modifier          = Modifier
+                modifier = Modifier
                     .fillMaxSize()
                     .background(color, shape = MaterialTheme.shapes.medium)
                     .padding(horizontal = 16.dp),
-                contentAlignment  = alignment
+                contentAlignment = Alignment.CenterEnd
             ) {
-                if (direction != SwipeToDismissBoxValue.Settled) {
-                    Icon(icon, contentDescription = null, tint = Color.White)
+                if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
+                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
                 }
             }
         }
     ) {
         Card(
-            onClick = onTap,
-            colors  = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape   = MaterialTheme.shapes.medium,
+            colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape    = MaterialTheme.shapes.medium,
             modifier = Modifier
                 .fillMaxWidth()
-                .animateContentSize()
+                .clickable(enabled = !isRunning, onClick = onRun)
         ) {
-            Column {
-                Row(
-                    modifier          = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Terminal,
-                        contentDescription = null,
-                        tint     = InfoBlue,
-                        modifier = Modifier.size(20.dp)
+            Row(
+                modifier          = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text       = cmd.label,
+                        fontWeight = FontWeight.Medium,
+                        fontSize   = 14.sp,
+                        maxLines   = 1,
+                        overflow   = TextOverflow.Ellipsis
                     )
-                    Spacer(Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text       = cmd.label,
-                            fontWeight = FontWeight.Medium,
-                            fontSize   = 14.sp,
-                            maxLines   = 1,
-                            overflow   = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text       = cmd.command,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize   = 11.sp,
-                            color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines   = 1,
-                            overflow   = TextOverflow.Ellipsis
-                        )
-                    }
+                    Text(
+                        text       = cmd.command,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize   = 12.sp,
+                        color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines   = 1,
+                        overflow   = TextOverflow.Ellipsis
+                    )
                 }
 
-                if (status != null) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-                    QuickCommandStatusRow(status = status)
+                Spacer(Modifier.width(8.dp))
+
+                when (runState) {
+                    is CommandRunState.Running -> CircularProgressIndicator(
+                        modifier    = Modifier.size(18.dp),
+                        color       = PrimaryGreen,
+                        strokeWidth = 2.dp
+                    )
+                    is CommandRunState.Done -> Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint     = if (runState.exitCode == 0) PrimaryGreen else DangerRed,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    is CommandRunState.Failure -> Icon(
+                        Icons.Default.Error,
+                        contentDescription = null,
+                        tint     = DangerRed,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    null -> Unit
                 }
             }
         }
@@ -342,152 +363,191 @@ private fun QuickCommandItem(
 }
 
 @Composable
-private fun QuickCommandStatusRow(status: QuickCommandStatus) {
-    val (icon, label, tint) = when (status) {
-        is QuickCommandStatus.Running -> Triple(null,                         stringResource(R.string.cmd_status_running), MaterialTheme.colorScheme.onSurfaceVariant)
-        is QuickCommandStatus.Success -> Triple(Icons.Default.CheckCircle,    stringResource(R.string.cmd_status_success), PrimaryGreen)
-        is QuickCommandStatus.Failure -> Triple(Icons.Default.ErrorOutline,   stringResource(R.string.cmd_status_failed),  DangerRed)
-    }
-
-    Row(
-        modifier          = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        if (status is QuickCommandStatus.Running) {
-            CircularProgressIndicator(
-                modifier  = Modifier.size(12.dp),
-                color     = MaterialTheme.colorScheme.onSurfaceVariant,
-                strokeWidth = 1.5.dp
-            )
-        } else if (icon != null) {
-            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
-        }
-        Text(
-            text     = if (status is QuickCommandStatus.Failure) "$label: ${status.message}" else label,
-            fontSize = 11.sp,
-            color    = tint,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun QuickCommandDialog(
-    cmd: QuickCommand,
+private fun AddCommandDialog(
+    uiState: ConsoleUiState,
     onDismiss: () -> Unit,
-    onSave: (label: String, command: String) -> Unit,
-    onRun: (label: String, command: String) -> Unit
+    onSave: (label: String, command: String, showOutput: Boolean) -> Unit
 ) {
-    var label     by remember(cmd.id) { mutableStateOf(cmd.label) }
-    var command   by remember(cmd.id) { mutableStateOf(cmd.command) }
-    val isNew      = cmd.id == 0L
-    val canSubmit  = label.isNotBlank() && command.isNotBlank()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var label      by remember { mutableStateOf("") }
+    var command    by remember { mutableStateOf("") }
+    var showOutput by remember { mutableStateOf(true) }
 
-    ModalBottomSheet(
+    val canSubmit = label.isNotBlank() && command.isNotBlank()
+    val attached  = uiState.attachedCommandStrings
+
+    AlertDialog(
         onDismissRequest = onDismiss,
-        sheetState       = sheetState,
-        containerColor   = MaterialTheme.colorScheme.surface
-    ) {
-        Column(
-            modifier            = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
+        containerColor   = MaterialTheme.colorScheme.surface,
+        title = {
             Text(
-                text      = if (isNew) stringResource(R.string.add_quick_command)
-                            else       stringResource(R.string.edit_quick_command),
-                style     = MaterialTheme.typography.titleLarge,
+                text       = stringResource(R.string.add_command_title),
+                style      = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value         = label,
+                    onValueChange = { label = it },
+                    label         = { Text(stringResource(R.string.command_label_field)) },
+                    singleLine    = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor   = PrimaryGreen,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            OutlinedTextField(
-                value         = label,
-                onValueChange = { label = it },
-                label         = { Text(stringResource(R.string.quick_command_label_hint)) },
-                singleLine    = true,
-                colors        = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor   = PrimaryGreen,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
+                OutlinedTextField(
+                    value         = command,
+                    onValueChange = { command = it },
+                    label         = { Text(stringResource(R.string.command_label)) },
+                    singleLine    = false,
+                    minLines      = 3,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization     = KeyboardCapitalization.None,
+                        autoCorrectEnabled = false
+                    ),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize   = 14.sp
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedBorderColor      = PrimaryGreen,
+                        unfocusedBorderColor    = MaterialTheme.colorScheme.surface
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            OutlinedTextField(
-                value         = command,
-                onValueChange = { command = it },
-                label         = { Text(stringResource(R.string.quick_command_command_hint)) },
-                minLines      = 3,
-                maxLines      = 6,
-                textStyle     = MaterialTheme.typography.bodyMedium.copy(
-                    fontFamily = FontFamily.Monospace,
-                    fontSize   = 14.sp
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    focusedBorderColor      = PrimaryGreen,
-                    unfocusedBorderColor    = MaterialTheme.colorScheme.surface
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Text(
-                stringResource(R.string.example_commands),
-                color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp
-            )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(QUICK_COMMAND_EXAMPLES) { example ->
-                    SuggestionChip(
-                        onClick = { command = example },
-                        label   = { Text(example, fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
-                        colors  = SuggestionChipDefaults.suggestionChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                Row(
+                    modifier              = Modifier.fillMaxWidth(),
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text     = stringResource(R.string.show_output_field),
+                        fontSize = 14.sp
+                    )
+                    Switch(
+                        checked         = showOutput,
+                        onCheckedChange = { showOutput = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                            checkedTrackColor = PrimaryGreen
                         )
                     )
                 }
-            }
 
-            Row(
-                modifier              = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick  = { onSave(label, command) },
-                    enabled  = canSubmit,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    shape    = MaterialTheme.shapes.medium
-                ) {
+                Text(
+                    text       = stringResource(R.string.common_commands),
+                    style      = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium
+                )
+
+                if (uiState.presets.isEmpty()) {
                     Text(
-                        stringResource(R.string.save_button),
-                        fontWeight = FontWeight.Medium,
-                        color      = if (canSubmit) PrimaryGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                        stringResource(R.string.no_common_commands),
+                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp
                     )
-                }
-                Button(
-                    onClick  = { onRun(label, command) },
-                    enabled  = canSubmit,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    colors   = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
-                    shape    = MaterialTheme.shapes.medium
-                ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text(stringResource(R.string.run_button), fontWeight = FontWeight.Bold)
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 240.dp)) {
+                        uiState.groupedPresets.forEach { (category, presets) ->
+                            item(key = "header_$category") {
+                                Text(
+                                    text     = category,
+                                    style    = MaterialTheme.typography.labelSmall,
+                                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+                                )
+                            }
+                            items(
+                                items = presets,
+                                key   = { preset ->
+                                    when (preset.source) {
+                                        PresetSource.BUILTIN -> "builtin_${preset.category}_${preset.label}"
+                                        PresetSource.CUSTOM  -> "custom_${preset.id}"
+                                    }
+                                }
+                            ) { preset ->
+                                PresetSuggestionRow(
+                                    preset     = preset,
+                                    isAttached = preset.command in attached,
+                                    onClick    = {
+                                        label   = preset.label
+                                        command = preset.command
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(label, command, showOutput) },
+                enabled = canSubmit
+            ) {
+                Text(
+                    stringResource(R.string.save_button),
+                    fontWeight = FontWeight.Medium,
+                    color = if (canSubmit) PrimaryGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    stringResource(R.string.cancel),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    )
+}
+
+@Composable
+private fun PresetSuggestionRow(
+    preset: Preset,
+    isAttached: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text       = preset.label,
+                fontWeight = FontWeight.Medium,
+                fontSize   = 14.sp,
+                maxLines   = 1,
+                overflow   = TextOverflow.Ellipsis
+            )
+            Text(
+                text       = preset.command,
+                fontFamily = FontFamily.Monospace,
+                fontSize   = 12.sp,
+                color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines   = 1,
+                overflow   = TextOverflow.Ellipsis
+            )
+        }
+        if (isAttached) {
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint     = PrimaryGreen,
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }
@@ -594,64 +654,74 @@ private fun ConsoleTabPreview() {
         ConsoleScreenContent(
             uiState = ConsoleUiState(
                 server = Server(1, "Production", "192.168.1.1", 22, "root", ""),
-                quickCommands = listOf(
-                    QuickCommand(1, "Uptime", "uptime", 0),
-                    QuickCommand(2, "Disk usage", "df -h", 1)
+                attachedCommands = listOf(
+                    QuickCommand(1, 1, "Running containers", "docker ps", 0, showOutput = true),
+                    QuickCommand(2, 1, "Disk free", "df -h", 1, showOutput = false)
                 ),
-                commandStatuses = mapOf(
-                    1L to QuickCommandStatus.Success,
-                    2L to QuickCommandStatus.Running
+                presets = listOf(
+                    Preset(0, "Docker", "Running containers", "docker ps", PresetSource.BUILTIN, 0),
+                    Preset(1, "System", "Disk free", "df -h", PresetSource.CUSTOM, 0)
                 ),
+                runStates = mapOf(
+                    1L to CommandRunState.Done(
+                        stdout   = "CONTAINER ID   IMAGE     STATUS\n9f1c2b3a4d5e   nginx     Up 3 hours",
+                        stderr   = "",
+                        exitCode = 0
+                    ),
+                    2L to CommandRunState.Failure("Connection refused")
+                ),
+                showAddDialog = false,
+                showHistory   = false,
                 recentHistory = listOf(
                     CommandHistory(1, 1, "ls -la /etc", "output", "", 0, System.currentTimeMillis())
                 )
             ),
-            onBack                = {},
-            onExecute             = {},
-            onSelectTab           = {},
-            onAddCommand          = {},
-            onEditCommand         = {},
-            onDeleteCommand       = {},
-            onExecuteQuickCommand = {},
-            onDismissDialog       = {},
-            onSaveCommand         = { _, _ -> },
-            onRunCommand          = { _, _ -> }
+            onBack             = {},
+            onExecute          = {},
+            onSelectTab        = {},
+            onOpenAddDialog    = {},
+            onDismissAddDialog = {},
+            onSaveTyped        = { _, _, _ -> },
+            onRun              = {},
+            onRemove           = {},
+            onToggleHistory    = {}
         )
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true)
 @Composable
-private fun QuickCommandItemRunningPreview() {
+private fun ConsoleTabEmptyPreview() {
     ServeraTheme {
-        QuickCommandItem(
-            cmd    = QuickCommand(1, "Uptime", "uptime", 0),
-            status = QuickCommandStatus.Running,
-            onTap  = {}, onEdit = {}, onDelete = {}
+        ConsoleScreenContent(
+            uiState = ConsoleUiState(
+                server = Server(1, "Staging", "10.0.0.1", 22, "deploy", ""),
+                attachedCommands = emptyList()
+            ),
+            onBack             = {},
+            onExecute          = {},
+            onSelectTab        = {},
+            onOpenAddDialog    = {},
+            onDismissAddDialog = {},
+            onSaveTyped        = { _, _, _ -> },
+            onRun              = {},
+            onRemove           = {},
+            onToggleHistory    = {}
         )
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true)
 @Composable
-private fun QuickCommandItemSuccessPreview() {
+private fun AttachedCommandItemRunningPreview() {
     ServeraTheme {
-        QuickCommandItem(
-            cmd    = QuickCommand(1, "Uptime", "uptime", 0),
-            status = QuickCommandStatus.Success,
-            onTap  = {}, onEdit = {}, onDelete = {}
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun QuickCommandItemFailurePreview() {
-    ServeraTheme {
-        QuickCommandItem(
-            cmd    = QuickCommand(1, "Bad cmd", "invalid", 0),
-            status = QuickCommandStatus.Failure("Connection refused"),
-            onTap  = {}, onEdit = {}, onDelete = {}
+        AttachedCommandItem(
+            cmd      = QuickCommand(1, 1, "Disk free", "df -h", 0),
+            runState = CommandRunState.Running,
+            onRun    = {},
+            onRemove = {}
         )
     }
 }

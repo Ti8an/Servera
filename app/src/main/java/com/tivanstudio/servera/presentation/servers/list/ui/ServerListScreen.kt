@@ -36,6 +36,7 @@ fun ServerListScreen(
     onNavigateToAdd: () -> Unit,
     onNavigateToEdit: (Long) -> Unit,
     onNavigateToConsole: (Long) -> Unit,
+    onNavigateToPresets: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
@@ -45,6 +46,7 @@ fun ServerListScreen(
         onNavigateToAdd = onNavigateToAdd,
         onNavigateToEdit = onNavigateToEdit,
         onNavigateToConsole = onNavigateToConsole,
+        onNavigateToPresets = onNavigateToPresets,
         onNavigateToHistory = onNavigateToHistory,
         onNavigateToSettings = onNavigateToSettings,
         onSearch = viewModel::onSearch,
@@ -60,6 +62,7 @@ private fun ServerListContent(
     onNavigateToAdd: () -> Unit,
     onNavigateToEdit: (Long) -> Unit,
     onNavigateToConsole: (Long) -> Unit,
+    onNavigateToPresets: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onSearch: (String) -> Unit,
@@ -124,6 +127,7 @@ private fun ServerListContent(
             AppBottomBar(
                 currentRoute = Screen.ServerList.route,
                 onServers  = {},
+                onPresets  = onNavigateToPresets,
                 onHistory  = onNavigateToHistory,
                 onSettings = onNavigateToSettings
             )
@@ -337,6 +341,7 @@ private fun ServerListContentPreview() {
             onNavigateToAdd = {},
             onNavigateToEdit = {},
             onNavigateToConsole = {},
+            onNavigateToPresets = {},
             onNavigateToHistory = {},
             onNavigateToSettings = {},
             onSearch = {},
