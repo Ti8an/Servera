@@ -75,7 +75,6 @@ fun AppNavGraph(navController: NavHostController) {
         ) {
             ConsoleScreen(
                 onNavigateToExecute = { id -> navController.navigate(Screen.Execute.createRoute(id)) },
-                onNavigateToResult  = { navController.navigate(Screen.Result.route) },
                 onBack = { navController.popBackStack() }
             )
         }

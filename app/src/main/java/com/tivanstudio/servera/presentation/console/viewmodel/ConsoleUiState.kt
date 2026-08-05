@@ -13,8 +13,7 @@ data class ConsoleUiState(
     val presets: List<Preset> = emptyList(),
     val attachedCommands: List<QuickCommand> = emptyList(),
     val showAddDialog: Boolean = false,
-    val runningId: Long? = null,
-    val runError: String? = null,
+    val runStates: Map<Long, CommandRunState> = emptyMap(),
     val showHistory: Boolean = false,
     val recentHistory: List<CommandHistory> = emptyList(),
     val serverInfo: ServerInfo? = null,
@@ -26,7 +25,12 @@ data class ConsoleUiState(
     val attachedCommandStrings: Set<String> get() = attachedCommands.map { it.command }.toSet()
 }
 
+sealed interface CommandRunState {
+    object Running : CommandRunState
+    data class Done(val stdout: String, val stderr: String, val exitCode: Int) : CommandRunState
+    data class Failure(val message: String) : CommandRunState
+}
+
 sealed class ConsoleEvent {
     data class NavigateToExecute(val serverId: Long) : ConsoleEvent()
-    object NavigateToResult : ConsoleEvent()
 }

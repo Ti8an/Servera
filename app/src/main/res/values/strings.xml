@@ -140,5 +140,6 @@
     <string name="command_label_field">Name</string>
     <string name="common_commands">Common commands</string>
     <string name="no_common_commands">No common commands yet</string>
+    <string name="show_output_field">Show output</string>
     <string name="executed_commands">Executed commands</string>
 </resources>

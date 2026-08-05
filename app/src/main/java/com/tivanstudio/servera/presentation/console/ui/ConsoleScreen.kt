@@ -6,7 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -31,6 +34,7 @@ import com.tivanstudio.servera.domain.entity.PresetSource
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.domain.entity.ServerInfo
+import com.tivanstudio.servera.presentation.console.viewmodel.CommandRunState
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleEvent
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleUiState
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleViewModel
@@ -42,7 +46,6 @@ import java.util.*
 fun ConsoleScreen(
     viewModel: ConsoleViewModel = hiltViewModel(),
     onNavigateToExecute: (Long) -> Unit,
-    onNavigateToResult: () -> Unit,
     onBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -51,7 +54,6 @@ fun ConsoleScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is ConsoleEvent.NavigateToExecute -> onNavigateToExecute(event.serverId)
-                is ConsoleEvent.NavigateToResult  -> onNavigateToResult()
             }
         }
     }
@@ -64,7 +66,6 @@ fun ConsoleScreen(
         onOpenAddDialog    = viewModel::openAddDialog,
         onDismissAddDialog = viewModel::dismissAddDialog,
         onSaveTyped        = viewModel::attachTyped,
-        onSaveAndRun       = viewModel::attachAndRun,
         onRun              = viewModel::runAttached,
         onRemove           = viewModel::removeAttached,
         onToggleHistory    = viewModel::toggleHistory
@@ -80,18 +81,16 @@ private fun ConsoleScreenContent(
     onSelectTab: (Int) -> Unit,
     onOpenAddDialog: () -> Unit,
     onDismissAddDialog: () -> Unit,
-    onSaveTyped: (label: String, command: String) -> Unit,
-    onSaveAndRun: (label: String, command: String) -> Unit,
+    onSaveTyped: (label: String, command: String, showOutput: Boolean) -> Unit,
     onRun: (QuickCommand) -> Unit,
     onRemove: (Long) -> Unit,
     onToggleHistory: () -> Unit
 ) {
     if (uiState.showAddDialog) {
         AddCommandDialog(
-            uiState      = uiState,
-            onDismiss    = onDismissAddDialog,
-            onSave       = onSaveTyped,
-            onSaveAndRun = onSaveAndRun
+            uiState   = uiState,
+            onDismiss = onDismissAddDialog,
+            onSave    = onSaveTyped
         )
     }
 
@@ -168,8 +167,6 @@ private fun ConsoleTab(
     onRemove: (Long) -> Unit,
     onToggleHistory: () -> Unit
 ) {
-    val isBusy = uiState.runningId != null
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -194,16 +191,6 @@ private fun ConsoleTab(
             }
         }
 
-        if (uiState.runError != null) {
-            item {
-                Text(
-                    text     = uiState.runError,
-                    color    = DangerRed,
-                    fontSize = 12.sp
-                )
-            }
-        }
-
         if (uiState.attachedCommands.isEmpty()) {
             item {
                 Text(
@@ -215,13 +202,19 @@ private fun ConsoleTab(
             }
         } else {
             items(uiState.attachedCommands, key = { it.id }) { cmd ->
-                AttachedCommandItem(
-                    cmd       = cmd,
-                    isRunning = uiState.runningId == cmd.id,
-                    enabled   = !isBusy,
-                    onRun     = { onRun(cmd) },
-                    onRemove  = { onRemove(cmd.id) }
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    AttachedCommandItem(
+                        cmd      = cmd,
+                        runState = uiState.runStates[cmd.id],
+                        onRun    = { onRun(cmd) },
+                        onRemove = { onRemove(cmd.id) }
+                    )
+
+                    val runState = uiState.runStates[cmd.id]
+                    if (cmd.showOutput && (runState is CommandRunState.Done || runState is CommandRunState.Failure)) {
+                        InlineOutput(runState)
+                    }
+                }
             }
         }
 
@@ -279,11 +272,12 @@ private fun ConsoleTab(
 @Composable
 private fun AttachedCommandItem(
     cmd: QuickCommand,
-    isRunning: Boolean,
-    enabled: Boolean,
+    runState: CommandRunState?,
     onRun: () -> Unit,
     onRemove: () -> Unit
 ) {
+    val isRunning = runState is CommandRunState.Running
+
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value == SwipeToDismissBoxValue.EndToStart) {
@@ -323,7 +317,9 @@ private fun AttachedCommandItem(
         Card(
             colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape    = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = !isRunning, onClick = onRun)
         ) {
             Row(
                 modifier          = Modifier.padding(12.dp),
@@ -349,26 +345,83 @@ private fun AttachedCommandItem(
 
                 Spacer(Modifier.width(8.dp))
 
-                if (isRunning) {
-                    CircularProgressIndicator(
+                when (runState) {
+                    is CommandRunState.Running -> CircularProgressIndicator(
                         modifier    = Modifier.size(18.dp),
                         color       = PrimaryGreen,
                         strokeWidth = 2.dp
                     )
-                } else {
-                    IconButton(
-                        onClick  = onRun,
-                        enabled  = enabled,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint     = PrimaryGreen,
-                            modifier = Modifier.size(20.dp)
+                    is CommandRunState.Done -> Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint     = if (runState.exitCode == 0) PrimaryGreen else DangerRed,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    is CommandRunState.Failure -> Icon(
+                        Icons.Default.Error,
+                        contentDescription = null,
+                        tint     = DangerRed,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    null -> Unit
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InlineOutput(runState: CommandRunState) {
+    Surface(
+        color    = MaterialTheme.colorScheme.surfaceVariant,
+        shape    = MaterialTheme.shapes.small,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .heightIn(max = 200.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(8.dp)
+        ) {
+            SelectionContainer {
+                Column {
+                    when (runState) {
+                        is CommandRunState.Done -> {
+                            if (runState.stdout.isNotBlank()) {
+                                Text(
+                                    text       = runState.stdout.trimEnd(),
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize   = 12.sp
+                                )
+                            }
+                            if (runState.stderr.isNotBlank()) {
+                                Text(
+                                    text       = runState.stderr.trimEnd(),
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize   = 12.sp,
+                                    color      = DangerRed
+                                )
+                            }
+                        }
+                        is CommandRunState.Failure -> Text(
+                            text       = runState.message,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize   = 12.sp,
+                            color      = DangerRed
                         )
+                        CommandRunState.Running -> Unit
                     }
                 }
+            }
+
+            if (runState is CommandRunState.Done) {
+                Text(
+                    text       = "exit ${runState.exitCode}",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize   = 11.sp,
+                    color      = if (runState.exitCode == 0) PrimaryGreen else DangerRed,
+                    modifier   = Modifier.padding(top = 4.dp)
+                )
             }
         }
     }
@@ -378,11 +431,11 @@ private fun AttachedCommandItem(
 private fun AddCommandDialog(
     uiState: ConsoleUiState,
     onDismiss: () -> Unit,
-    onSave: (label: String, command: String) -> Unit,
-    onSaveAndRun: (label: String, command: String) -> Unit
+    onSave: (label: String, command: String, showOutput: Boolean) -> Unit
 ) {
-    var label   by remember { mutableStateOf("") }
-    var command by remember { mutableStateOf("") }
+    var label      by remember { mutableStateOf("") }
+    var command    by remember { mutableStateOf("") }
+    var showOutput by remember { mutableStateOf(true) }
 
     val canSubmit = label.isNotBlank() && command.isNotBlank()
     val attached  = uiState.attachedCommandStrings
@@ -434,6 +487,25 @@ private fun AddCommandDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                Row(
+                    modifier              = Modifier.fillMaxWidth(),
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text     = stringResource(R.string.show_output_field),
+                        fontSize = 14.sp
+                    )
+                    Switch(
+                        checked         = showOutput,
+                        onCheckedChange = { showOutput = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                            checkedTrackColor = PrimaryGreen
+                        )
+                    )
+                }
+
                 Text(
                     text       = stringResource(R.string.common_commands),
                     style      = MaterialTheme.typography.titleSmall,
@@ -481,27 +553,15 @@ private fun AddCommandDialog(
             }
         },
         confirmButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(
-                    onClick = { onSave(label, command) },
-                    enabled = canSubmit
-                ) {
-                    Text(
-                        stringResource(R.string.save_button),
-                        fontWeight = FontWeight.Medium,
-                        color = if (canSubmit) PrimaryGreen else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                TextButton(
-                    onClick = { onSaveAndRun(label, command) },
-                    enabled = canSubmit
-                ) {
-                    Text(
-                        stringResource(R.string.run_button),
-                        fontWeight = FontWeight.Medium,
-                        color = if (canSubmit) PrimaryGreen else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            TextButton(
+                onClick = { onSave(label, command, showOutput) },
+                enabled = canSubmit
+            ) {
+                Text(
+                    stringResource(R.string.save_button),
+                    fontWeight = FontWeight.Medium,
+                    color = if (canSubmit) PrimaryGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         },
         dismissButton = {
@@ -660,12 +720,20 @@ private fun ConsoleTabPreview() {
             uiState = ConsoleUiState(
                 server = Server(1, "Production", "192.168.1.1", 22, "root", ""),
                 attachedCommands = listOf(
-                    QuickCommand(1, 1, "Running containers", "docker ps", 0),
-                    QuickCommand(2, 1, "Disk free", "df -h", 1)
+                    QuickCommand(1, 1, "Running containers", "docker ps", 0, showOutput = true),
+                    QuickCommand(2, 1, "Disk free", "df -h", 1, showOutput = false)
                 ),
                 presets = listOf(
                     Preset(0, "Docker", "Running containers", "docker ps", PresetSource.BUILTIN, 0),
                     Preset(1, "System", "Disk free", "df -h", PresetSource.CUSTOM, 0)
+                ),
+                runStates = mapOf(
+                    1L to CommandRunState.Done(
+                        stdout   = "CONTAINER ID   IMAGE     STATUS\n9f1c2b3a4d5e   nginx     Up 3 hours",
+                        stderr   = "",
+                        exitCode = 0
+                    ),
+                    2L to CommandRunState.Failure("Connection refused")
                 ),
                 showAddDialog = false,
                 showHistory   = false,
@@ -678,8 +746,7 @@ private fun ConsoleTabPreview() {
             onSelectTab        = {},
             onOpenAddDialog    = {},
             onDismissAddDialog = {},
-            onSaveTyped        = { _, _ -> },
-            onSaveAndRun       = { _, _ -> },
+            onSaveTyped        = { _, _, _ -> },
             onRun              = {},
             onRemove           = {},
             onToggleHistory    = {}
@@ -702,8 +769,7 @@ private fun ConsoleTabEmptyPreview() {
             onSelectTab        = {},
             onOpenAddDialog    = {},
             onDismissAddDialog = {},
-            onSaveTyped        = { _, _ -> },
-            onSaveAndRun       = { _, _ -> },
+            onSaveTyped        = { _, _, _ -> },
             onRun              = {},
             onRemove           = {},
             onToggleHistory    = {}
@@ -717,11 +783,10 @@ private fun ConsoleTabEmptyPreview() {
 private fun AttachedCommandItemRunningPreview() {
     ServeraTheme {
         AttachedCommandItem(
-            cmd       = QuickCommand(1, 1, "Disk free", "df -h", 0),
-            isRunning = true,
-            enabled   = false,
-            onRun     = {},
-            onRemove  = {}
+            cmd      = QuickCommand(1, 1, "Disk free", "df -h", 0),
+            runState = CommandRunState.Running,
+            onRun    = {},
+            onRemove = {}
         )
     }
 }

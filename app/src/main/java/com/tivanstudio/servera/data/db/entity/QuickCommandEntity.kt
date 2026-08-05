@@ -9,5 +9,6 @@ data class QuickCommandEntity(
     val serverId: Long,
     val label: String,
     val command: String,
-    val sortOrder: Int
+    val sortOrder: Int,
+    val showOutput: Boolean = true
 )

@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.data.preferences.AppPreferences
-import com.tivanstudio.servera.di.CommandResultHolder
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.history.GetCommandHistoryUseCase
@@ -34,7 +33,6 @@ class ConsoleViewModel @Inject constructor(
     private val deleteQuickCommand: DeleteQuickCommandUseCase,
     private val fetchServerInfo: FetchServerInfoUseCase,
     private val executeCommand: ExecuteCommandUseCase,
-    private val resultHolder: CommandResultHolder,
     private val appPreferences: AppPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -122,55 +120,21 @@ class ConsoleViewModel @Inject constructor(
         _uiState.update { it.copy(showHistory = !it.showHistory) }
     }
 
-    fun attachTyped(label: String, command: String) {
+    fun attachTyped(label: String, command: String, showOutput: Boolean) {
         val state = _uiState.value
         if (label.isBlank() || command.isBlank()) return
         viewModelScope.launch {
             saveQuickCommand(
                 QuickCommand(
-                    id        = 0,
-                    serverId  = serverId,
-                    label     = label.trim(),
-                    command   = command.trim(),
-                    sortOrder = state.attachedCommands.size
+                    id         = 0,
+                    serverId   = serverId,
+                    label      = label.trim(),
+                    command    = command.trim(),
+                    sortOrder  = state.attachedCommands.size,
+                    showOutput = showOutput
                 )
             )
             _uiState.update { it.copy(showAddDialog = false) }
-        }
-    }
-
-    fun attachAndRun(label: String, command: String) {
-        val state  = _uiState.value
-        val server = state.server ?: return
-        if (label.isBlank() || command.isBlank()) return
-        if (state.runningId != null) return
-
-        val trimmed = command.trim()
-        viewModelScope.launch {
-            val newId = saveQuickCommand(
-                QuickCommand(
-                    id        = 0,
-                    serverId  = serverId,
-                    label     = label.trim(),
-                    command   = trimmed,
-                    sortOrder = state.attachedCommands.size
-                )
-            )
-            _uiState.update {
-                it.copy(showAddDialog = false, runningId = newId, runError = null)
-            }
-            executeCommand(server, trimmed, saveOnFailure = appPreferences.isSaveCommandsAlways.value)
-                .onSuccess { result ->
-                    resultHolder.result   = result
-                    resultHolder.serverId = serverId
-                    _uiState.update { it.copy(runningId = null, runError = null) }
-                    _events.send(ConsoleEvent.NavigateToResult)
-                }
-                .onFailure { e ->
-                    _uiState.update {
-                        it.copy(runningId = null, runError = e.message ?: "Unknown error")
-                    }
-                }
         }
     }
 
@@ -180,21 +144,27 @@ class ConsoleViewModel @Inject constructor(
 
     fun runAttached(cmd: QuickCommand) {
         val server = _uiState.value.server ?: return
-        if (_uiState.value.runningId != null) return
+        if (_uiState.value.runStates[cmd.id] is CommandRunState.Running) return
         viewModelScope.launch {
-            _uiState.update { it.copy(runningId = cmd.id, runError = null) }
+            setRunState(cmd.id, CommandRunState.Running)
             executeCommand(server, cmd.command, saveOnFailure = appPreferences.isSaveCommandsAlways.value)
                 .onSuccess { result ->
-                    resultHolder.result   = result
-                    resultHolder.serverId = serverId
-                    _uiState.update { it.copy(runningId = null, runError = null) }
-                    _events.send(ConsoleEvent.NavigateToResult)
+                    setRunState(
+                        cmd.id,
+                        CommandRunState.Done(
+                            stdout   = result.stdout,
+                            stderr   = result.stderr,
+                            exitCode = result.exitCode
+                        )
+                    )
                 }
                 .onFailure { e ->
-                    _uiState.update {
-                        it.copy(runningId = null, runError = e.message ?: "Unknown error")
-                    }
+                    setRunState(cmd.id, CommandRunState.Failure(e.message ?: "Unknown error"))
                 }
         }
+    }
+
+    private fun setRunState(id: Long, state: CommandRunState) {
+        _uiState.update { it.copy(runStates = it.runStates + (id to state)) }
     }
 }

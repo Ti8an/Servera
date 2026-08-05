@@ -126,5 +126,6 @@
     <string name="command_label_field">Название</string>
     <string name="common_commands">Общие команды</string>
     <string name="no_common_commands">Общих команд пока нет</string>
+    <string name="show_output_field">Показывать результат</string>
     <string name="executed_commands">Выполненные команды</string>
 </resources>

@@ -8,7 +8,8 @@ fun QuickCommandEntity.toDomain(): QuickCommand = QuickCommand(
     serverId = serverId,
     label = label,
     command = command,
-    sortOrder = sortOrder
+    sortOrder = sortOrder,
+    showOutput = showOutput
 )
 
 fun QuickCommand.toEntity(): QuickCommandEntity = QuickCommandEntity(
@@ -16,5 +17,6 @@ fun QuickCommand.toEntity(): QuickCommandEntity = QuickCommandEntity(
     serverId = serverId,
     label = label,
     command = command,
-    sortOrder = sortOrder
+    sortOrder = sortOrder,
+    showOutput = showOutput
 )
