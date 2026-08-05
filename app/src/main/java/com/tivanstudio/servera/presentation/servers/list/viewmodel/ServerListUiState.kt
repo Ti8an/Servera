@@ -13,6 +13,6 @@ data class ServerUiModel(
     val host: String,
     val port: Int,
     val login: String,
-    val isOnline: Boolean = false,
+    val isOnline: Boolean? = null,
     val isChecking: Boolean = false
 )

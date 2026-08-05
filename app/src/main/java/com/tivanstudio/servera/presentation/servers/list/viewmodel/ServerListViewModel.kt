@@ -2,6 +2,7 @@ package com.tivanstudio.servera.presentation.servers.list.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tivanstudio.servera.di.ServerCache
 import com.tivanstudio.servera.domain.usecase.server.CheckServerStatusUseCase
 import com.tivanstudio.servera.domain.usecase.server.DeleteServerUseCase
 import com.tivanstudio.servera.domain.usecase.server.GetServersUseCase
@@ -18,7 +19,8 @@ import javax.inject.Inject
 class ServerListViewModel @Inject constructor(
     private val getServers: GetServersUseCase,
     private val deleteServer: DeleteServerUseCase,
-    private val checkStatus: CheckServerStatusUseCase
+    private val checkStatus: CheckServerStatusUseCase,
+    private val serverCache: ServerCache
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ServerListUiState())
@@ -39,28 +41,35 @@ class ServerListViewModel @Inject constructor(
                             host     = s.host,
                             port     = s.port,
                             login    = s.login,
-                            isOnline = false,
-                            isChecking = true
+                            isOnline = serverCache.statusOf(s.id),
+                            isChecking = false
                         )
                     }
                 }
                 .collect { models ->
                     _uiState.update { it.copy(servers = models, isLoading = false) }
-                    pingAll(models)
                 }
         }
     }
 
-    private fun pingAll(servers: List<ServerUiModel>) {
-        servers.forEach { model ->
-            viewModelScope.launch {
-                val online = checkStatus(model.id)
-                _uiState.update { state ->
-                    state.copy(servers = state.servers.map {
-                        if (it.id == model.id) it.copy(isOnline = online, isChecking = false) else it
-                    })
-                }
+    private fun ping(id: Long) {
+        viewModelScope.launch {
+            setChecking(id, true)
+            val online = checkStatus(id)
+            serverCache.putStatus(id, online)
+            _uiState.update { state ->
+                state.copy(servers = state.servers.map {
+                    if (it.id == id) it.copy(isOnline = online, isChecking = false) else it
+                })
             }
+        }
+    }
+
+    private fun setChecking(id: Long, checking: Boolean) {
+        _uiState.update { state ->
+            state.copy(servers = state.servers.map {
+                if (it.id == id) it.copy(isChecking = checking) else it
+            })
         }
     }
 
@@ -69,6 +78,11 @@ class ServerListViewModel @Inject constructor(
     fun onSearch(q: String) = _uiState.update { it.copy(searchQuery = q) }
 
     fun refreshStatus() {
-        pingAll(_uiState.value.servers)
+        _uiState.value.servers.forEach { ping(it.id) }
+    }
+
+    fun checkOne(id: Long) {
+        if (_uiState.value.servers.any { it.id == id && it.isChecking }) return
+        ping(id)
     }
 }

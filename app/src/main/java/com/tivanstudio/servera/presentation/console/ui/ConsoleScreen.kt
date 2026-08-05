@@ -62,6 +62,8 @@ fun ConsoleScreen(
         onBack             = onBack,
         onExecute          = viewModel::navigateToExecute,
         onSelectTab        = viewModel::selectTab,
+        onInfoTabSelected  = viewModel::onInfoTabSelected,
+        onRefreshServerInfo = viewModel::refreshServerInfo,
         onOpenAddDialog    = viewModel::openAddDialog,
         onDismissAddDialog = viewModel::dismissAddDialog,
         onSaveTyped        = viewModel::attachTyped,
@@ -78,6 +80,8 @@ private fun ConsoleScreenContent(
     onBack: () -> Unit,
     onExecute: () -> Unit,
     onSelectTab: (Int) -> Unit,
+    onInfoTabSelected: () -> Unit,
+    onRefreshServerInfo: () -> Unit,
     onOpenAddDialog: () -> Unit,
     onDismissAddDialog: () -> Unit,
     onSaveTyped: (label: String, command: String, showOutput: Boolean) -> Unit,
@@ -136,7 +140,10 @@ private fun ConsoleScreenContent(
                 )
                 Tab(
                     selected = uiState.selectedTab == 1,
-                    onClick  = { onSelectTab(1) },
+                    onClick  = {
+                        onSelectTab(1)
+                        onInfoTabSelected()
+                    },
                     text     = { Text(stringResource(R.string.info_tab)) }
                 )
             }
@@ -150,7 +157,7 @@ private fun ConsoleScreenContent(
                     onRemove        = onRemove,
                     onToggleHistory = onToggleHistory
                 )
-                1 -> InfoTab(uiState = uiState)
+                1 -> InfoTab(uiState = uiState, onRefresh = onRefreshServerInfo)
             }
         }
     }
@@ -588,24 +595,59 @@ private fun HistoryItem(history: CommandHistory, onRepeat: () -> Unit) {
 }
 
 @Composable
-private fun InfoTab(uiState: ConsoleUiState) {
-    Box(Modifier.fillMaxSize()) {
-        when {
-            uiState.isLoadingServerInfo -> {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = PrimaryGreen)
+private fun InfoTab(uiState: ConsoleUiState, onRefresh: () -> Unit) {
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            modifier              = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.End
+        ) {
+            IconButton(onClick = onRefresh, enabled = !uiState.isLoadingServerInfo) {
+                Icon(
+                    Icons.Default.Refresh,
+                    contentDescription = stringResource(R.string.refresh_info),
+                    tint = PrimaryGreen
+                )
             }
-            uiState.serverInfoError != null -> {
-                Column(
-                    modifier              = Modifier.align(Alignment.Center).padding(24.dp),
-                    horizontalAlignment   = Alignment.CenterHorizontally
-                ) {
-                    Icon(Icons.Default.Error, contentDescription = null, tint = DangerRed, modifier = Modifier.size(48.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text(uiState.serverInfoError, color = DangerRed)
+        }
+
+        Box(Modifier.fillMaxSize()) {
+            when {
+                uiState.isLoadingServerInfo -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = PrimaryGreen)
+                }
+                uiState.serverInfoError != null -> {
+                    Column(
+                        modifier              = Modifier.align(Alignment.Center).padding(24.dp),
+                        horizontalAlignment   = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Default.Error, contentDescription = null, tint = DangerRed, modifier = Modifier.size(48.dp))
+                        Spacer(Modifier.height(8.dp))
+                        Text(uiState.serverInfoError, color = DangerRed)
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(onClick = onRefresh) {
+                            Text(stringResource(R.string.refresh_info), color = PrimaryGreen)
+                        }
+                    }
+                }
+                uiState.serverInfo != null -> ServerInfoContent(info = uiState.serverInfo)
+                else -> {
+                    Column(
+                        modifier            = Modifier.align(Alignment.Center).padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text     = stringResource(R.string.info_not_loaded),
+                            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 13.sp
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(onClick = onRefresh) {
+                            Text(stringResource(R.string.refresh_info), color = PrimaryGreen)
+                        }
+                    }
                 }
             }
-            uiState.serverInfo != null -> ServerInfoContent(info = uiState.serverInfo)
-            else -> Box(Modifier.fillMaxSize())
         }
     }
 }
@@ -676,9 +718,11 @@ private fun ConsoleTabPreview() {
                     CommandHistory(1, 1, "ls -la /etc", "output", "", 0, System.currentTimeMillis())
                 )
             ),
-            onBack             = {},
-            onExecute          = {},
-            onSelectTab        = {},
+            onBack              = {},
+            onExecute           = {},
+            onSelectTab         = {},
+            onInfoTabSelected   = {},
+            onRefreshServerInfo = {},
             onOpenAddDialog    = {},
             onDismissAddDialog = {},
             onSaveTyped        = { _, _, _ -> },
@@ -699,9 +743,11 @@ private fun ConsoleTabEmptyPreview() {
                 server = Server(1, "Staging", "10.0.0.1", 22, "deploy", ""),
                 attachedCommands = emptyList()
             ),
-            onBack             = {},
-            onExecute          = {},
-            onSelectTab        = {},
+            onBack              = {},
+            onExecute           = {},
+            onSelectTab         = {},
+            onInfoTabSelected   = {},
+            onRefreshServerInfo = {},
             onOpenAddDialog    = {},
             onDismissAddDialog = {},
             onSaveTyped        = { _, _, _ -> },

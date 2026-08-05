@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.data.preferences.AppPreferences
 import com.tivanstudio.servera.di.CommandResultHolder
+import com.tivanstudio.servera.di.ServerCache
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.history.GetCommandHistoryUseCase
@@ -35,6 +36,7 @@ class ConsoleViewModel @Inject constructor(
     private val fetchServerInfo: FetchServerInfoUseCase,
     private val executeCommand: ExecuteCommandUseCase,
     private val resultHolder: CommandResultHolder,
+    private val serverCache: ServerCache,
     private val appPreferences: AppPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -87,17 +89,23 @@ class ConsoleViewModel @Inject constructor(
 
     fun selectTab(index: Int) {
         _uiState.update { it.copy(selectedTab = index) }
-        if (index == 1 && _uiState.value.serverInfo == null) {
-            loadServerInfo()
+    }
+
+    fun onInfoTabSelected() {
+        val cached = serverCache.infoOf(serverId)
+        when {
+            cached != null -> _uiState.update { it.copy(serverInfo = cached, serverInfoError = null) }
+            _uiState.value.serverInfo == null -> refreshServerInfo()
         }
     }
 
-    private fun loadServerInfo() {
+    fun refreshServerInfo() {
         val server = _uiState.value.server ?: return
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingServerInfo = true, serverInfoError = null) }
             fetchServerInfo(server)
                 .onSuccess { info ->
+                    serverCache.putInfo(serverId, info)
                     _uiState.update { it.copy(serverInfo = info, isLoadingServerInfo = false) }
                 }
                 .onFailure { e ->
