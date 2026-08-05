@@ -59,6 +59,9 @@ class SshClientImpl @Inject constructor() : SshClient {
     override suspend fun testConnection(server: Server): Boolean =
         runCatching { execute(server, "echo ok") }.isSuccess
 
+    override suspend fun checkConnection(server: Server): Result<Unit> =
+        runCatching { execute(server, "echo ok"); Unit }
+
     override suspend fun fetchServerInfo(server: Server): ServerInfo =
         withContext(Dispatchers.IO) {
             val session = createSession(server)

@@ -51,8 +51,8 @@ fun ServerListScreen(
         onNavigateToSettings = onNavigateToSettings,
         onSearch = viewModel::onSearch,
         onDelete = viewModel::deleteServer,
-        onCheckStatus = viewModel::refreshStatus,
-        onCheckOne = viewModel::checkOne
+        onCheckOne = viewModel::checkOne,
+        onDismissStatusError = viewModel::dismissStatusError
     )
 }
 
@@ -68,8 +68,8 @@ private fun ServerListContent(
     onNavigateToSettings: () -> Unit,
     onSearch: (String) -> Unit,
     onDelete: (Long) -> Unit,
-    onCheckStatus: () -> Unit,
-    onCheckOne: (Long) -> Unit
+    onCheckOne: (Long) -> Unit,
+    onDismissStatusError: () -> Unit
 ) {
     var searchVisible by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<Long?>(null) }
@@ -87,6 +87,19 @@ private fun ServerListContent(
             },
             dismissButton = {
                 TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.cancel)) }
+            },
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
+    uiState.statusError?.let { statusError ->
+        val serverName = uiState.servers.firstOrNull { it.id == statusError.serverId }?.name.orEmpty()
+        AlertDialog(
+            onDismissRequest = onDismissStatusError,
+            title = { Text(stringResource(R.string.status_problem_title)) },
+            text  = { Text("$serverName\n\n${statusError.message}") },
+            confirmButton = {
+                TextButton(onClick = onDismissStatusError) { Text(stringResource(R.string.ok)) }
             },
             containerColor = MaterialTheme.colorScheme.surface
         )
@@ -117,12 +130,6 @@ private fun ServerListContent(
                 actions = {
                     IconButton(onClick = { searchVisible = !searchVisible }) {
                         Icon(if (searchVisible) Icons.Default.Close else Icons.Default.Search, contentDescription = null)
-                    }
-                    IconButton(onClick = onCheckStatus) {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = stringResource(R.string.check_status)
-                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -216,10 +223,11 @@ private fun ServerListItem(
     onCheckOne: () -> Unit
 ) {
     val statusColor by animateColorAsState(
-        targetValue = when (server.isOnline) {
-            true  -> PrimaryGreen
-            false -> DangerRed
-            null  -> MaterialTheme.colorScheme.onSurfaceVariant
+        targetValue = when {
+            server.isChecking        -> MaterialTheme.colorScheme.onSurfaceVariant
+            server.isOnline == true  -> PrimaryGreen
+            server.isOnline == false -> DangerRed
+            else                     -> MaterialTheme.colorScheme.onSurfaceVariant
         },
         label = "status_color"
     )
@@ -309,36 +317,38 @@ private fun ServerListItem(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier
-                            .clip(MaterialTheme.shapes.small)
-                            .clickable(enabled = !server.isChecking, onClick = onCheckOne)
-                            .padding(vertical = 2.dp, horizontal = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (server.isChecking) {
-                            CircularProgressIndicator(
-                                modifier    = Modifier.size(8.dp),
-                                color       = MaterialTheme.colorScheme.onSurfaceVariant,
-                                strokeWidth = 1.dp
-                            )
-                        } else {
-                            Box(
-                                Modifier
-                                    .size(8.dp)
-                                    .background(statusColor, shape = MaterialTheme.shapes.small)
-                            )
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .size(8.dp)
+                                .background(statusColor, shape = MaterialTheme.shapes.small)
+                        )
                         Spacer(Modifier.width(6.dp))
                         Text(
                             text = when {
-                                server.isChecking     -> stringResource(R.string.status_checking)
+                                server.isChecking        -> stringResource(R.string.status_checking)
                                 server.isOnline == true  -> stringResource(R.string.status_online)
                                 server.isOnline == false -> stringResource(R.string.status_offline)
-                                else                  -> stringResource(R.string.check_status)
+                                else                     -> stringResource(R.string.status_unknown)
                             },
                             color = statusColor,
                             fontSize = 11.sp
+                        )
+                    }
+                }
+
+                IconButton(onClick = onCheckOne, enabled = !server.isChecking) {
+                    if (server.isChecking) {
+                        CircularProgressIndicator(
+                            modifier    = Modifier.size(18.dp),
+                            color       = PrimaryGreen,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.NetworkCheck,
+                            contentDescription = stringResource(R.string.check_status),
+                            tint = PrimaryGreen
                         )
                     }
                 }
@@ -359,7 +369,8 @@ private fun ServerListContentPreview() {
                     ServerUiModel(2, "Staging", "10.0.0.1", 22, "deploy", isOnline = false),
                     ServerUiModel(3, "Dev", "172.16.0.1", 2222, "admin", isOnline = null),
                     ServerUiModel(4, "Backup", "172.16.0.2", 22, "admin", isChecking = true)
-                )
+                ),
+                statusError = null
             ),
             onNavigateToAdd = {},
             onNavigateToEdit = {},
@@ -369,8 +380,8 @@ private fun ServerListContentPreview() {
             onNavigateToSettings = {},
             onSearch = {},
             onDelete = {},
-            onCheckStatus = {},
-            onCheckOne = {}
+            onCheckOne = {},
+            onDismissStatusError = {}
         )
     }
 }

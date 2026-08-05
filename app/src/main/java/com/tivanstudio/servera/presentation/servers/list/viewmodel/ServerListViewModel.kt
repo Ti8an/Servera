@@ -52,37 +52,45 @@ class ServerListViewModel @Inject constructor(
         }
     }
 
-    private fun ping(id: Long) {
-        viewModelScope.launch {
-            setChecking(id, true)
-            val online = checkStatus(id)
-            serverCache.putStatus(id, online)
-            _uiState.update { state ->
-                state.copy(servers = state.servers.map {
-                    if (it.id == id) it.copy(isOnline = online, isChecking = false) else it
-                })
-            }
+    private fun updateServer(id: Long, transform: (ServerUiModel) -> ServerUiModel) {
+        _uiState.update { state ->
+            state.copy(servers = state.servers.map { if (it.id == id) transform(it) else it })
         }
     }
 
     private fun setChecking(id: Long, checking: Boolean) {
-        _uiState.update { state ->
-            state.copy(servers = state.servers.map {
-                if (it.id == id) it.copy(isChecking = checking) else it
-            })
-        }
+        updateServer(id) { it.copy(isChecking = checking) }
     }
 
     fun deleteServer(id: Long) = viewModelScope.launch { deleteServer.invoke(id) }
 
     fun onSearch(q: String) = _uiState.update { it.copy(searchQuery = q) }
 
-    fun refreshStatus() {
-        _uiState.value.servers.forEach { ping(it.id) }
-    }
-
     fun checkOne(id: Long) {
         if (_uiState.value.servers.any { it.id == id && it.isChecking }) return
-        ping(id)
+        viewModelScope.launch {
+            setChecking(id, true)
+            checkStatus(id)
+                .onSuccess {
+                    serverCache.putStatus(id, true)
+                    updateServer(id) { it.copy(isOnline = true, isChecking = false) }
+                }
+                .onFailure { e ->
+                    serverCache.putStatus(id, false)
+                    updateServer(id) { it.copy(isOnline = false, isChecking = false) }
+                    _uiState.update {
+                        it.copy(
+                            statusError = StatusError(
+                                serverId = id,
+                                message  = e.message ?: "Не удалось подключиться"
+                            )
+                        )
+                    }
+                }
+        }
+    }
+
+    fun dismissStatusError() {
+        _uiState.update { it.copy(statusError = null) }
     }
 }

@@ -4,7 +4,13 @@ data class ServerListUiState(
     val servers: List<ServerUiModel> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null,
-    val searchQuery: String = ""
+    val searchQuery: String = "",
+    val statusError: StatusError? = null
+)
+
+data class StatusError(
+    val serverId: Long,
+    val message: String
 )
 
 data class ServerUiModel(
