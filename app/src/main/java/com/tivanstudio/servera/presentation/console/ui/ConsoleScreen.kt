@@ -177,97 +177,93 @@ private fun ConsoleTab(
     onRemove: (Long) -> Unit,
     onToggleHistory: () -> Unit
 ) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        item {
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier              = Modifier.fillMaxWidth(),
-                verticalAlignment     = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(stringResource(R.string.quick_commands), style = MaterialTheme.typography.titleMedium)
-                IconButton(onClick = onOpenAddDialog, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = stringResource(R.string.add_command_title),
-                        tint = PrimaryGreen
-                    )
-                }
-            }
-        }
-
-        if (uiState.attachedCommands.isEmpty()) {
-            item {
-                Text(
-                    stringResource(R.string.no_attached_commands),
-                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
-        } else {
-            items(uiState.attachedCommands, key = { it.id }) { cmd ->
-                AttachedCommandItem(
-                    cmd      = cmd,
-                    runState = uiState.runStates[cmd.id],
-                    onRun    = { onRun(cmd) },
-                    onRemove = { onRemove(cmd.id) }
-                )
-            }
-        }
-
-        item {
-            Button(
-                onClick = onExecute,
-                modifier = Modifier.fillMaxWidth(),
-                colors   = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
-                shape    = MaterialTheme.shapes.medium
-            ) {
-                Icon(Icons.Default.Terminal, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    stringResource(R.string.new_command),
-                    fontWeight = FontWeight.Bold,
-                    color      = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-        }
-
-        if (uiState.recentHistory.isNotEmpty()) {
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onToggleHistory)
-                        .padding(vertical = 4.dp),
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            contentPadding      = PaddingValues(top = 8.dp, bottom = 88.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (uiState.attachedCommands.isEmpty()) {
+                item {
                     Text(
-                        stringResource(R.string.executed_commands),
-                        style = MaterialTheme.typography.titleMedium
+                        stringResource(R.string.no_attached_commands),
+                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(vertical = 4.dp)
                     )
-                    Icon(
-                        if (uiState.showHistory) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            } else {
+                items(uiState.attachedCommands, key = { it.id }) { cmd ->
+                    AttachedCommandItem(
+                        cmd      = cmd,
+                        runState = uiState.runStates[cmd.id],
+                        onRun    = { onRun(cmd) },
+                        onRemove = { onRemove(cmd.id) }
                     )
                 }
             }
 
-            if (uiState.showHistory) {
-                items(uiState.recentHistory) { history ->
-                    HistoryItem(history = history, onRepeat = onExecute)
+            item {
+                Button(
+                    onClick = onExecute,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors   = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                    shape    = MaterialTheme.shapes.medium
+                ) {
+                    Icon(Icons.Default.Terminal, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.new_command),
+                        fontWeight = FontWeight.Bold,
+                        color      = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+
+            if (uiState.recentHistory.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onToggleHistory)
+                            .padding(vertical = 4.dp),
+                        verticalAlignment     = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            stringResource(R.string.executed_commands),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Icon(
+                            if (uiState.showHistory) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                if (uiState.showHistory) {
+                    items(uiState.recentHistory) { history ->
+                        HistoryItem(history = history, onRepeat = onExecute)
+                    }
                 }
             }
         }
 
-        item { Spacer(Modifier.height(16.dp)) }
+        FloatingActionButton(
+            onClick        = onOpenAddDialog,
+            containerColor = PrimaryGreen,
+            modifier       = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp)
+        ) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = stringResource(R.string.add_command)
+            )
+        }
     }
 }
 
@@ -324,47 +320,52 @@ private fun AttachedCommandItem(
                 .fillMaxWidth()
                 .clickable(enabled = !isRunning, onClick = onRun)
         ) {
-            Row(
-                modifier          = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text       = cmd.label,
-                        fontWeight = FontWeight.Medium,
-                        fontSize   = 14.sp,
-                        maxLines   = 1,
-                        overflow   = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text       = cmd.command,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize   = 12.sp,
-                        color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines   = 1,
-                        overflow   = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(Modifier.width(8.dp))
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text       = cmd.label,
+                    fontWeight = FontWeight.Medium,
+                    fontSize   = 14.sp,
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis
+                )
+                Text(
+                    text       = cmd.command,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize   = 12.sp,
+                    color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis
+                )
 
                 when (runState) {
-                    is CommandRunState.Running -> CircularProgressIndicator(
-                        modifier    = Modifier.size(18.dp),
-                        color       = PrimaryGreen,
-                        strokeWidth = 2.dp
+                    is CommandRunState.Running -> Row(
+                        modifier          = Modifier.padding(top = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier    = Modifier.size(14.dp),
+                            color       = PrimaryGreen,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text     = stringResource(R.string.cmd_running),
+                            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp
+                        )
+                    }
+                    is CommandRunState.Done -> Text(
+                        text     = stringResource(R.string.cmd_exit_code, runState.exitCode),
+                        color    = if (runState.exitCode == 0) PrimaryGreen else DangerRed,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 6.dp)
                     )
-                    is CommandRunState.Done -> Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint     = if (runState.exitCode == 0) PrimaryGreen else DangerRed,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    is CommandRunState.Failure -> Icon(
-                        Icons.Default.Error,
-                        contentDescription = null,
-                        tint     = DangerRed,
-                        modifier = Modifier.size(18.dp)
+                    is CommandRunState.Failure -> Text(
+                        text       = runState.message,
+                        color      = DangerRed,
+                        fontSize   = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier   = Modifier.padding(top = 6.dp)
                     )
                     null -> Unit
                 }
@@ -687,19 +688,23 @@ private fun ConsoleTabPreview() {
                 server = Server(1, "Production", "192.168.1.1", 22, "root", ""),
                 attachedCommands = listOf(
                     QuickCommand(1, 1, "Running containers", "docker ps", 0, showOutput = true),
-                    QuickCommand(2, 1, "Disk free", "df -h", 1, showOutput = false)
+                    QuickCommand(2, 1, "Disk free", "df -h", 1, showOutput = false),
+                    QuickCommand(3, 1, "Restart nginx", "systemctl restart nginx", 2, showOutput = true),
+                    QuickCommand(4, 1, "Tail log", "tail -n 50 /var/log/syslog", 3, showOutput = true)
                 ),
                 presets = listOf(
                     Preset(0, "Docker", "Running containers", "docker ps", PresetSource.BUILTIN, 0),
                     Preset(1, "System", "Disk free", "df -h", PresetSource.CUSTOM, 0)
                 ),
                 runStates = mapOf(
-                    1L to CommandRunState.Done(
+                    1L to CommandRunState.Running,
+                    2L to CommandRunState.Done(
                         stdout   = "CONTAINER ID   IMAGE     STATUS\n9f1c2b3a4d5e   nginx     Up 3 hours",
                         stderr   = "",
                         exitCode = 0
                     ),
-                    2L to CommandRunState.Failure("Connection refused")
+                    3L to CommandRunState.Done(stdout = "", stderr = "unit not found", exitCode = 5),
+                    4L to CommandRunState.Failure("Connection refused")
                 ),
                 showAddDialog = false,
                 showHistory   = false,

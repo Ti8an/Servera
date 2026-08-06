@@ -38,7 +38,9 @@
     <string name="info_tab">Информация</string>
     <string name="new_command">Новая команда</string>
     <string name="recent_commands">Последние команды</string>
-    <string name="quick_commands">Быстрые команды</string>
+    <string name="add_command">Добавить команду</string>
+    <string name="cmd_running">Выполняется…</string>
+    <string name="cmd_exit_code">Код выхода: %1$d</string>
     <string name="command_label">Команда</string>
     <!-- Execute -->
     <string name="execute_title">Выполнить команду</string>
