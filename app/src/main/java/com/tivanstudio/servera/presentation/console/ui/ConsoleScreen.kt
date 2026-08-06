@@ -6,10 +6,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -62,6 +66,8 @@ fun ConsoleScreen(
         onBack             = onBack,
         onExecute          = viewModel::navigateToExecute,
         onSelectTab        = viewModel::selectTab,
+        onInfoTabSelected  = viewModel::onInfoTabSelected,
+        onRefreshServerInfo = viewModel::refreshServerInfo,
         onOpenAddDialog    = viewModel::openAddDialog,
         onDismissAddDialog = viewModel::dismissAddDialog,
         onSaveTyped        = viewModel::attachTyped,
@@ -78,6 +84,8 @@ private fun ConsoleScreenContent(
     onBack: () -> Unit,
     onExecute: () -> Unit,
     onSelectTab: (Int) -> Unit,
+    onInfoTabSelected: () -> Unit,
+    onRefreshServerInfo: () -> Unit,
     onOpenAddDialog: () -> Unit,
     onDismissAddDialog: () -> Unit,
     onSaveTyped: (label: String, command: String, showOutput: Boolean) -> Unit,
@@ -136,7 +144,10 @@ private fun ConsoleScreenContent(
                 )
                 Tab(
                     selected = uiState.selectedTab == 1,
-                    onClick  = { onSelectTab(1) },
+                    onClick  = {
+                        onSelectTab(1)
+                        onInfoTabSelected()
+                    },
                     text     = { Text(stringResource(R.string.info_tab)) }
                 )
             }
@@ -150,7 +161,7 @@ private fun ConsoleScreenContent(
                     onRemove        = onRemove,
                     onToggleHistory = onToggleHistory
                 )
-                1 -> InfoTab(uiState = uiState)
+                1 -> InfoTab(uiState = uiState, onRefresh = onRefreshServerInfo)
             }
         }
     }
@@ -166,97 +177,93 @@ private fun ConsoleTab(
     onRemove: (Long) -> Unit,
     onToggleHistory: () -> Unit
 ) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        item {
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier              = Modifier.fillMaxWidth(),
-                verticalAlignment     = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(stringResource(R.string.quick_commands), style = MaterialTheme.typography.titleMedium)
-                IconButton(onClick = onOpenAddDialog, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = stringResource(R.string.add_command_title),
-                        tint = PrimaryGreen
-                    )
-                }
-            }
-        }
-
-        if (uiState.attachedCommands.isEmpty()) {
-            item {
-                Text(
-                    stringResource(R.string.no_attached_commands),
-                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
-        } else {
-            items(uiState.attachedCommands, key = { it.id }) { cmd ->
-                AttachedCommandItem(
-                    cmd      = cmd,
-                    runState = uiState.runStates[cmd.id],
-                    onRun    = { onRun(cmd) },
-                    onRemove = { onRemove(cmd.id) }
-                )
-            }
-        }
-
-        item {
-            Button(
-                onClick = onExecute,
-                modifier = Modifier.fillMaxWidth(),
-                colors   = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
-                shape    = MaterialTheme.shapes.medium
-            ) {
-                Icon(Icons.Default.Terminal, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    stringResource(R.string.new_command),
-                    fontWeight = FontWeight.Bold,
-                    color      = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-        }
-
-        if (uiState.recentHistory.isNotEmpty()) {
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onToggleHistory)
-                        .padding(vertical = 4.dp),
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            contentPadding      = PaddingValues(top = 8.dp, bottom = 88.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (uiState.attachedCommands.isEmpty()) {
+                item {
                     Text(
-                        stringResource(R.string.executed_commands),
-                        style = MaterialTheme.typography.titleMedium
+                        stringResource(R.string.no_attached_commands),
+                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(vertical = 4.dp)
                     )
-                    Icon(
-                        if (uiState.showHistory) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            } else {
+                items(uiState.attachedCommands, key = { it.id }) { cmd ->
+                    AttachedCommandItem(
+                        cmd      = cmd,
+                        runState = uiState.runStates[cmd.id],
+                        onRun    = { onRun(cmd) },
+                        onRemove = { onRemove(cmd.id) }
                     )
                 }
             }
 
-            if (uiState.showHistory) {
-                items(uiState.recentHistory) { history ->
-                    HistoryItem(history = history, onRepeat = onExecute)
+            item {
+                Button(
+                    onClick = onExecute,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors   = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                    shape    = MaterialTheme.shapes.medium
+                ) {
+                    Icon(Icons.Default.Terminal, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.new_command),
+                        fontWeight = FontWeight.Bold,
+                        color      = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+
+            if (uiState.recentHistory.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onToggleHistory)
+                            .padding(vertical = 4.dp),
+                        verticalAlignment     = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            stringResource(R.string.executed_commands),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Icon(
+                            if (uiState.showHistory) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                if (uiState.showHistory) {
+                    items(uiState.recentHistory) { history ->
+                        HistoryItem(history = history, onRepeat = onExecute)
+                    }
                 }
             }
         }
 
-        item { Spacer(Modifier.height(16.dp)) }
+        FloatingActionButton(
+            onClick        = onOpenAddDialog,
+            containerColor = PrimaryGreen,
+            modifier       = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp)
+        ) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = stringResource(R.string.add_command)
+            )
+        }
     }
 }
 
@@ -313,47 +320,52 @@ private fun AttachedCommandItem(
                 .fillMaxWidth()
                 .clickable(enabled = !isRunning, onClick = onRun)
         ) {
-            Row(
-                modifier          = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text       = cmd.label,
-                        fontWeight = FontWeight.Medium,
-                        fontSize   = 14.sp,
-                        maxLines   = 1,
-                        overflow   = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text       = cmd.command,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize   = 12.sp,
-                        color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines   = 1,
-                        overflow   = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(Modifier.width(8.dp))
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text       = cmd.label,
+                    fontWeight = FontWeight.Medium,
+                    fontSize   = 14.sp,
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis
+                )
+                Text(
+                    text       = cmd.command,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize   = 12.sp,
+                    color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis
+                )
 
                 when (runState) {
-                    is CommandRunState.Running -> CircularProgressIndicator(
-                        modifier    = Modifier.size(18.dp),
-                        color       = PrimaryGreen,
-                        strokeWidth = 2.dp
+                    is CommandRunState.Running -> Row(
+                        modifier          = Modifier.padding(top = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier    = Modifier.size(14.dp),
+                            color       = PrimaryGreen,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text     = stringResource(R.string.cmd_running),
+                            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp
+                        )
+                    }
+                    is CommandRunState.Done -> Text(
+                        text     = stringResource(R.string.cmd_exit_code, runState.exitCode),
+                        color    = if (runState.exitCode == 0) PrimaryGreen else DangerRed,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 6.dp)
                     )
-                    is CommandRunState.Done -> Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint     = if (runState.exitCode == 0) PrimaryGreen else DangerRed,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    is CommandRunState.Failure -> Icon(
-                        Icons.Default.Error,
-                        contentDescription = null,
-                        tint     = DangerRed,
-                        modifier = Modifier.size(18.dp)
+                    is CommandRunState.Failure -> Text(
+                        text       = runState.message,
+                        color      = DangerRed,
+                        fontSize   = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier   = Modifier.padding(top = 6.dp)
                     )
                     null -> Unit
                 }
@@ -587,44 +599,64 @@ private fun HistoryItem(history: CommandHistory, onRepeat: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun InfoTab(uiState: ConsoleUiState) {
-    Box(Modifier.fillMaxSize()) {
+private fun InfoTab(uiState: ConsoleUiState, onRefresh: () -> Unit) {
+    PullToRefreshBox(
+        isRefreshing = uiState.isLoadingServerInfo,
+        onRefresh    = onRefresh,
+        modifier     = Modifier.fillMaxSize()
+    ) {
         when {
-            uiState.isLoadingServerInfo -> {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = PrimaryGreen)
-            }
-            uiState.serverInfoError != null -> {
-                Column(
-                    modifier              = Modifier.align(Alignment.Center).padding(24.dp),
-                    horizontalAlignment   = Alignment.CenterHorizontally
-                ) {
-                    Icon(Icons.Default.Error, contentDescription = null, tint = DangerRed, modifier = Modifier.size(48.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text(uiState.serverInfoError, color = DangerRed)
-                }
-            }
             uiState.serverInfo != null -> ServerInfoContent(info = uiState.serverInfo)
-            else -> Box(Modifier.fillMaxSize())
+
+            uiState.serverInfoError != null -> Box(
+                modifier         = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text      = uiState.serverInfoError,
+                    color     = DangerRed,
+                    textAlign = TextAlign.Center,
+                    modifier  = Modifier.padding(32.dp)
+                )
+            }
+
+            else -> Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text      = stringResource(R.string.info_swipe_hint),
+                    color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier  = Modifier.padding(32.dp)
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun ServerInfoContent(info: ServerInfo) {
-    LazyColumn(
-        modifier            = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        item { Spacer(Modifier.height(8.dp)) }
-        item { InfoRow(stringResource(R.string.info_hostname), info.hostname) }
-        item { InfoRow(stringResource(R.string.info_os), info.os) }
-        item { InfoRow(stringResource(R.string.info_cpu), info.cpuInfo) }
-        item { InfoRow(stringResource(R.string.info_ram_total), info.ramTotal) }
-        item { InfoRow(stringResource(R.string.info_ram_free), info.ramFree) }
-        item { InfoRow(stringResource(R.string.info_disk), info.diskUsage) }
-        item { InfoRow(stringResource(R.string.info_uptime), info.uptime) }
-        item { Spacer(Modifier.height(16.dp)) }
+        Spacer(Modifier.height(8.dp))
+        InfoRow(stringResource(R.string.info_hostname), info.hostname)
+        InfoRow(stringResource(R.string.info_os), info.os)
+        InfoRow(stringResource(R.string.info_cpu), info.cpuInfo)
+        InfoRow(stringResource(R.string.info_ram_total), info.ramTotal)
+        InfoRow(stringResource(R.string.info_ram_free), info.ramFree)
+        InfoRow(stringResource(R.string.info_disk), info.diskUsage)
+        InfoRow(stringResource(R.string.info_uptime), info.uptime)
+        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -656,19 +688,23 @@ private fun ConsoleTabPreview() {
                 server = Server(1, "Production", "192.168.1.1", 22, "root", ""),
                 attachedCommands = listOf(
                     QuickCommand(1, 1, "Running containers", "docker ps", 0, showOutput = true),
-                    QuickCommand(2, 1, "Disk free", "df -h", 1, showOutput = false)
+                    QuickCommand(2, 1, "Disk free", "df -h", 1, showOutput = false),
+                    QuickCommand(3, 1, "Restart nginx", "systemctl restart nginx", 2, showOutput = true),
+                    QuickCommand(4, 1, "Tail log", "tail -n 50 /var/log/syslog", 3, showOutput = true)
                 ),
                 presets = listOf(
                     Preset(0, "Docker", "Running containers", "docker ps", PresetSource.BUILTIN, 0),
                     Preset(1, "System", "Disk free", "df -h", PresetSource.CUSTOM, 0)
                 ),
                 runStates = mapOf(
-                    1L to CommandRunState.Done(
+                    1L to CommandRunState.Running,
+                    2L to CommandRunState.Done(
                         stdout   = "CONTAINER ID   IMAGE     STATUS\n9f1c2b3a4d5e   nginx     Up 3 hours",
                         stderr   = "",
                         exitCode = 0
                     ),
-                    2L to CommandRunState.Failure("Connection refused")
+                    3L to CommandRunState.Done(stdout = "", stderr = "unit not found", exitCode = 5),
+                    4L to CommandRunState.Failure("Connection refused")
                 ),
                 showAddDialog = false,
                 showHistory   = false,
@@ -676,9 +712,11 @@ private fun ConsoleTabPreview() {
                     CommandHistory(1, 1, "ls -la /etc", "output", "", 0, System.currentTimeMillis())
                 )
             ),
-            onBack             = {},
-            onExecute          = {},
-            onSelectTab        = {},
+            onBack              = {},
+            onExecute           = {},
+            onSelectTab         = {},
+            onInfoTabSelected   = {},
+            onRefreshServerInfo = {},
             onOpenAddDialog    = {},
             onDismissAddDialog = {},
             onSaveTyped        = { _, _, _ -> },
@@ -699,9 +737,37 @@ private fun ConsoleTabEmptyPreview() {
                 server = Server(1, "Staging", "10.0.0.1", 22, "deploy", ""),
                 attachedCommands = emptyList()
             ),
-            onBack             = {},
-            onExecute          = {},
-            onSelectTab        = {},
+            onBack              = {},
+            onExecute           = {},
+            onSelectTab         = {},
+            onInfoTabSelected   = {},
+            onRefreshServerInfo = {},
+            onOpenAddDialog    = {},
+            onDismissAddDialog = {},
+            onSaveTyped        = { _, _, _ -> },
+            onRun              = {},
+            onRemove           = {},
+            onToggleHistory    = {}
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true)
+@Composable
+private fun InfoTabEmptyPreview() {
+    ServeraTheme {
+        ConsoleScreenContent(
+            uiState = ConsoleUiState(
+                server      = Server(1, "Production", "192.168.1.1", 22, "root", ""),
+                selectedTab = 1,
+                serverInfo  = null
+            ),
+            onBack              = {},
+            onExecute           = {},
+            onSelectTab         = {},
+            onInfoTabSelected   = {},
+            onRefreshServerInfo = {},
             onOpenAddDialog    = {},
             onDismissAddDialog = {},
             onSaveTyped        = { _, _, _ -> },

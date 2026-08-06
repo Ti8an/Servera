@@ -41,8 +41,10 @@
     <string name="info_tab">Information</string>
     <string name="new_command">New Command</string>
     <string name="recent_commands">Recent Commands</string>
-    <string name="quick_commands">Quick Commands</string>
     <string name="no_quick_commands">No quick commands. Tap + to add one.</string>
+    <string name="add_command">Add command</string>
+    <string name="cmd_running">Running…</string>
+    <string name="cmd_exit_code">Exit code: %1$d</string>
     <string name="add_quick_command">Add Quick Command</string>
     <string name="edit_quick_command">Edit Quick Command</string>
     <string name="quick_command_label_hint">Label</string>
@@ -92,6 +94,11 @@
     <string name="status_online">Online</string>
     <string name="status_offline">Offline</string>
     <string name="status_checking">Checking…</string>
+    <string name="check_status">Check status</string>
+    <string name="status_unknown">Not checked</string>
+    <string name="status_problem_title">Connection problem</string>
+    <string name="ok">OK</string>
+    <string name="info_swipe_hint">Swipe down to load server info</string>
     <!-- Bottom Nav -->
     <string name="nav_servers">Servers</string>
     <string name="nav_history">History</string>

@@ -51,7 +51,8 @@ fun ServerListScreen(
         onNavigateToSettings = onNavigateToSettings,
         onSearch = viewModel::onSearch,
         onDelete = viewModel::deleteServer,
-        onRefresh = viewModel::refreshStatus
+        onCheckOne = viewModel::checkOne,
+        onDismissStatusError = viewModel::dismissStatusError
     )
 }
 
@@ -67,7 +68,8 @@ private fun ServerListContent(
     onNavigateToSettings: () -> Unit,
     onSearch: (String) -> Unit,
     onDelete: (Long) -> Unit,
-    onRefresh: () -> Unit
+    onCheckOne: (Long) -> Unit,
+    onDismissStatusError: () -> Unit
 ) {
     var searchVisible by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<Long?>(null) }
@@ -85,6 +87,19 @@ private fun ServerListContent(
             },
             dismissButton = {
                 TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.cancel)) }
+            },
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
+    uiState.statusError?.let { statusError ->
+        val serverName = uiState.servers.firstOrNull { it.id == statusError.serverId }?.name.orEmpty()
+        AlertDialog(
+            onDismissRequest = onDismissStatusError,
+            title = { Text(stringResource(R.string.status_problem_title)) },
+            text  = { Text("$serverName\n\n${statusError.message}") },
+            confirmButton = {
+                TextButton(onClick = onDismissStatusError) { Text(stringResource(R.string.ok)) }
             },
             containerColor = MaterialTheme.colorScheme.surface
         )
@@ -115,9 +130,6 @@ private fun ServerListContent(
                 actions = {
                     IconButton(onClick = { searchVisible = !searchVisible }) {
                         Icon(if (searchVisible) Icons.Default.Close else Icons.Default.Search, contentDescription = null)
-                    }
-                    IconButton(onClick = onRefresh) {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -186,10 +198,11 @@ private fun ServerListContent(
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(filtered, key = { it.id }) { server ->
                             ServerListItem(
-                                server   = server,
-                                onClick  = { onNavigateToConsole(server.id) },
-                                onEdit   = { onNavigateToEdit(server.id) },
-                                onDelete = { deleteTarget = server.id }
+                                server     = server,
+                                onClick    = { onNavigateToConsole(server.id) },
+                                onEdit     = { onNavigateToEdit(server.id) },
+                                onDelete   = { deleteTarget = server.id },
+                                onCheckOne = { onCheckOne(server.id) }
                             )
                         }
                         item { Spacer(Modifier.height(8.dp)) }
@@ -206,13 +219,15 @@ private fun ServerListItem(
     server: ServerUiModel,
     onClick: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onCheckOne: () -> Unit
 ) {
     val statusColor by animateColorAsState(
         targetValue = when {
-            server.isChecking -> MaterialTheme.colorScheme.onSurfaceVariant
-            server.isOnline   -> PrimaryGreen
-            else              -> DangerRed
+            server.isChecking        -> MaterialTheme.colorScheme.onSurfaceVariant
+            server.isOnline == true  -> PrimaryGreen
+            server.isOnline == false -> DangerRed
+            else                     -> MaterialTheme.colorScheme.onSurfaceVariant
         },
         label = "status_color"
     )
@@ -311,12 +326,29 @@ private fun ServerListItem(
                         Spacer(Modifier.width(6.dp))
                         Text(
                             text = when {
-                                server.isChecking -> stringResource(R.string.status_checking)
-                                server.isOnline   -> stringResource(R.string.status_online)
-                                else              -> stringResource(R.string.status_offline)
+                                server.isChecking        -> stringResource(R.string.status_checking)
+                                server.isOnline == true  -> stringResource(R.string.status_online)
+                                server.isOnline == false -> stringResource(R.string.status_offline)
+                                else                     -> stringResource(R.string.status_unknown)
                             },
                             color = statusColor,
                             fontSize = 11.sp
+                        )
+                    }
+                }
+
+                IconButton(onClick = onCheckOne, enabled = !server.isChecking) {
+                    if (server.isChecking) {
+                        CircularProgressIndicator(
+                            modifier    = Modifier.size(18.dp),
+                            color       = PrimaryGreen,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.NetworkCheck,
+                            contentDescription = stringResource(R.string.check_status),
+                            tint = PrimaryGreen
                         )
                     }
                 }
@@ -335,8 +367,10 @@ private fun ServerListContentPreview() {
                 servers = listOf(
                     ServerUiModel(1, "Production", "192.168.1.1", 22, "root", isOnline = true),
                     ServerUiModel(2, "Staging", "10.0.0.1", 22, "deploy", isOnline = false),
-                    ServerUiModel(3, "Dev", "172.16.0.1", 2222, "admin", isChecking = true)
-                )
+                    ServerUiModel(3, "Dev", "172.16.0.1", 2222, "admin", isOnline = null),
+                    ServerUiModel(4, "Backup", "172.16.0.2", 22, "admin", isChecking = true)
+                ),
+                statusError = null
             ),
             onNavigateToAdd = {},
             onNavigateToEdit = {},
@@ -346,7 +380,8 @@ private fun ServerListContentPreview() {
             onNavigateToSettings = {},
             onSearch = {},
             onDelete = {},
-            onRefresh = {}
+            onCheckOne = {},
+            onDismissStatusError = {}
         )
     }
 }
@@ -359,7 +394,8 @@ private fun ServerListItemOnlinePreview() {
             server = ServerUiModel(1, "Production Server", "192.168.1.100", 22, "root", isOnline = true),
             onClick = {},
             onEdit = {},
-            onDelete = {}
+            onDelete = {},
+            onCheckOne = {}
         )
     }
 }
@@ -372,7 +408,22 @@ private fun ServerListItemOfflinePreview() {
             server = ServerUiModel(2, "Staging Server", "10.0.0.1", 22, "deploy", isOnline = false),
             onClick = {},
             onEdit = {},
-            onDelete = {}
+            onDelete = {},
+            onCheckOne = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ServerListItemUncheckedPreview() {
+    ServeraTheme {
+        ServerListItem(
+            server = ServerUiModel(3, "Dev Server", "172.16.0.1", 2222, "admin", isOnline = null),
+            onClick = {},
+            onEdit = {},
+            onDelete = {},
+            onCheckOne = {}
         )
     }
 }
