@@ -12,6 +12,7 @@ import com.tivanstudio.servera.presentation.console.ui.ConsoleScreen
 import com.tivanstudio.servera.presentation.console.execute.ui.ExecuteCommandScreen
 import com.tivanstudio.servera.presentation.console.result.ui.CommandResultScreen
 import com.tivanstudio.servera.presentation.history.ui.HistoryScreen
+import com.tivanstudio.servera.presentation.presets.groups.PresetGroupsScreen
 import com.tivanstudio.servera.presentation.presets.ui.PresetsScreen
 import com.tivanstudio.servera.presentation.servers.add.ui.AddServerScreen
 import com.tivanstudio.servera.presentation.servers.list.ui.ServerListScreen
@@ -113,11 +114,18 @@ fun AppNavGraph(navController: NavHostController) {
             )
         }
 
+        composable(Screen.PresetGroups.route) {
+            PresetGroupsScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         composable(Screen.Presets.route) {
             PresetsScreen(
                 onNavigateToServers  = { navController.navigate(Screen.ServerList.route) { launchSingleTop = true } },
                 onNavigateToHistory  = { navController.navigate(Screen.History.route) { launchSingleTop = true } },
-                onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } }
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
+                onNavigateToGroups   = { navController.navigate(Screen.PresetGroups.route) { launchSingleTop = true } }
             )
         }
     }

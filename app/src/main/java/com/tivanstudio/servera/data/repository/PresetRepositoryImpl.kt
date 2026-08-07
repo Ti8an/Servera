@@ -1,54 +1,42 @@
 package com.tivanstudio.servera.data.repository
 
-import android.content.Context
 import com.tivanstudio.servera.data.db.dao.PresetDao
-import com.tivanstudio.servera.data.mapper.PresetFile
-import com.tivanstudio.servera.data.mapper.toBuiltinDomain
+import com.tivanstudio.servera.data.db.dao.PresetGroupDao
 import com.tivanstudio.servera.data.mapper.toDomain
 import com.tivanstudio.servera.data.mapper.toEntity
 import com.tivanstudio.servera.domain.entity.Preset
+import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.repository.PresetRepository
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class PresetRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val dao: PresetDao
+    private val dao: PresetDao,
+    private val groupDao: PresetGroupDao
 ) : PresetRepository {
 
-    private val json = Json { ignoreUnknownKeys = true }
+    override fun getGroups(): Flow<List<PresetGroup>> =
+        groupDao.getAll().map { groups -> groups.map { it.toDomain() } }
 
-    private val builtinFlow: Flow<List<Preset>> = flow { emit(loadBuiltinFromAssets()) }
+    override suspend fun addGroup(group: PresetGroup): Long =
+        groupDao.insert(group.toEntity())
+
+    override suspend fun updateGroup(group: PresetGroup) =
+        groupDao.update(group.toEntity())
+
+    override suspend fun deleteGroup(id: Long) =
+        groupDao.deleteById(id)
 
     override fun getPresets(): Flow<List<Preset>> =
-        combine(builtinFlow, dao.getAll()) { builtin, custom ->
-            (builtin + custom.map { it.toDomain() })
-                .sortedWith(compareBy({ it.category }, { it.sortOrder }))
-        }
+        dao.getAll().map { presets -> presets.map { it.toDomain() } }
 
-    override suspend fun addCustom(preset: Preset): Long =
+    override suspend fun addPreset(preset: Preset): Long =
         dao.insert(preset.toEntity())
 
-    override suspend fun deleteCustom(id: Long) =
+    override suspend fun deletePreset(id: Long) =
         dao.deleteById(id)
 
     // TODO Firebase Remote Config
     override suspend fun updatePresets(): Result<Int> = Result.success(0)
-
-    private suspend fun loadBuiltinFromAssets(): List<Preset> = withContext(Dispatchers.IO) {
-        runCatching {
-            val raw = context.assets.open(ASSET_FILE_NAME).bufferedReader().use { it.readText() }
-            json.decodeFromString<PresetFile>(raw).presets.map { it.toBuiltinDomain() }
-        }.getOrDefault(emptyList())
-    }
-
-    private companion object {
-        const val ASSET_FILE_NAME = "presets.json"
-    }
 }

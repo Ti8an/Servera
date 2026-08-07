@@ -122,6 +122,12 @@
     <string name="delete_server_title">Delete server?</string>
     <string name="delete_server_message">This action cannot be undone.</string>
     <string name="delete_confirm">Delete</string>
+    <!-- Preset groups -->
+    <string name="groups_title">Groups</string>
+    <string name="group_name">Group name</string>
+    <string name="group_color">Color</string>
+    <string name="group_delete_warning">Presets inside will be deleted</string>
+    <string name="no_groups_hint">Create a group first</string>
     <string name="cancel">Cancel</string>
     <!-- Errors -->
     <string name="error_name_required">Name is required</string>

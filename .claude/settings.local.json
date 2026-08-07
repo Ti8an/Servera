@@ -31,7 +31,10 @@
       "PowerShell(.\\\\gradlew assembleDebug --console=plain | Select-Object -Last 40)",
       "PowerShell(.\\\\gradlew assembleDebug -q 2>&1 | Select-Object -Last 40)",
       "PowerShell(.\\\\gradlew assembleDebug; \"EXIT=$LASTEXITCODE\")",
-      "PowerShell(.\\\\gradlew assembleDebug 2>&1 | Select-String -Pattern \"^e:|error:|warning:|BUILD|FAILURE|Execution failed|Caused by\"; \"EXIT=$LASTEXITCODE\")"
+      "PowerShell(.\\\\gradlew assembleDebug 2>&1 | Select-String -Pattern \"^e:|error:|warning:|BUILD|FAILURE|Execution failed|Caused by\"; \"EXIT=$LASTEXITCODE\")",
+      "PowerShell(.\\\\gradlew assembleDebug 2>&1 | Select-String -Pattern \"^e:|error:|BUILD|FAILURE|Execution failed\"; \"EXIT=$LASTEXITCODE\")",
+      "PowerShell(Set-Location \"C:\\\\Users\\\\tim\\\\Desktop\\\\work\\\\Android\\\\Servera\\\\app\\\\Servera\"; .\\\\gradlew assembleDebug 2>&1 | Select-String -Pattern \"^e:|error:|BUILD|FAILURE|Execution failed\"; \"EXIT=$LASTEXITCODE\")",
+      "PowerShell(Set-Location \"C:\\\\Users\\\\tim\\\\Desktop\\\\work\\\\Android\\\\Servera\\\\app\\\\Servera\"; .\\\\gradlew compileDebugKotlin --console=plain 2>&1 | Select-String -Pattern \"compileDebugKotlin|BUILD\"; \"EXIT=$LASTEXITCODE\")"
     ]
   }
 }

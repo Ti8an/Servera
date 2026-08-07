@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PresetDao {
-    @Query("SELECT * FROM presets ORDER BY category ASC, sortOrder ASC")
+    @Query("SELECT * FROM presets ORDER BY groupId ASC, sortOrder ASC")
     fun getAll(): Flow<List<PresetEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

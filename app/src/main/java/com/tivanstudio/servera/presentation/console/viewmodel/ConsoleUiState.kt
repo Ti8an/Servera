@@ -2,6 +2,7 @@ package com.tivanstudio.servera.presentation.console.viewmodel
 
 import com.tivanstudio.servera.domain.entity.CommandHistory
 import com.tivanstudio.servera.domain.entity.Preset
+import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.domain.entity.ServerInfo
@@ -11,6 +12,7 @@ data class ConsoleUiState(
     val isLoading: Boolean = true,
     val selectedTab: Int = 0,
     val presets: List<Preset> = emptyList(),
+    val groups: List<PresetGroup> = emptyList(),
     val attachedCommands: List<QuickCommand> = emptyList(),
     val showAddDialog: Boolean = false,
     val runStates: Map<Long, CommandRunState> = emptyMap(),
@@ -21,7 +23,17 @@ data class ConsoleUiState(
     val serverInfoError: String? = null,
     val error: String? = null
 ) {
-    val groupedPresets: Map<String, List<Preset>> get() = presets.groupBy { it.category }
+    /** Catalog suggestions per group, in group order; groups without presets are dropped. */
+    val grouped: List<Pair<PresetGroup, List<Preset>>>
+        get() = groups
+            .sortedBy { it.sortOrder }
+            .map { group ->
+                group to presets
+                    .filter { it.groupId == group.id }
+                    .sortedBy { it.sortOrder }
+            }
+            .filter { (_, presets) -> presets.isNotEmpty() }
+
     val attachedCommandStrings: Set<String> get() = attachedCommands.map { it.command }.toSet()
 }
 

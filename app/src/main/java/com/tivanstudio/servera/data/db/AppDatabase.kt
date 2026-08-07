@@ -4,10 +4,12 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.tivanstudio.servera.data.db.dao.CommandHistoryDao
 import com.tivanstudio.servera.data.db.dao.PresetDao
+import com.tivanstudio.servera.data.db.dao.PresetGroupDao
 import com.tivanstudio.servera.data.db.dao.QuickCommandDao
 import com.tivanstudio.servera.data.db.dao.ServerDao
 import com.tivanstudio.servera.data.db.entity.CommandHistoryEntity
 import com.tivanstudio.servera.data.db.entity.PresetEntity
+import com.tivanstudio.servera.data.db.entity.PresetGroupEntity
 import com.tivanstudio.servera.data.db.entity.QuickCommandEntity
 import com.tivanstudio.servera.data.db.entity.ServerEntity
 
@@ -16,9 +18,10 @@ import com.tivanstudio.servera.data.db.entity.ServerEntity
         ServerEntity::class,
         CommandHistoryEntity::class,
         QuickCommandEntity::class,
-        PresetEntity::class
+        PresetEntity::class,
+        PresetGroupEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -26,4 +29,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun commandHistoryDao(): CommandHistoryDao
     abstract fun quickCommandDao(): QuickCommandDao
     abstract fun presetDao(): PresetDao
+    abstract fun presetGroupDao(): PresetGroupDao
 }
