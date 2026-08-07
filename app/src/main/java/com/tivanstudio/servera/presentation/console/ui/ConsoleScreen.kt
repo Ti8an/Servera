@@ -288,6 +288,8 @@ private fun AttachedCommandItem(
 ) {
     val isRunning = runState is CommandRunState.Running
 
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
     val offsetX = remember { Animatable(0f) }
     val scope   = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -296,6 +298,31 @@ private fun AttachedCommandItem(
     val actionThreshold = with(density) { 72.dp.toPx() }
 
     val offset = offsetX.value
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            containerColor   = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.delete_command_title)) },
+            text  = { Text(stringResource(R.string.delete_command_message, cmd.label)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    onRemove()
+                }) {
+                    Text(stringResource(R.string.delete_confirm), color = DangerRed)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(
+                        stringResource(R.string.cancel),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        )
+    }
 
     Box(modifier = Modifier.fillMaxWidth()) {
         // Action layer, uncovered by the card as it follows the finger.
@@ -334,11 +361,10 @@ private fun AttachedCommandItem(
                         }
                     },
                     onDragStopped = {
-                        // Both actions leave the row in place: edit opens a dialog,
-                        // remove drops the item from the list on its own.
+                        // Both actions open a dialog, so the row always slides back.
                         when {
                             offsetX.value >= actionThreshold  -> onEdit()
-                            offsetX.value <= -actionThreshold -> onRemove()
+                            offsetX.value <= -actionThreshold -> showDeleteConfirm = true
                         }
                         offsetX.animateTo(0f, tween(durationMillis = 200))
                     }
