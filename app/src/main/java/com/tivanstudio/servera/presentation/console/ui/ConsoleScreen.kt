@@ -1,9 +1,14 @@
 package com.tivanstudio.servera.presentation.console.ui
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -17,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -24,6 +30,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -41,8 +48,10 @@ import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleEvent
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleUiState
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleViewModel
 import com.tivanstudio.servera.presentation.theme.*
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.roundToInt
 
 @Composable
 fun ConsoleScreen(
@@ -269,7 +278,6 @@ private fun ConsoleTab(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AttachedCommandItem(
     cmd: QuickCommand,
@@ -280,68 +288,61 @@ private fun AttachedCommandItem(
 ) {
     val isRunning = runState is CommandRunState.Running
 
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            when (value) {
-                SwipeToDismissBoxValue.EndToStart -> {
-                    onRemove()
-                    true
-                }
-                // Editing opens a dialog, so the card stays put and springs back.
-                SwipeToDismissBoxValue.StartToEnd -> {
-                    onEdit()
-                    false
-                }
-                else -> false
-            }
-        }
-    )
+    val offsetX = remember { Animatable(0f) }
+    val scope   = rememberCoroutineScope()
+    val density = LocalDensity.current
 
-    LaunchedEffect(dismissState.dismissDirection) {
-        if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
-            dismissState.reset()
-        }
-    }
+    val maxDragPx       = with(density) { 96.dp.toPx() }
+    val actionThreshold = with(density) { 72.dp.toPx() }
 
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = true,
-        backgroundContent = {
-            val direction = dismissState.dismissDirection
-            val color by animateColorAsState(
-                targetValue = when (direction) {
-                    SwipeToDismissBoxValue.EndToStart -> DangerRed.copy(alpha = 0.85f)
-                    SwipeToDismissBoxValue.StartToEnd -> InfoBlue.copy(alpha = 0.85f)
-                    else                              -> Color.Transparent
-                },
-                label = "attached_swipe_bg"
-            )
+    val offset = offsetX.value
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        // Action layer, uncovered by the card as it follows the finger.
+        if (offset != 0f) {
+            val draggingRight = offset > 0f
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(color, shape = MaterialTheme.shapes.medium)
+                    .matchParentSize()
+                    .background(
+                        color = if (draggingRight) InfoBlue.copy(alpha = 0.85f)
+                                else DangerRed.copy(alpha = 0.85f),
+                        shape = MaterialTheme.shapes.medium
+                    )
                     .padding(horizontal = 16.dp),
-                contentAlignment = when (direction) {
-                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-                    else                              -> Alignment.CenterEnd
-                }
+                contentAlignment = if (draggingRight) Alignment.CenterStart else Alignment.CenterEnd
             ) {
-                when (direction) {
-                    SwipeToDismissBoxValue.EndToStart ->
-                        Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
-                    SwipeToDismissBoxValue.StartToEnd ->
-                        Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White)
-                    else -> Unit
-                }
+                Icon(
+                    imageVector        = if (draggingRight) Icons.Default.Edit else Icons.Default.Delete,
+                    contentDescription = null,
+                    tint               = Color.White
+                )
             }
         }
-    ) {
+
         Card(
             colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape    = MaterialTheme.shapes.medium,
             modifier = Modifier
                 .fillMaxWidth()
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .draggable(
+                    orientation = Orientation.Horizontal,
+                    state = rememberDraggableState { delta ->
+                        scope.launch {
+                            offsetX.snapTo((offsetX.value + delta).coerceIn(-maxDragPx, maxDragPx))
+                        }
+                    },
+                    onDragStopped = {
+                        // Both actions leave the row in place: edit opens a dialog,
+                        // remove drops the item from the list on its own.
+                        when {
+                            offsetX.value >= actionThreshold  -> onEdit()
+                            offsetX.value <= -actionThreshold -> onRemove()
+                        }
+                        offsetX.animateTo(0f, tween(durationMillis = 200))
+                    }
+                )
                 .clickable(enabled = !isRunning, onClick = onRun)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
