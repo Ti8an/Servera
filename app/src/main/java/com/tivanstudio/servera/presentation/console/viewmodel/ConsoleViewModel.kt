@@ -138,13 +138,13 @@ class ConsoleViewModel @Inject constructor(
         _uiState.update { it.copy(showHistory = !it.showHistory) }
     }
 
-    /** Attaches a catalog preset, keeping a snapshot of the group it came from. */
+    /**
+     * Attaches a catalog preset, keeping a snapshot of the group it came from.
+     * The dialog stays open so several presets can be attached in a row.
+     */
     fun attachFromCatalog(preset: Preset) {
         val state = _uiState.value
-        if (preset.command in state.attachedCommandStrings) {
-            dismissCommandDialog()
-            return
-        }
+        if (preset.command in state.attachedCommandStrings) return
         val group = state.groups.firstOrNull { it.id == preset.groupId }
         viewModelScope.launch {
             saveQuickCommand(
@@ -159,7 +159,6 @@ class ConsoleViewModel @Inject constructor(
                     groupColorHex = group?.colorHex
                 )
             )
-            dismissCommandDialog()
         }
     }
 

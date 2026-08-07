@@ -136,6 +136,7 @@
     <string name="no_attached_commands">Добавьте команды кнопкой +</string>
     <string name="add_command_title">Новая команда</string>
     <string name="edit_command_title">Редактировать команду</string>
+    <string name="command_added">Команда добавлена</string>
     <string name="mode_from_catalog">Из каталога</string>
     <string name="mode_own">Своя</string>
     <string name="select_group">Группа</string>

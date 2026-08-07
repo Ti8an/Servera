@@ -2,6 +2,7 @@ package com.tivanstudio.servera.presentation.console.ui
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -456,6 +457,11 @@ private fun CommandDialog(
 ) {
     val isEditing = initial != null
     var ownMode by remember(initial) { mutableStateOf(isEditing) }
+    var selectedPreset by remember { mutableStateOf<Preset?>(null) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope    = rememberCoroutineScope()
+    val addedMsg = stringResource(R.string.command_added)
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -465,55 +471,92 @@ private fun CommandDialog(
             modifier = Modifier.fillMaxSize(),
             color    = MaterialTheme.colorScheme.background
         ) {
-            Column(Modifier.fillMaxSize()) {
-                TopAppBar(
-                    title = {
-                        Text(
-                            stringResource(
-                                if (isEditing) R.string.edit_command_title
-                                else R.string.add_command_title
-                            ),
-                            fontWeight = FontWeight.Bold
+            Scaffold(
+                containerColor = MaterialTheme.colorScheme.background,
+                snackbarHost   = { SnackbarHost(snackbarHostState) },
+                topBar = {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                stringResource(
+                                    if (isEditing) R.string.edit_command_title
+                                    else R.string.add_command_title
+                                ),
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onDismiss) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.cancel)
+                                )
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.surface
                         )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface
                     )
-                )
-
-                if (!isEditing) {
-                    TabRow(
-                        selectedTabIndex = if (ownMode) 1 else 0,
-                        containerColor   = MaterialTheme.colorScheme.surface,
-                        contentColor     = PrimaryGreen
-                    ) {
-                        Tab(
-                            selected = !ownMode,
-                            onClick  = { ownMode = false },
-                            text     = { Text(stringResource(R.string.mode_from_catalog)) }
-                        )
-                        Tab(
-                            selected = ownMode,
-                            onClick  = { ownMode = true },
-                            text     = { Text(stringResource(R.string.mode_own)) }
-                        )
-                    }
                 }
+            ) { padding ->
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                ) {
+                    if (!isEditing) {
+                        TabRow(
+                            selectedTabIndex = if (ownMode) 1 else 0,
+                            containerColor   = MaterialTheme.colorScheme.surface,
+                            contentColor     = PrimaryGreen
+                        ) {
+                            Tab(
+                                selected = !ownMode,
+                                onClick  = { ownMode = false },
+                                text     = { Text(stringResource(R.string.mode_from_catalog)) }
+                            )
+                            Tab(
+                                selected = ownMode,
+                                onClick  = { ownMode = true },
+                                text     = { Text(stringResource(R.string.mode_own)) }
+                            )
+                        }
+                    }
 
-                if (ownMode) {
-                    OwnCommandForm(
-                        uiState  = uiState,
-                        initial  = initial,
-                        onSave   = onSaveOwn,
-                        onCancel = onDismiss
-                    )
-                } else {
-                    CatalogPicker(uiState = uiState, onPick = onPickPreset)
+                    if (ownMode) {
+                        OwnCommandForm(
+                            uiState  = uiState,
+                            initial  = initial,
+                            onSave   = onSaveOwn,
+                            onCancel = onDismiss
+                        )
+                    } else {
+                        CatalogPicker(
+                            uiState  = uiState,
+                            selected = selectedPreset,
+                            onSelect = { selectedPreset = it },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        Button(
+                            onClick = {
+                                selectedPreset?.let { preset ->
+                                    onPickPreset(preset)
+                                    scope.launch { snackbarHostState.showSnackbar(addedMsg) }
+                                    // Cleared so the next preset can be picked right away.
+                                    selectedPreset = null
+                                }
+                            },
+                            enabled  = selectedPreset != null,
+                            colors   = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                            shape    = MaterialTheme.shapes.medium,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Text(stringResource(R.string.save_button), fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }
@@ -523,13 +566,15 @@ private fun CommandDialog(
 @Composable
 private fun CatalogPicker(
     uiState: ConsoleUiState,
-    onPick: (Preset) -> Unit
+    selected: Preset?,
+    onSelect: (Preset) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val attached = uiState.attachedCommandStrings
 
     if (uiState.grouped.isEmpty()) {
         Box(
-            modifier         = Modifier.fillMaxSize(),
+            modifier         = modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -543,7 +588,7 @@ private fun CatalogPicker(
     }
 
     LazyColumn(
-        modifier       = Modifier
+        modifier       = modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
         contentPadding = PaddingValues(vertical = 8.dp)
@@ -566,13 +611,18 @@ private fun CatalogPicker(
 
             items(presets, key = { it.id }) { preset ->
                 val isAttached = preset.command in attached
+                val isSelected = !isAttached && preset.id == selected?.id
                 Card(
-                    colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSelected) PrimaryGreen.copy(alpha = 0.18f)
+                                         else MaterialTheme.colorScheme.surface
+                    ),
+                    border   = if (isSelected) BorderStroke(1.dp, PrimaryGreen) else null,
                     shape    = MaterialTheme.shapes.medium,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
-                        .clickable(enabled = !isAttached) { onPick(preset) }
+                        .clickable(enabled = !isAttached) { onSelect(preset) }
                 ) {
                     Row(
                         modifier          = Modifier.padding(12.dp),
@@ -595,14 +645,25 @@ private fun CatalogPicker(
                                 overflow   = TextOverflow.Ellipsis
                             )
                         }
-                        if (isAttached) {
-                            Spacer(Modifier.width(8.dp))
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = null,
-                                tint     = PrimaryGreen,
-                                modifier = Modifier.size(18.dp)
-                            )
+                        when {
+                            isAttached -> {
+                                Spacer(Modifier.width(8.dp))
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint     = PrimaryGreen,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            isSelected -> {
+                                Spacer(Modifier.width(8.dp))
+                                Icon(
+                                    Icons.Default.RadioButtonChecked,
+                                    contentDescription = null,
+                                    tint     = PrimaryGreen,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }

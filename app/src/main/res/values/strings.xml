@@ -150,6 +150,7 @@
     <string name="no_attached_commands">Add commands with +</string>
     <string name="add_command_title">New command</string>
     <string name="edit_command_title">Edit command</string>
+    <string name="command_added">Command added</string>
     <string name="mode_from_catalog">From catalog</string>
     <string name="mode_own">Custom</string>
     <string name="select_group">Group</string>
