@@ -457,7 +457,9 @@ private fun CommandDialog(
 ) {
     val isEditing = initial != null
     var ownMode by remember(initial) { mutableStateOf(isEditing) }
-    var selectedPreset by remember { mutableStateOf<Preset?>(null) }
+    // Selection is keyed by group + command rather than by id, so it survives
+    // duplicate or unsaved ids in the catalog.
+    var selectedKey by remember { mutableStateOf<String?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope    = rememberCoroutineScope()
@@ -532,22 +534,24 @@ private fun CommandDialog(
                         )
                     } else {
                         CatalogPicker(
-                            uiState  = uiState,
-                            selected = selectedPreset,
-                            onSelect = { selectedPreset = it },
-                            modifier = Modifier.weight(1f)
+                            uiState     = uiState,
+                            selectedKey = selectedKey,
+                            onSelect    = { selectedKey = it },
+                            modifier    = Modifier.weight(1f)
                         )
 
                         Button(
                             onClick = {
-                                selectedPreset?.let { preset ->
+                                val preset = uiState.presets
+                                    .firstOrNull { it.selectionKey() == selectedKey }
+                                if (preset != null) {
                                     onPickPreset(preset)
                                     scope.launch { snackbarHostState.showSnackbar(addedMsg) }
                                     // Cleared so the next preset can be picked right away.
-                                    selectedPreset = null
+                                    selectedKey = null
                                 }
                             },
-                            enabled  = selectedPreset != null,
+                            enabled  = selectedKey != null,
                             colors   = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                             shape    = MaterialTheme.shapes.medium,
                             modifier = Modifier
@@ -563,11 +567,14 @@ private fun CommandDialog(
     }
 }
 
+/** Stable identity of a catalog row: ids may collide, group + command does not. */
+private fun Preset.selectionKey(): String = "$groupId|$command"
+
 @Composable
 private fun CatalogPicker(
     uiState: ConsoleUiState,
-    selected: Preset?,
-    onSelect: (Preset) -> Unit,
+    selectedKey: String?,
+    onSelect: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val attached = uiState.attachedCommandStrings
@@ -609,9 +616,9 @@ private fun CatalogPicker(
                 }
             }
 
-            items(presets, key = { it.id }) { preset ->
+            items(presets, key = { "${it.groupId}_${it.command}" }) { preset ->
                 val isAttached = preset.command in attached
-                val isSelected = !isAttached && preset.id == selected?.id
+                val isSelected = !isAttached && preset.selectionKey() == selectedKey
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = if (isSelected) PrimaryGreen.copy(alpha = 0.18f)
@@ -622,7 +629,7 @@ private fun CatalogPicker(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
-                        .clickable(enabled = !isAttached) { onSelect(preset) }
+                        .clickable(enabled = !isAttached) { onSelect(preset.selectionKey()) }
                 ) {
                     Row(
                         modifier          = Modifier.padding(12.dp),
