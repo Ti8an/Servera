@@ -33,6 +33,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
@@ -78,12 +80,11 @@ fun ConsoleScreen(
         onSelectTab        = viewModel::selectTab,
         onInfoTabSelected  = viewModel::onInfoTabSelected,
         onRefreshServerInfo = viewModel::refreshServerInfo,
-        onOpenAddDialog    = viewModel::openAddDialog,
-        onDismissAddDialog = viewModel::dismissAddDialog,
-        onSaveTyped        = viewModel::attachTyped,
+        onOpenCommandDialog = viewModel::openCommandDialog,
+        onDismissCommandDialog = viewModel::dismissCommandDialog,
         onEditCommand      = viewModel::startEdit,
-        onDismissEditDialog = viewModel::dismissEditDialog,
-        onSaveEdited       = viewModel::saveEdited,
+        onPickPreset       = viewModel::attachFromCatalog,
+        onSaveOwn          = viewModel::saveOwn,
         onRun              = viewModel::runAttached,
         onRemove           = viewModel::removeAttached,
         onToggleHistory    = viewModel::toggleHistory
@@ -99,30 +100,22 @@ private fun ConsoleScreenContent(
     onSelectTab: (Int) -> Unit,
     onInfoTabSelected: () -> Unit,
     onRefreshServerInfo: () -> Unit,
-    onOpenAddDialog: () -> Unit,
-    onDismissAddDialog: () -> Unit,
-    onSaveTyped: (label: String, command: String, showOutput: Boolean) -> Unit,
+    onOpenCommandDialog: () -> Unit,
+    onDismissCommandDialog: () -> Unit,
     onEditCommand: (QuickCommand) -> Unit,
-    onDismissEditDialog: () -> Unit,
-    onSaveEdited: (label: String, command: String, showOutput: Boolean) -> Unit,
+    onPickPreset: (Preset) -> Unit,
+    onSaveOwn: (label: String, command: String, showOutput: Boolean, group: PresetGroup) -> Unit,
     onRun: (QuickCommand) -> Unit,
     onRemove: (Long) -> Unit,
     onToggleHistory: () -> Unit
 ) {
-    if (uiState.showAddDialog) {
-        AddCommandDialog(
-            uiState   = uiState,
-            onDismiss = onDismissAddDialog,
-            onSave    = onSaveTyped
-        )
-    }
-
-    if (uiState.editingCommand != null) {
-        AddCommandDialog(
-            uiState   = uiState,
-            initial   = uiState.editingCommand,
-            onDismiss = onDismissEditDialog,
-            onSave    = onSaveEdited
+    if (uiState.showCommandDialog) {
+        CommandDialog(
+            uiState      = uiState,
+            initial      = uiState.editingCommand,
+            onDismiss    = onDismissCommandDialog,
+            onPickPreset = onPickPreset,
+            onSaveOwn    = onSaveOwn
         )
     }
 
@@ -181,7 +174,7 @@ private fun ConsoleScreenContent(
                 0 -> ConsoleTab(
                     uiState         = uiState,
                     onExecute       = onExecute,
-                    onOpenAddDialog = onOpenAddDialog,
+                    onOpenCommandDialog = onOpenCommandDialog,
                     onEditCommand   = onEditCommand,
                     onRun           = onRun,
                     onRemove        = onRemove,
@@ -198,7 +191,7 @@ private fun ConsoleScreenContent(
 private fun ConsoleTab(
     uiState: ConsoleUiState,
     onExecute: () -> Unit,
-    onOpenAddDialog: () -> Unit,
+    onOpenCommandDialog: () -> Unit,
     onEditCommand: (QuickCommand) -> Unit,
     onRun: (QuickCommand) -> Unit,
     onRemove: (Long) -> Unit,
@@ -264,7 +257,7 @@ private fun ConsoleTab(
         }
 
         FloatingActionButton(
-            onClick        = onOpenAddDialog,
+            onClick        = onOpenCommandDialog,
             containerColor = PrimaryGreen,
             modifier       = Modifier
                 .align(Alignment.BottomStart)
@@ -372,13 +365,18 @@ private fun AttachedCommandItem(
                 .clickable(enabled = !isRunning, onClick = onRun)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text       = cmd.label,
-                    fontWeight = FontWeight.Medium,
-                    fontSize   = 14.sp,
-                    maxLines   = 1,
-                    overflow   = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text       = cmd.label,
+                        fontWeight = FontWeight.Medium,
+                        fontSize   = 14.sp,
+                        maxLines   = 1,
+                        overflow   = TextOverflow.Ellipsis,
+                        modifier   = Modifier.weight(1f, fill = false)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    CommandGroupTag(cmd = cmd)
+                }
                 Text(
                     text       = cmd.command,
                     fontFamily = FontFamily.Monospace,
@@ -426,193 +424,324 @@ private fun AttachedCommandItem(
 }
 
 @Composable
-private fun AddCommandDialog(
+private fun CommandGroupTag(cmd: QuickCommand) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        cmd.groupColorHex?.let { hex ->
+            GroupDot(colorHex = hex, size = 8)
+            Spacer(Modifier.width(4.dp))
+        }
+        Text(
+            text     = cmd.groupName ?: stringResource(R.string.group_custom),
+            style    = MaterialTheme.typography.labelSmall,
+            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/**
+ * Full-screen add/edit sheet. Adding offers both modes — pick a catalog preset or
+ * type your own; editing only ever touches an existing command, so it opens straight
+ * into the manual form.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CommandDialog(
     uiState: ConsoleUiState,
-    initial: QuickCommand? = null,
+    initial: QuickCommand?,
     onDismiss: () -> Unit,
-    onSave: (label: String, command: String, showOutput: Boolean) -> Unit
+    onPickPreset: (Preset) -> Unit,
+    onSaveOwn: (label: String, command: String, showOutput: Boolean, group: PresetGroup) -> Unit
 ) {
-    var label      by remember(initial) { mutableStateOf(initial?.label ?: "") }
-    var command    by remember(initial) { mutableStateOf(initial?.command ?: "") }
-    var showOutput by remember(initial) { mutableStateOf(initial?.showOutput ?: true) }
+    val isEditing = initial != null
+    var ownMode by remember(initial) { mutableStateOf(isEditing) }
 
-    val canSubmit = label.isNotBlank() && command.isNotBlank()
-    val attached  = uiState.attachedCommandStrings
-
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        containerColor   = MaterialTheme.colorScheme.surface,
-        title = {
-            Text(
-                text = stringResource(
-                    if (initial != null) R.string.edit_command_title else R.string.add_command_title
-                ),
-                style      = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value         = label,
-                    onValueChange = { label = it },
-                    label         = { Text(stringResource(R.string.command_label_field)) },
-                    singleLine    = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor   = PrimaryGreen,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value         = command,
-                    onValueChange = { command = it },
-                    label         = { Text(stringResource(R.string.command_label)) },
-                    singleLine    = false,
-                    minLines      = 3,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization     = KeyboardCapitalization.None,
-                        autoCorrectEnabled = false
-                    ),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontSize   = 14.sp
-                    ),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        focusedBorderColor      = PrimaryGreen,
-                        unfocusedBorderColor    = MaterialTheme.colorScheme.surface
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(
-                    modifier              = Modifier.fillMaxWidth(),
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text     = stringResource(R.string.show_output_field),
-                        fontSize = 14.sp
-                    )
-                    Switch(
-                        checked         = showOutput,
-                        onCheckedChange = { showOutput = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                            checkedTrackColor = PrimaryGreen
+        properties       = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color    = MaterialTheme.colorScheme.background
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            stringResource(
+                                if (isEditing) R.string.edit_command_title
+                                else R.string.add_command_title
+                            ),
+                            fontWeight = FontWeight.Bold
                         )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
                     )
+                )
+
+                if (!isEditing) {
+                    TabRow(
+                        selectedTabIndex = if (ownMode) 1 else 0,
+                        containerColor   = MaterialTheme.colorScheme.surface,
+                        contentColor     = PrimaryGreen
+                    ) {
+                        Tab(
+                            selected = !ownMode,
+                            onClick  = { ownMode = false },
+                            text     = { Text(stringResource(R.string.mode_from_catalog)) }
+                        )
+                        Tab(
+                            selected = ownMode,
+                            onClick  = { ownMode = true },
+                            text     = { Text(stringResource(R.string.mode_own)) }
+                        )
+                    }
                 }
 
-                Text(
-                    text       = stringResource(R.string.common_commands),
-                    style      = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium
-                )
-
-                if (uiState.presets.isEmpty()) {
-                    Text(
-                        stringResource(R.string.no_common_commands),
-                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp
+                if (ownMode) {
+                    OwnCommandForm(
+                        uiState  = uiState,
+                        initial  = initial,
+                        onSave   = onSaveOwn,
+                        onCancel = onDismiss
                     )
                 } else {
-                    LazyColumn(modifier = Modifier.heightIn(max = 240.dp)) {
-                        uiState.grouped.forEach { (group, presets) ->
-                            item(key = "header_${group.id}") {
-                                Row(
-                                    modifier          = Modifier.padding(top = 8.dp, bottom = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    GroupDot(colorHex = group.colorHex, size = 8)
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        text  = group.name,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
+                    CatalogPicker(uiState = uiState, onPick = onPickPreset)
+                }
+            }
+        }
+    }
+}
 
-                            items(presets, key = { it.id }) { preset ->
-                                PresetSuggestionRow(
-                                    preset     = preset,
-                                    isAttached = preset.command in attached,
-                                    onClick    = {
-                                        label   = preset.label
-                                        command = preset.command
-                                    }
-                                )
-                            }
+@Composable
+private fun CatalogPicker(
+    uiState: ConsoleUiState,
+    onPick: (Preset) -> Unit
+) {
+    val attached = uiState.attachedCommandStrings
+
+    if (uiState.grouped.isEmpty()) {
+        Box(
+            modifier         = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text      = stringResource(R.string.no_common_commands),
+                color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier  = Modifier.padding(32.dp)
+            )
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier       = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(vertical = 8.dp)
+    ) {
+        uiState.grouped.forEach { (group, presets) ->
+            item(key = "header_${group.id}") {
+                Row(
+                    modifier          = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    GroupDot(colorHex = group.colorHex, size = 10)
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text  = group.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            items(presets, key = { it.id }) { preset ->
+                val isAttached = preset.command in attached
+                Card(
+                    colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape    = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .clickable(enabled = !isAttached) { onPick(preset) }
+                ) {
+                    Row(
+                        modifier          = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text       = preset.label,
+                                fontWeight = FontWeight.Medium,
+                                fontSize   = 14.sp,
+                                maxLines   = 1,
+                                overflow   = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text       = preset.command,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize   = 12.sp,
+                                color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines   = 1,
+                                overflow   = TextOverflow.Ellipsis
+                            )
+                        }
+                        if (isAttached) {
+                            Spacer(Modifier.width(8.dp))
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                tint     = PrimaryGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onSave(label, command, showOutput) },
-                enabled = canSubmit
-            ) {
-                Text(
-                    stringResource(R.string.save_button),
-                    fontWeight = FontWeight.Medium,
-                    color = if (canSubmit) PrimaryGreen else MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun OwnCommandForm(
+    uiState: ConsoleUiState,
+    initial: QuickCommand?,
+    onSave: (label: String, command: String, showOutput: Boolean, group: PresetGroup) -> Unit,
+    onCancel: () -> Unit
+) {
+    val groups = uiState.groups.sortedBy { it.sortOrder }
+
+    var label      by remember(initial) { mutableStateOf(initial?.label ?: "") }
+    var command    by remember(initial) { mutableStateOf(initial?.command ?: "") }
+    var showOutput by remember(initial) { mutableStateOf(initial?.showOutput ?: true) }
+    // An edited command only remembers its group by name, so match on that.
+    var group      by remember(initial, groups) {
+        mutableStateOf(
+            groups.firstOrNull { it.name == initial?.groupName } ?: groups.firstOrNull()
+        )
+    }
+
+    val selected  = group
+    val canSubmit = label.isNotBlank() && command.isNotBlank() && selected != null
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        OutlinedTextField(
+            value         = label,
+            onValueChange = { label = it },
+            label         = { Text(stringResource(R.string.command_label_field)) },
+            singleLine    = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor   = PrimaryGreen,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value         = command,
+            onValueChange = { command = it },
+            label         = { Text(stringResource(R.string.command_label)) },
+            singleLine    = false,
+            minLines      = 3,
+            keyboardOptions = KeyboardOptions(
+                capitalization     = KeyboardCapitalization.None,
+                autoCorrectEnabled = false
+            ),
+            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily = FontFamily.Monospace,
+                fontSize   = 14.sp
+            ),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedBorderColor      = PrimaryGreen,
+                unfocusedBorderColor    = MaterialTheme.colorScheme.surface
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Row(
+            modifier              = Modifier.fillMaxWidth(),
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = stringResource(R.string.show_output_field), fontSize = 14.sp)
+            Switch(
+                checked         = showOutput,
+                onCheckedChange = { showOutput = it },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    checkedTrackColor = PrimaryGreen
                 )
+            )
+        }
+
+        Text(
+            text       = stringResource(R.string.select_group),
+            style      = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Medium
+        )
+
+        if (groups.isEmpty()) {
+            Text(
+                text     = stringResource(R.string.no_groups_hint),
+                color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp
+            )
+        } else {
+            FlowRow(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement   = Arrangement.spacedBy(8.dp)
+            ) {
+                groups.forEach { candidate ->
+                    FilterChip(
+                        selected = candidate.id == selected?.id,
+                        onClick  = { group = candidate },
+                        label    = { Text(candidate.name) },
+                        leadingIcon = { GroupDot(colorHex = candidate.colorHex, size = 10) }
+                    )
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        Row(
+            modifier              = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(onClick = onCancel) {
                 Text(
                     stringResource(R.string.cancel),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        }
-    )
-}
-
-@Composable
-private fun PresetSuggestionRow(
-    preset: Preset,
-    isAttached: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text       = preset.label,
-                fontWeight = FontWeight.Medium,
-                fontSize   = 14.sp,
-                maxLines   = 1,
-                overflow   = TextOverflow.Ellipsis
-            )
-            Text(
-                text       = preset.command,
-                fontFamily = FontFamily.Monospace,
-                fontSize   = 12.sp,
-                color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines   = 1,
-                overflow   = TextOverflow.Ellipsis
-            )
-        }
-        if (isAttached) {
             Spacer(Modifier.width(8.dp))
-            Icon(
-                Icons.Default.Check,
-                contentDescription = null,
-                tint     = PrimaryGreen,
-                modifier = Modifier.size(16.dp)
-            )
+            Button(
+                onClick = { selected?.let { onSave(label, command, showOutput, it) } },
+                enabled = canSubmit,
+                colors  = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                shape   = MaterialTheme.shapes.medium
+            ) {
+                Text(stringResource(R.string.save_button), fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -763,7 +892,6 @@ private fun ConsoleTabPreview() {
                     3L to CommandRunState.Done(stdout = "", stderr = "unit not found", exitCode = 5),
                     4L to CommandRunState.Failure("Connection refused")
                 ),
-                showAddDialog = false,
                 showHistory   = false,
                 recentHistory = listOf(
                     CommandHistory(1, 1, "ls -la /etc", "output", "", 0, System.currentTimeMillis())
@@ -774,12 +902,11 @@ private fun ConsoleTabPreview() {
             onSelectTab         = {},
             onInfoTabSelected   = {},
             onRefreshServerInfo = {},
-            onOpenAddDialog    = {},
-            onDismissAddDialog = {},
-            onSaveTyped        = { _, _, _ -> },
+            onOpenCommandDialog = {},
+            onDismissCommandDialog = {},
             onEditCommand      = {},
-            onDismissEditDialog = {},
-            onSaveEdited       = { _, _, _ -> },
+            onPickPreset       = {},
+            onSaveOwn          = { _, _, _, _ -> },
             onRun              = {},
             onRemove           = {},
             onToggleHistory    = {}
@@ -802,12 +929,11 @@ private fun ConsoleTabEmptyPreview() {
             onSelectTab         = {},
             onInfoTabSelected   = {},
             onRefreshServerInfo = {},
-            onOpenAddDialog    = {},
-            onDismissAddDialog = {},
-            onSaveTyped        = { _, _, _ -> },
+            onOpenCommandDialog = {},
+            onDismissCommandDialog = {},
             onEditCommand      = {},
-            onDismissEditDialog = {},
-            onSaveEdited       = { _, _, _ -> },
+            onPickPreset       = {},
+            onSaveOwn          = { _, _, _, _ -> },
             onRun              = {},
             onRemove           = {},
             onToggleHistory    = {}
@@ -831,12 +957,11 @@ private fun InfoTabEmptyPreview() {
             onSelectTab         = {},
             onInfoTabSelected   = {},
             onRefreshServerInfo = {},
-            onOpenAddDialog    = {},
-            onDismissAddDialog = {},
-            onSaveTyped        = { _, _, _ -> },
+            onOpenCommandDialog = {},
+            onDismissCommandDialog = {},
             onEditCommand      = {},
-            onDismissEditDialog = {},
-            onSaveEdited       = { _, _, _ -> },
+            onPickPreset       = {},
+            onSaveOwn          = { _, _, _, _ -> },
             onRun              = {},
             onRemove           = {},
             onToggleHistory    = {}

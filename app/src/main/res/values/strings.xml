@@ -150,6 +150,10 @@
     <string name="no_attached_commands">Add commands with +</string>
     <string name="add_command_title">New command</string>
     <string name="edit_command_title">Edit command</string>
+    <string name="mode_from_catalog">From catalog</string>
+    <string name="mode_own">Custom</string>
+    <string name="select_group">Group</string>
+    <string name="group_custom">Custom</string>
     <string name="delete_command_title">Delete command?</string>
     <string name="delete_command_message">Delete \"%1$s\"?</string>
     <string name="command_label_field">Name</string>

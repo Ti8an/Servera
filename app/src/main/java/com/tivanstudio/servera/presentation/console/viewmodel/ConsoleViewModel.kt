@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.data.preferences.AppPreferences
 import com.tivanstudio.servera.di.CommandResultHolder
 import com.tivanstudio.servera.di.ServerCache
+import com.tivanstudio.servera.domain.entity.Preset
+import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.history.GetCommandHistoryUseCase
@@ -120,60 +122,66 @@ class ConsoleViewModel @Inject constructor(
         viewModelScope.launch { _events.send(ConsoleEvent.NavigateToExecute(serverId)) }
     }
 
-    fun openAddDialog() {
-        _uiState.update { it.copy(showAddDialog = true) }
-    }
-
-    fun dismissAddDialog() {
-        _uiState.update { it.copy(showAddDialog = false) }
+    fun openCommandDialog() {
+        _uiState.update { it.copy(showCommandDialog = true, editingCommand = null) }
     }
 
     fun startEdit(cmd: QuickCommand) {
-        _uiState.update { it.copy(editingCommand = cmd) }
+        _uiState.update { it.copy(editingCommand = cmd, showCommandDialog = true) }
     }
 
-    fun dismissEditDialog() {
-        _uiState.update { it.copy(editingCommand = null) }
-    }
-
-    /** Saving keeps the id, so the REPLACE insert overwrites the existing row. */
-    fun saveEdited(label: String, command: String, showOutput: Boolean) {
-        val editing = _uiState.value.editingCommand ?: return
-        if (label.isBlank() || command.isBlank()) return
-        viewModelScope.launch {
-            saveQuickCommand(
-                QuickCommand(
-                    id         = editing.id,
-                    serverId   = editing.serverId,
-                    label      = label.trim(),
-                    command    = command.trim(),
-                    sortOrder  = editing.sortOrder,
-                    showOutput = showOutput
-                )
-            )
-            _uiState.update { it.copy(editingCommand = null) }
-        }
+    fun dismissCommandDialog() {
+        _uiState.update { it.copy(showCommandDialog = false, editingCommand = null) }
     }
 
     fun toggleHistory() {
         _uiState.update { it.copy(showHistory = !it.showHistory) }
     }
 
-    fun attachTyped(label: String, command: String, showOutput: Boolean) {
+    /** Attaches a catalog preset, keeping a snapshot of the group it came from. */
+    fun attachFromCatalog(preset: Preset) {
         val state = _uiState.value
-        if (label.isBlank() || command.isBlank()) return
+        if (preset.command in state.attachedCommandStrings) {
+            dismissCommandDialog()
+            return
+        }
+        val group = state.groups.firstOrNull { it.id == preset.groupId }
         viewModelScope.launch {
             saveQuickCommand(
                 QuickCommand(
-                    id         = 0,
-                    serverId   = serverId,
-                    label      = label.trim(),
-                    command    = command.trim(),
-                    sortOrder  = state.attachedCommands.size,
-                    showOutput = showOutput
+                    id            = 0,
+                    serverId      = serverId,
+                    label         = preset.label,
+                    command       = preset.command,
+                    sortOrder     = state.attachedCommands.size,
+                    showOutput    = true,
+                    groupName     = group?.name,
+                    groupColorHex = group?.colorHex
                 )
             )
-            _uiState.update { it.copy(showAddDialog = false) }
+            dismissCommandDialog()
+        }
+    }
+
+    /** Saves a hand-typed command; an edit keeps its id, so REPLACE overwrites the row. */
+    fun saveOwn(label: String, command: String, showOutput: Boolean, group: PresetGroup) {
+        if (label.isBlank() || command.isBlank()) return
+        val state   = _uiState.value
+        val editing = state.editingCommand
+        viewModelScope.launch {
+            saveQuickCommand(
+                QuickCommand(
+                    id            = editing?.id ?: 0,
+                    serverId      = editing?.serverId ?: serverId,
+                    label         = label.trim(),
+                    command       = command.trim(),
+                    sortOrder     = editing?.sortOrder ?: state.attachedCommands.size,
+                    showOutput    = showOutput,
+                    groupName     = group.name,
+                    groupColorHex = group.colorHex
+                )
+            )
+            dismissCommandDialog()
         }
     }
 
