@@ -128,6 +128,33 @@ class ConsoleViewModel @Inject constructor(
         _uiState.update { it.copy(showAddDialog = false) }
     }
 
+    fun startEdit(cmd: QuickCommand) {
+        _uiState.update { it.copy(editingCommand = cmd) }
+    }
+
+    fun dismissEditDialog() {
+        _uiState.update { it.copy(editingCommand = null) }
+    }
+
+    /** Saving keeps the id, so the REPLACE insert overwrites the existing row. */
+    fun saveEdited(label: String, command: String, showOutput: Boolean) {
+        val editing = _uiState.value.editingCommand ?: return
+        if (label.isBlank() || command.isBlank()) return
+        viewModelScope.launch {
+            saveQuickCommand(
+                QuickCommand(
+                    id         = editing.id,
+                    serverId   = editing.serverId,
+                    label      = label.trim(),
+                    command    = command.trim(),
+                    sortOrder  = editing.sortOrder,
+                    showOutput = showOutput
+                )
+            )
+            _uiState.update { it.copy(editingCommand = null) }
+        }
+    }
+
     fun toggleHistory() {
         _uiState.update { it.copy(showHistory = !it.showHistory) }
     }

@@ -149,6 +149,7 @@
     <string name="presets_picker_empty">No presets yet</string>
     <string name="no_attached_commands">Add commands with +</string>
     <string name="add_command_title">New command</string>
+    <string name="edit_command_title">Edit command</string>
     <string name="command_label_field">Name</string>
     <string name="common_commands">Common commands</string>
     <string name="no_common_commands">No common commands yet</string>

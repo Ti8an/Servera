@@ -72,6 +72,9 @@ fun ConsoleScreen(
         onOpenAddDialog    = viewModel::openAddDialog,
         onDismissAddDialog = viewModel::dismissAddDialog,
         onSaveTyped        = viewModel::attachTyped,
+        onEditCommand      = viewModel::startEdit,
+        onDismissEditDialog = viewModel::dismissEditDialog,
+        onSaveEdited       = viewModel::saveEdited,
         onRun              = viewModel::runAttached,
         onRemove           = viewModel::removeAttached,
         onToggleHistory    = viewModel::toggleHistory
@@ -90,6 +93,9 @@ private fun ConsoleScreenContent(
     onOpenAddDialog: () -> Unit,
     onDismissAddDialog: () -> Unit,
     onSaveTyped: (label: String, command: String, showOutput: Boolean) -> Unit,
+    onEditCommand: (QuickCommand) -> Unit,
+    onDismissEditDialog: () -> Unit,
+    onSaveEdited: (label: String, command: String, showOutput: Boolean) -> Unit,
     onRun: (QuickCommand) -> Unit,
     onRemove: (Long) -> Unit,
     onToggleHistory: () -> Unit
@@ -99,6 +105,15 @@ private fun ConsoleScreenContent(
             uiState   = uiState,
             onDismiss = onDismissAddDialog,
             onSave    = onSaveTyped
+        )
+    }
+
+    if (uiState.editingCommand != null) {
+        AddCommandDialog(
+            uiState   = uiState,
+            initial   = uiState.editingCommand,
+            onDismiss = onDismissEditDialog,
+            onSave    = onSaveEdited
         )
     }
 
@@ -158,6 +173,7 @@ private fun ConsoleScreenContent(
                     uiState         = uiState,
                     onExecute       = onExecute,
                     onOpenAddDialog = onOpenAddDialog,
+                    onEditCommand   = onEditCommand,
                     onRun           = onRun,
                     onRemove        = onRemove,
                     onToggleHistory = onToggleHistory
@@ -174,6 +190,7 @@ private fun ConsoleTab(
     uiState: ConsoleUiState,
     onExecute: () -> Unit,
     onOpenAddDialog: () -> Unit,
+    onEditCommand: (QuickCommand) -> Unit,
     onRun: (QuickCommand) -> Unit,
     onRemove: (Long) -> Unit,
     onToggleHistory: () -> Unit
@@ -201,6 +218,7 @@ private fun ConsoleTab(
                         cmd      = cmd,
                         runState = uiState.runStates[cmd.id],
                         onRun    = { onRun(cmd) },
+                        onEdit   = { onEditCommand(cmd) },
                         onRemove = { onRemove(cmd.id) }
                     )
                 }
@@ -257,29 +275,44 @@ private fun AttachedCommandItem(
     cmd: QuickCommand,
     runState: CommandRunState?,
     onRun: () -> Unit,
+    onEdit: () -> Unit,
     onRemove: () -> Unit
 ) {
     val isRunning = runState is CommandRunState.Running
 
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
-                onRemove()
-                true
-            } else {
-                false
+            when (value) {
+                SwipeToDismissBoxValue.EndToStart -> {
+                    onRemove()
+                    true
+                }
+                // Editing opens a dialog, so the card stays put and springs back.
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    onEdit()
+                    false
+                }
+                else -> false
             }
         }
     )
 
+    LaunchedEffect(dismissState.dismissDirection) {
+        if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
+            dismissState.reset()
+        }
+    }
+
     SwipeToDismissBox(
         state = dismissState,
-        enableDismissFromStartToEnd = false,
+        enableDismissFromStartToEnd = true,
         enableDismissFromEndToStart = true,
         backgroundContent = {
+            val direction = dismissState.dismissDirection
             val color by animateColorAsState(
-                targetValue = when (dismissState.dismissDirection) {
+                targetValue = when (direction) {
                     SwipeToDismissBoxValue.EndToStart -> DangerRed.copy(alpha = 0.85f)
+                    SwipeToDismissBoxValue.StartToEnd -> InfoBlue.copy(alpha = 0.85f)
                     else                              -> Color.Transparent
                 },
                 label = "attached_swipe_bg"
@@ -289,10 +322,17 @@ private fun AttachedCommandItem(
                     .fillMaxSize()
                     .background(color, shape = MaterialTheme.shapes.medium)
                     .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterEnd
+                contentAlignment = when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                    else                              -> Alignment.CenterEnd
+                }
             ) {
-                if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
-                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
+                when (direction) {
+                    SwipeToDismissBoxValue.EndToStart ->
+                        Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
+                    SwipeToDismissBoxValue.StartToEnd ->
+                        Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White)
+                    else -> Unit
                 }
             }
         }
@@ -361,12 +401,13 @@ private fun AttachedCommandItem(
 @Composable
 private fun AddCommandDialog(
     uiState: ConsoleUiState,
+    initial: QuickCommand? = null,
     onDismiss: () -> Unit,
     onSave: (label: String, command: String, showOutput: Boolean) -> Unit
 ) {
-    var label      by remember { mutableStateOf("") }
-    var command    by remember { mutableStateOf("") }
-    var showOutput by remember { mutableStateOf(true) }
+    var label      by remember(initial) { mutableStateOf(initial?.label ?: "") }
+    var command    by remember(initial) { mutableStateOf(initial?.command ?: "") }
+    var showOutput by remember(initial) { mutableStateOf(initial?.showOutput ?: true) }
 
     val canSubmit = label.isNotBlank() && command.isNotBlank()
     val attached  = uiState.attachedCommandStrings
@@ -376,7 +417,9 @@ private fun AddCommandDialog(
         containerColor   = MaterialTheme.colorScheme.surface,
         title = {
             Text(
-                text       = stringResource(R.string.add_command_title),
+                text = stringResource(
+                    if (initial != null) R.string.edit_command_title else R.string.add_command_title
+                ),
                 style      = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -707,6 +750,9 @@ private fun ConsoleTabPreview() {
             onOpenAddDialog    = {},
             onDismissAddDialog = {},
             onSaveTyped        = { _, _, _ -> },
+            onEditCommand      = {},
+            onDismissEditDialog = {},
+            onSaveEdited       = { _, _, _ -> },
             onRun              = {},
             onRemove           = {},
             onToggleHistory    = {}
@@ -732,6 +778,9 @@ private fun ConsoleTabEmptyPreview() {
             onOpenAddDialog    = {},
             onDismissAddDialog = {},
             onSaveTyped        = { _, _, _ -> },
+            onEditCommand      = {},
+            onDismissEditDialog = {},
+            onSaveEdited       = { _, _, _ -> },
             onRun              = {},
             onRemove           = {},
             onToggleHistory    = {}
@@ -758,6 +807,9 @@ private fun InfoTabEmptyPreview() {
             onOpenAddDialog    = {},
             onDismissAddDialog = {},
             onSaveTyped        = { _, _, _ -> },
+            onEditCommand      = {},
+            onDismissEditDialog = {},
+            onSaveEdited       = { _, _, _ -> },
             onRun              = {},
             onRemove           = {},
             onToggleHistory    = {}
@@ -774,6 +826,7 @@ private fun AttachedCommandItemRunningPreview() {
             cmd      = QuickCommand(1, 1, "Disk free", "df -h", 0),
             runState = CommandRunState.Running,
             onRun    = {},
+            onEdit   = {},
             onRemove = {}
         )
     }

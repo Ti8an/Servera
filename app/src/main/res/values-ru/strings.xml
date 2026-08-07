@@ -135,6 +135,7 @@
     <string name="presets_picker_empty">Пресетов пока нет</string>
     <string name="no_attached_commands">Добавьте команды кнопкой +</string>
     <string name="add_command_title">Новая команда</string>
+    <string name="edit_command_title">Редактировать команду</string>
     <string name="command_label_field">Название</string>
     <string name="common_commands">Общие команды</string>
     <string name="no_common_commands">Общих команд пока нет</string>

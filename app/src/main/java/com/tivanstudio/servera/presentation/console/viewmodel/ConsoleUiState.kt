@@ -15,6 +15,8 @@ data class ConsoleUiState(
     val groups: List<PresetGroup> = emptyList(),
     val attachedCommands: List<QuickCommand> = emptyList(),
     val showAddDialog: Boolean = false,
+    /** Attached command being edited; null keeps the edit dialog closed. */
+    val editingCommand: QuickCommand? = null,
     val runStates: Map<Long, CommandRunState> = emptyMap(),
     val showHistory: Boolean = false,
     val recentHistory: List<CommandHistory> = emptyList(),
