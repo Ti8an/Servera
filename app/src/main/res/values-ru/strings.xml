@@ -36,7 +36,6 @@
     <!-- Console -->
     <string name="console_tab">Консоль</string>
     <string name="info_tab">Информация</string>
-    <string name="new_command">Новая команда</string>
     <string name="recent_commands">Последние команды</string>
     <string name="add_command">Добавить команду</string>
     <string name="cmd_running">Выполняется…</string>

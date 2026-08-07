@@ -206,23 +206,6 @@ private fun ConsoleTab(
                 }
             }
 
-            item {
-                Button(
-                    onClick = onExecute,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors   = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
-                    shape    = MaterialTheme.shapes.medium
-                ) {
-                    Icon(Icons.Default.Terminal, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(R.string.new_command),
-                        fontWeight = FontWeight.Bold,
-                        color      = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-            }
-
             if (uiState.recentHistory.isNotEmpty()) {
                 item {
                     Row(
