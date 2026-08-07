@@ -1,37 +1,45 @@
 package com.tivanstudio.servera.presentation.presets.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.Preset
+import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.presentation.theme.PrimaryGreen
+import com.tivanstudio.servera.presentation.theme.ServeraTheme
+import com.tivanstudio.servera.presentation.theme.toComposeColor
 
+/** Shared by the presets screen and the console's add-command dialog. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PresetDialog(
     initial: Preset,
-    categories: List<String>,
+    groups: List<PresetGroup>,
     isNew: Boolean,
     onDismiss: () -> Unit,
-    onSave: (category: String, label: String, command: String) -> Unit
+    onSave: (groupId: Long, label: String, command: String) -> Unit
 ) {
-    var category by remember(initial) { mutableStateOf(initial.category) }
-    var label    by remember(initial) { mutableStateOf(initial.label) }
-    var command  by remember(initial) { mutableStateOf(initial.command) }
+    var groupId by remember(initial) { mutableStateOf(initial.groupId) }
+    var label   by remember(initial) { mutableStateOf(initial.label) }
+    var command by remember(initial) { mutableStateOf(initial.command) }
     var expanded by remember { mutableStateOf(false) }
 
-    val canSubmit = category.isNotBlank() && label.isNotBlank() && command.isNotBlank()
+    val selectedGroup = groups.firstOrNull { it.id == groupId }
+    val canSubmit = selectedGroup != null && label.isNotBlank() && command.isNotBlank()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -50,14 +58,16 @@ fun PresetDialog(
                     onExpandedChange = { expanded = it }
                 ) {
                     OutlinedTextField(
-                        value         = category,
-                        onValueChange = {
-                            category = it
-                            expanded = true
+                        value         = selectedGroup?.name.orEmpty(),
+                        onValueChange = {},
+                        readOnly      = true,
+                        singleLine    = true,
+                        label         = { Text(stringResource(R.string.groups_title)) },
+                        leadingIcon = selectedGroup?.let { group ->
+                            {
+                                GroupDot(colorHex = group.colorHex, size = 14)
+                            }
                         },
-                        label       = { Text(stringResource(R.string.preset_category)) },
-                        placeholder = { Text(stringResource(R.string.preset_new_category)) },
-                        singleLine  = true,
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                         },
@@ -66,23 +76,27 @@ fun PresetDialog(
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         ),
                         modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryEditable)
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                             .fillMaxWidth()
                     )
-                    if (categories.isNotEmpty()) {
-                        ExposedDropdownMenu(
-                            expanded         = expanded,
-                            onDismissRequest = { expanded = false }
-                        ) {
-                            categories.forEach { option ->
-                                DropdownMenuItem(
-                                    text    = { Text(option) },
-                                    onClick = {
-                                        category = option
-                                        expanded = false
+                    ExposedDropdownMenu(
+                        expanded         = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        groups.forEach { group ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        GroupDot(colorHex = group.colorHex, size = 12)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(group.name)
                                     }
-                                )
-                            }
+                                },
+                                onClick = {
+                                    groupId  = group.id
+                                    expanded = false
+                                }
+                            )
                         }
                     }
                 }
@@ -125,7 +139,7 @@ fun PresetDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onSave(category, label, command) },
+                onClick = { onSave(groupId, label, command) },
                 enabled = canSubmit
             ) {
                 Text(
@@ -144,4 +158,31 @@ fun PresetDialog(
             }
         }
     )
+}
+
+@Composable
+fun GroupDot(colorHex: String, size: Int) {
+    Box(
+        Modifier
+            .size(size.dp)
+            .clip(CircleShape)
+            .background(colorHex.toComposeColor())
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PresetDialogPreview() {
+    ServeraTheme {
+        PresetDialog(
+            initial = Preset(0, 1, "Running containers", "docker ps", 0),
+            groups  = listOf(
+                PresetGroup(1, "Docker", "#1565C0", 0),
+                PresetGroup(2, "System", "#2E7D32", 1)
+            ),
+            isNew     = true,
+            onDismiss = {},
+            onSave    = { _, _, _ -> }
+        )
+    }
 }

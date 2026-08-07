@@ -1,11 +1,11 @@
 package com.tivanstudio.servera.domain.usecase.preset
 
-import com.tivanstudio.servera.domain.entity.Preset
+import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.repository.PresetRepository
 import javax.inject.Inject
 
-class AddCustomPresetUseCase @Inject constructor(
+class UpdateGroupUseCase @Inject constructor(
     private val repository: PresetRepository
 ) {
-    suspend operator fun invoke(preset: Preset): Long = repository.addCustom(preset)
+    suspend operator fun invoke(group: PresetGroup) = repository.updateGroup(group)
 }

@@ -8,7 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -26,7 +27,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.Preset
-import com.tivanstudio.servera.domain.entity.PresetSource
+import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.presentation.components.AppBottomBar
 import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsUiState
@@ -38,7 +39,8 @@ fun PresetsScreen(
     viewModel: PresetsViewModel = hiltViewModel(),
     onNavigateToServers: () -> Unit,
     onNavigateToHistory: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToGroups: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -47,9 +49,9 @@ fun PresetsScreen(
         onNavigateToServers  = onNavigateToServers,
         onNavigateToHistory  = onNavigateToHistory,
         onNavigateToSettings = onNavigateToSettings,
+        onNavigateToGroups   = onNavigateToGroups,
         onAdd           = viewModel::startAdd,
         onEdit          = viewModel::startEdit,
-        onCopyToCustom  = viewModel::copyBuiltinToCustom,
         onDelete        = viewModel::deletePreset,
         onDismissDialog = viewModel::dismissDialog,
         onSave          = viewModel::savePreset
@@ -63,20 +65,22 @@ private fun PresetsScreenContent(
     onNavigateToServers: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToGroups: () -> Unit,
     onAdd: () -> Unit,
     onEdit: (Preset) -> Unit,
-    onCopyToCustom: (Preset) -> Unit,
     onDelete: (Long) -> Unit,
     onDismissDialog: () -> Unit,
-    onSave: (String, String, String) -> Unit
+    onSave: (groupId: Long, label: String, command: String) -> Unit
 ) {
+    val hasGroups = uiState.groups.isNotEmpty()
+
     if (uiState.editing != null) {
         PresetDialog(
-            initial    = uiState.editing,
-            categories = uiState.categories,
-            isNew      = uiState.isNew,
-            onDismiss  = onDismissDialog,
-            onSave     = onSave
+            initial   = uiState.editing,
+            groups    = uiState.groups,
+            isNew     = uiState.isNew,
+            onDismiss = onDismissDialog,
+            onSave    = onSave
         )
     }
 
@@ -85,6 +89,14 @@ private fun PresetsScreenContent(
             TopAppBar(
                 title = {
                     Text(stringResource(R.string.presets_title), fontWeight = FontWeight.Bold)
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToGroups) {
+                        Icon(
+                            Icons.Default.Category,
+                            contentDescription = stringResource(R.string.groups_title)
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -101,104 +113,117 @@ private fun PresetsScreenContent(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick        = onAdd,
-                containerColor = PrimaryGreen
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = stringResource(R.string.presets_title),
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
+            // A preset needs a group to live in — no groups, no adding.
+            if (hasGroups) {
+                FloatingActionButton(
+                    onClick        = onAdd,
+                    containerColor = PrimaryGreen
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = stringResource(R.string.presets_title),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
             }
-        }
+        },
+        floatingActionButtonPosition = FabPosition.Start
     ) { padding ->
-        val grouped = uiState.grouped
+        if (!hasGroups) {
+            NoGroupsState(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                onNavigateToGroups = onNavigateToGroups
+            )
+            return@Scaffold
+        }
 
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp),
+            contentPadding      = PaddingValues(bottom = 88.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            uiState.categories.forEach { category ->
-                stickyHeader(key = "header_$category") {
-                    Text(
-                        text       = category,
-                        style      = MaterialTheme.typography.titleSmall,
-                        color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier   = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.background)
-                            .padding(vertical = 8.dp)
+            uiState.grouped.forEach { (group, presets) ->
+                stickyHeader(key = "header_${group.id}") {
+                    GroupHeader(group = group)
+                }
+
+                items(presets, key = { it.id }) { preset ->
+                    PresetRow(
+                        preset   = preset,
+                        group    = group,
+                        onEdit   = { onEdit(preset) },
+                        onDelete = { onDelete(preset.id) }
                     )
                 }
-
-                items(
-                    items = grouped[category].orEmpty(),
-                    key   = { preset ->
-                        when (preset.source) {
-                            PresetSource.BUILTIN -> "builtin_${preset.category}_${preset.label}"
-                            PresetSource.CUSTOM  -> "custom_${preset.id}"
-                        }
-                    }
-                ) { preset ->
-                    when (preset.source) {
-                        PresetSource.BUILTIN -> BuiltinPresetRow(
-                            preset = preset,
-                            onCopyToCustom = { onCopyToCustom(preset) }
-                        )
-                        PresetSource.CUSTOM -> CustomPresetRow(
-                            preset   = preset,
-                            onEdit   = { onEdit(preset) },
-                            onDelete = { onDelete(preset.id) }
-                        )
-                    }
-                }
             }
-
-            item { Spacer(Modifier.height(80.dp)) }
         }
     }
 }
 
 @Composable
-private fun BuiltinPresetRow(
-    preset: Preset,
-    onCopyToCustom: () -> Unit
+private fun NoGroupsState(
+    modifier: Modifier = Modifier,
+    onNavigateToGroups: () -> Unit
 ) {
-    PresetCard(
-        preset = preset,
-        badge  = {
-            Badge(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor   = MaterialTheme.colorScheme.onSurfaceVariant
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier            = Modifier.padding(32.dp)
+        ) {
+            Text(
+                text      = stringResource(R.string.no_groups_hint),
+                color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = onNavigateToGroups,
+                colors  = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                shape   = MaterialTheme.shapes.medium
             ) {
+                Icon(Icons.Default.Category, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
                 Text(
-                    stringResource(R.string.preset_builtin),
-                    fontSize = 10.sp,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-            }
-        },
-        trailing = {
-            IconButton(onClick = onCopyToCustom) {
-                Icon(
-                    Icons.Default.ContentCopy,
-                    contentDescription = null,
-                    tint     = InfoBlue,
-                    modifier = Modifier.size(20.dp)
+                    stringResource(R.string.groups_title),
+                    fontWeight = FontWeight.Bold,
+                    color      = MaterialTheme.colorScheme.onPrimary
                 )
             }
         }
-    )
+    }
+}
+
+@Composable
+private fun GroupHeader(group: PresetGroup) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        GroupDot(colorHex = group.colorHex, size = 14)
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text     = group.name,
+            style    = MaterialTheme.typography.titleSmall,
+            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CustomPresetRow(
+private fun PresetRow(
     preset: Preset,
+    group: PresetGroup,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -238,10 +263,38 @@ private fun CustomPresetRow(
             }
         }
     ) {
-        PresetCard(
-            preset  = preset,
-            onClick = onEdit,
-            trailing = {
+        Card(
+            onClick  = onEdit,
+            colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape    = MaterialTheme.shapes.medium,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier          = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text       = preset.label,
+                        fontWeight = FontWeight.Medium,
+                        fontSize   = 14.sp,
+                        maxLines   = 1,
+                        overflow   = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text       = preset.command,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize   = 12.sp,
+                        color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines   = 2,
+                        overflow   = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(Modifier.width(8.dp))
+
+                GroupChip(group = group)
+
                 IconButton(onClick = onDelete) {
                     Icon(
                         Icons.Default.Delete,
@@ -251,67 +304,22 @@ private fun CustomPresetRow(
                     )
                 }
             }
-        )
+        }
     }
 }
 
 @Composable
-private fun PresetCard(
-    preset: Preset,
-    onClick: (() -> Unit)? = null,
-    badge: (@Composable () -> Unit)? = null,
-    trailing: (@Composable () -> Unit)? = null
-) {
-    val colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    val shape = MaterialTheme.shapes.medium
-    val content: @Composable () -> Unit = {
-        Row(
-            modifier          = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text       = preset.label,
-                        fontWeight = FontWeight.Medium,
-                        fontSize   = 14.sp,
-                        maxLines   = 1,
-                        overflow   = TextOverflow.Ellipsis
-                    )
-                    if (badge != null) {
-                        Spacer(Modifier.width(6.dp))
-                        badge()
-                    }
-                }
-                Text(
-                    text       = preset.command,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize   = 12.sp,
-                    color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines   = 2,
-                    overflow   = TextOverflow.Ellipsis
-                )
-            }
-            if (trailing != null) {
-                Spacer(Modifier.width(8.dp))
-                trailing()
-            }
-        }
-    }
-
-    if (onClick != null) {
-        Card(
-            onClick  = onClick,
-            colors   = colors,
-            shape    = shape,
-            modifier = Modifier.fillMaxWidth()
-        ) { content() }
-    } else {
-        Card(
-            colors   = colors,
-            shape    = shape,
-            modifier = Modifier.fillMaxWidth()
-        ) { content() }
+private fun GroupChip(group: PresetGroup) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        GroupDot(colorHex = group.colorHex, size = 8)
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text     = group.name,
+            style    = MaterialTheme.typography.labelSmall,
+            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -324,18 +332,43 @@ private fun PresetsScreenContentPreview() {
     ServeraTheme {
         PresetsScreenContent(
             uiState = PresetsUiState(
+                groups = listOf(
+                    PresetGroup(1, "Docker", "#1565C0", 0),
+                    PresetGroup(2, "System", "#2E7D32", 1),
+                    PresetGroup(3, "Network", "#AD1457", 2)
+                ),
                 presets = listOf(
-                    Preset(0, "Docker", "Running containers", "docker ps", PresetSource.BUILTIN, 0),
-                    Preset(1, "Docker", "Compose logs", "docker compose logs --tail=100", PresetSource.CUSTOM, 1),
-                    Preset(2, "System", "Disk free", "df -h", PresetSource.CUSTOM, 0)
+                    Preset(0, 1, "Running containers", "docker ps", 0),
+                    Preset(1, 1, "Compose logs", "docker compose logs --tail=100", 1),
+                    Preset(2, 2, "Disk free", "df -h", 0)
                 )
             ),
             onNavigateToServers  = {},
             onNavigateToHistory  = {},
             onNavigateToSettings = {},
+            onNavigateToGroups   = {},
             onAdd           = {},
             onEdit          = {},
-            onCopyToCustom  = {},
+            onDelete        = {},
+            onDismissDialog = {},
+            onSave          = { _, _, _ -> }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Preview(showBackground = true)
+@Composable
+private fun PresetsScreenNoGroupsPreview() {
+    ServeraTheme {
+        PresetsScreenContent(
+            uiState              = PresetsUiState(),
+            onNavigateToServers  = {},
+            onNavigateToHistory  = {},
+            onNavigateToSettings = {},
+            onNavigateToGroups   = {},
+            onAdd           = {},
+            onEdit          = {},
             onDelete        = {},
             onDismissDialog = {},
             onSave          = { _, _, _ -> }

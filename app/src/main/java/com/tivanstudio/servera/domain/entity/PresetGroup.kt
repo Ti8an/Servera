@@ -1,9 +1,8 @@
 package com.tivanstudio.servera.domain.entity
 
-data class Preset(
+data class PresetGroup(
     val id: Long = 0,
-    val groupId: Long,
-    val label: String,
-    val command: String,
+    val name: String,
+    val colorHex: String,
     val sortOrder: Int
 )

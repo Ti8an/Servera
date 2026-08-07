@@ -9,6 +9,7 @@ import com.tivanstudio.servera.di.ServerCache
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.history.GetCommandHistoryUseCase
+import com.tivanstudio.servera.domain.usecase.preset.GetGroupsUseCase
 import com.tivanstudio.servera.domain.usecase.preset.GetPresetsUseCase
 import com.tivanstudio.servera.domain.usecase.quickcommand.DeleteQuickCommandUseCase
 import com.tivanstudio.servera.domain.usecase.quickcommand.GetQuickCommandsUseCase
@@ -20,6 +21,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -30,6 +32,7 @@ class ConsoleViewModel @Inject constructor(
     private val serverRepository: ServerRepository,
     private val getHistory: GetCommandHistoryUseCase,
     private val getPresets: GetPresetsUseCase,
+    private val getGroups: GetGroupsUseCase,
     private val getQuickCommands: GetQuickCommandsUseCase,
     private val saveQuickCommand: SaveQuickCommandUseCase,
     private val deleteQuickCommand: DeleteQuickCommandUseCase,
@@ -73,9 +76,10 @@ class ConsoleViewModel @Inject constructor(
 
     private fun observePresets() {
         viewModelScope.launch {
-            getPresets().collect { presets ->
-                _uiState.update { it.copy(presets = presets) }
-            }
+            combine(getPresets(), getGroups()) { presets, groups -> presets to groups }
+                .collect { (presets, groups) ->
+                    _uiState.update { it.copy(presets = presets, groups = groups) }
+                }
         }
     }
 

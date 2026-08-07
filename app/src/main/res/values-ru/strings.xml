@@ -108,6 +108,12 @@
     <string name="delete_server_title">Удалить сервер?</string>
     <string name="delete_server_message">Это действие нельзя отменить.</string>
     <string name="delete_confirm">Удалить</string>
+    <!-- Preset groups -->
+    <string name="groups_title">Группы</string>
+    <string name="group_name">Название группы</string>
+    <string name="group_color">Цвет</string>
+    <string name="group_delete_warning">Пресеты внутри будут удалены</string>
+    <string name="no_groups_hint">Сначала создайте группу</string>
     <string name="cancel">Отмена</string>
     <!-- Errors -->
     <string name="error_name_required">Укажите название</string>

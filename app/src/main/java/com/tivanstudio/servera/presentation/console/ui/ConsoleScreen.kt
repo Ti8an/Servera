@@ -31,7 +31,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.CommandHistory
 import com.tivanstudio.servera.domain.entity.Preset
-import com.tivanstudio.servera.domain.entity.PresetSource
+import com.tivanstudio.servera.domain.entity.PresetGroup
+import com.tivanstudio.servera.presentation.presets.ui.GroupDot
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.domain.entity.ServerInfo
@@ -467,24 +468,23 @@ private fun AddCommandDialog(
                     )
                 } else {
                     LazyColumn(modifier = Modifier.heightIn(max = 240.dp)) {
-                        uiState.groupedPresets.forEach { (category, presets) ->
-                            item(key = "header_$category") {
-                                Text(
-                                    text     = category,
-                                    style    = MaterialTheme.typography.labelSmall,
-                                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
-                                )
-                            }
-                            items(
-                                items = presets,
-                                key   = { preset ->
-                                    when (preset.source) {
-                                        PresetSource.BUILTIN -> "builtin_${preset.category}_${preset.label}"
-                                        PresetSource.CUSTOM  -> "custom_${preset.id}"
-                                    }
+                        uiState.grouped.forEach { (group, presets) ->
+                            item(key = "header_${group.id}") {
+                                Row(
+                                    modifier          = Modifier.padding(top = 8.dp, bottom = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    GroupDot(colorHex = group.colorHex, size = 8)
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text  = group.name,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                            ) { preset ->
+                            }
+
+                            items(presets, key = { it.id }) { preset ->
                                 PresetSuggestionRow(
                                     preset     = preset,
                                     isAttached = preset.command in attached,
@@ -693,8 +693,12 @@ private fun ConsoleTabPreview() {
                     QuickCommand(4, 1, "Tail log", "tail -n 50 /var/log/syslog", 3, showOutput = true)
                 ),
                 presets = listOf(
-                    Preset(0, "Docker", "Running containers", "docker ps", PresetSource.BUILTIN, 0),
-                    Preset(1, "System", "Disk free", "df -h", PresetSource.CUSTOM, 0)
+                    Preset(0, 1, "Running containers", "docker ps", 0),
+                    Preset(1, 2, "Disk free", "df -h", 0)
+                ),
+                groups = listOf(
+                    PresetGroup(1, "Docker", "#1565C0", 0),
+                    PresetGroup(2, "System", "#2E7D32", 1)
                 ),
                 runStates = mapOf(
                     1L to CommandRunState.Running,

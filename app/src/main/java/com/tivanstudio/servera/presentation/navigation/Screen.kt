@@ -18,4 +18,5 @@ sealed class Screen(val route: String) {
     object History        : Screen("history")
     object Settings       : Screen("settings")
     object Presets        : Screen("presets")
+    object PresetGroups   : Screen("preset_groups")
 }
