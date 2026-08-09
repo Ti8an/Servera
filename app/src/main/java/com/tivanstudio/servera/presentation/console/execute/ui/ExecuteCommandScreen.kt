@@ -102,11 +102,15 @@ private fun ExecuteCommandContent(
                     unfocusedBorderColor    = MaterialTheme.colorScheme.surface
                 ),
                 modifier = Modifier.fillMaxWidth(),
-                isError = uiState.error != null
+                isError = uiState.errorRes != null
             )
 
-            if (uiState.error != null) {
-                Text(uiState.error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            uiState.errorRes?.let { res ->
+                Text(
+                    stringResource(res),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             Text(stringResource(R.string.example_commands), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)

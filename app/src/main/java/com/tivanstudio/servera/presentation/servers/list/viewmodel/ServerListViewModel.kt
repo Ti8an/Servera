@@ -6,6 +6,7 @@ import com.tivanstudio.servera.di.ServerCache
 import com.tivanstudio.servera.domain.usecase.server.CheckServerStatusUseCase
 import com.tivanstudio.servera.domain.usecase.server.DeleteServerUseCase
 import com.tivanstudio.servera.domain.usecase.server.GetServersUseCase
+import com.tivanstudio.servera.presentation.common.toSshErrorRes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -81,8 +82,8 @@ class ServerListViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             statusError = StatusError(
-                                serverId = id,
-                                message  = e.message ?: "Не удалось подключиться"
+                                serverId   = id,
+                                messageRes = e.toSshErrorRes()
                             )
                         )
                     }

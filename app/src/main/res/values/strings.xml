@@ -199,4 +199,5 @@
     <string name="net_self">This device</string>
     <string name="net_gateway">Gateway</string>
     <string name="net_subnet">Subnet: %1$s</string>
+    <string name="error_server_not_found">Server not found</string>
 </resources>

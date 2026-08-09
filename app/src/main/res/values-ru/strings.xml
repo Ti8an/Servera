@@ -185,4 +185,5 @@
     <string name="net_self">Это устройство</string>
     <string name="net_gateway">Шлюз</string>
     <string name="net_subnet">Подсеть: %1$s</string>
+    <string name="error_server_not_found">Сервер не найден</string>
 </resources>

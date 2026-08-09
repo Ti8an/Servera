@@ -3,15 +3,12 @@ package com.tivanstudio.servera.presentation.console.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.tivanstudio.servera.R
 import com.tivanstudio.servera.data.preferences.AppPreferences
 import com.tivanstudio.servera.di.CommandResultHolder
 import com.tivanstudio.servera.di.ServerCache
 import com.tivanstudio.servera.domain.entity.Preset
 import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.entity.QuickCommand
-import com.tivanstudio.servera.domain.entity.SshErrorType
-import com.tivanstudio.servera.domain.entity.SshException
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.preset.GetGroupsUseCase
 import com.tivanstudio.servera.domain.usecase.preset.GetPresetsUseCase
@@ -20,6 +17,7 @@ import com.tivanstudio.servera.domain.usecase.quickcommand.GetQuickCommandsUseCa
 import com.tivanstudio.servera.domain.usecase.quickcommand.SaveQuickCommandUseCase
 import com.tivanstudio.servera.domain.usecase.ssh.ExecuteCommandUseCase
 import com.tivanstudio.servera.domain.usecase.ssh.FetchServerInfoUseCase
+import com.tivanstudio.servera.presentation.common.toSshErrorRes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -105,15 +103,8 @@ class ConsoleViewModel @Inject constructor(
                     _uiState.update { it.copy(serverInfo = info, isLoadingServerInfo = false) }
                 }
                 .onFailure { e ->
-                    val resId = when ((e as? SshException)?.type) {
-                        SshErrorType.AUTH           -> R.string.ssh_error_auth
-                        SshErrorType.TIMEOUT        -> R.string.ssh_error_timeout
-                        SshErrorType.UNREACHABLE    -> R.string.ssh_error_unreachable
-                        SshErrorType.HOST_NOT_FOUND -> R.string.ssh_error_host
-                        else                        -> R.string.ssh_error_unknown
-                    }
                     _uiState.update {
-                        it.copy(isLoadingServerInfo = false, serverInfoErrorRes = resId)
+                        it.copy(isLoadingServerInfo = false, serverInfoErrorRes = e.toSshErrorRes())
                     }
                 }
         }
@@ -218,7 +209,7 @@ class ConsoleViewModel @Inject constructor(
                     }
                 }
                 .onFailure { e ->
-                    setRunState(cmd.id, CommandRunState.Failure(e.message ?: "Unknown error"))
+                    setRunState(cmd.id, CommandRunState.Failure(e.toSshErrorRes()))
                 }
         }
     }
