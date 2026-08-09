@@ -23,7 +23,6 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -580,8 +579,6 @@ private fun CatalogPicker(
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val attached = uiState.attachedCommandStrings
-
     if (uiState.grouped.isEmpty()) {
         Box(
             modifier         = modifier.fillMaxSize(),
@@ -620,9 +617,6 @@ private fun CatalogPicker(
             }
 
             items(presets, key = { "${it.groupId}_${it.command}" }) { preset ->
-                // Only a hint that the same command text is already attached — presets
-                // differ by label and group, so an attached row stays pickable.
-                val isAttached = preset.command in attached
                 val isSelected = preset.selectionKey() == selectedKey
                 // Animated so picking another row reads as a move, not a flicker.
                 val containerColor by animateColorAsState(
@@ -638,7 +632,6 @@ private fun CatalogPicker(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
-                        .alpha(if (isAttached) 0.5f else 1f)
                 ) {
                     Row(
                         modifier          = Modifier.padding(12.dp),
