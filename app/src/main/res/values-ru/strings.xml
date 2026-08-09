@@ -168,4 +168,6 @@
     <string name="filter_apply">Применить</string>
     <string name="filter_reset">Сбросить</string>
     <string name="no_history_for_filter">Нет команд по фильтру</string>
+    <string name="save_result_setting">Сохранять результат в истории</string>
+    <string name="save_result_description">Хранить вывод команд для последующего просмотра</string>
 </resources>

@@ -30,7 +30,8 @@ class SettingsViewModel @Inject constructor(
                 isBiometricEnabled     = authRepository.isBiometricEnabled(),
                 appVersion             = "${BuildConfig.VERSION_NAME}-${BuildConfig.VERSION_CODE}",
                 isDarkTheme            = themePreferences.isDarkTheme.value,
-                isSaveCommandsAlways   = appPreferences.isSaveCommandsAlways.value
+                isSaveCommandsAlways   = appPreferences.isSaveCommandsAlways.value,
+                isSaveResultInHistory  = appPreferences.saveResultInHistory.value
             )
         }
         viewModelScope.launch {
@@ -41,6 +42,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             appPreferences.isSaveCommandsAlways.collect { enabled ->
                 _uiState.update { it.copy(isSaveCommandsAlways = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            appPreferences.saveResultInHistory.collect { enabled ->
+                _uiState.update { it.copy(isSaveResultInHistory = enabled) }
             }
         }
     }
@@ -58,5 +64,9 @@ class SettingsViewModel @Inject constructor(
 
     fun toggleSaveCommandsAlways(enabled: Boolean) {
         appPreferences.setSaveCommandsAlways(enabled)
+    }
+
+    fun toggleSaveResultInHistory(enabled: Boolean) {
+        appPreferences.setSaveResultInHistory(enabled)
     }
 }

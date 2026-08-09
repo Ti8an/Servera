@@ -11,7 +11,8 @@ fun CommandHistoryEntity.toDomain(): CommandHistory = CommandHistory(
     stderr = stderr,
     exitCode = exitCode,
     executedAt = executedAt,
-    groupName = groupName
+    groupName = groupName,
+    resultSaved = resultSaved
 )
 
 fun CommandHistory.toEntity(): CommandHistoryEntity = CommandHistoryEntity(
@@ -22,5 +23,6 @@ fun CommandHistory.toEntity(): CommandHistoryEntity = CommandHistoryEntity(
     stderr = stderr,
     exitCode = exitCode,
     executedAt = executedAt,
-    groupName = groupName
+    groupName = groupName,
+    resultSaved = resultSaved
 )

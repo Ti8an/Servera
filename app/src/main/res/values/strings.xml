@@ -182,4 +182,6 @@
     <string name="filter_apply">Apply</string>
     <string name="filter_reset">Reset</string>
     <string name="no_history_for_filter">No commands match the filter</string>
+    <string name="save_result_setting">Save output in history</string>
+    <string name="save_result_description">Store command output so you can view it later</string>
 </resources>

@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
@@ -86,6 +87,7 @@ fun SettingsScreen(
         onToggleBiometric = viewModel::toggleBiometric,
         onToggleDarkTheme = viewModel::toggleDarkTheme,
         onToggleSaveCommandsAlways = viewModel::toggleSaveCommandsAlways,
+        onToggleSaveResultInHistory = viewModel::toggleSaveResultInHistory,
         onRateApp = onRateApp
     )
 }
@@ -101,6 +103,7 @@ private fun SettingsContent(
     onToggleBiometric: (Boolean) -> Unit,
     onToggleDarkTheme: (Boolean) -> Unit,
     onToggleSaveCommandsAlways: (Boolean) -> Unit,
+    onToggleSaveResultInHistory: (Boolean) -> Unit,
     onRateApp: () -> Unit
 ) {
     Scaffold(
@@ -176,6 +179,14 @@ private fun SettingsContent(
                 subtitle = stringResource(R.string.save_commands_always_description),
                 checked = uiState.isSaveCommandsAlways,
                 onCheckedChange = onToggleSaveCommandsAlways
+            )
+
+            SettingSwitchCard(
+                icon = Icons.Default.Article,
+                title = stringResource(R.string.save_result_setting),
+                subtitle = stringResource(R.string.save_result_description),
+                checked = uiState.isSaveResultInHistory,
+                onCheckedChange = onToggleSaveResultInHistory
             )
 
             Spacer(Modifier.height(8.dp))
@@ -319,6 +330,7 @@ private fun SettingsContentDarkPreview() {
             onToggleBiometric = {},
             onToggleDarkTheme = {},
             onToggleSaveCommandsAlways = {},
+            onToggleSaveResultInHistory = {},
             onRateApp = {}
         )
     }
@@ -337,6 +349,7 @@ private fun SettingsContentLightPreview() {
             onToggleBiometric = {},
             onToggleDarkTheme = {},
             onToggleSaveCommandsAlways = {},
+            onToggleSaveResultInHistory = {},
             onRateApp = {}
         )
     }

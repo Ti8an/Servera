@@ -48,7 +48,12 @@ class ExecuteCommandViewModel @Inject constructor(
                 _uiState.update { it.copy(isExecuting = false, error = "Сервер не найден") }
                 return@launch
             }
-            executeCommand(server, cmd, saveOnFailure = appPreferences.isSaveCommandsAlways.value)
+            executeCommand(
+                server,
+                cmd,
+                saveOnFailure = appPreferences.isSaveCommandsAlways.value,
+                saveResult    = appPreferences.saveResultInHistory.value
+            )
                 .onSuccess { result ->
                     resultHolder.result   = result
                     resultHolder.serverId = serverId

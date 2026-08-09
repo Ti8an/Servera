@@ -5,6 +5,10 @@ import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.entity.Server
 import java.util.Calendar
 
+sealed class HistoryEvent {
+    object NavigateToResult : HistoryEvent()
+}
+
 enum class HistoryStatus { ALL, SUCCESS, ERROR }
 
 enum class HistoryPeriod { ALL, TODAY, WEEK }

@@ -5,5 +5,6 @@ data class SettingsUiState(
     val isBiometricAvailable: Boolean = false,
     val appVersion: String = "",
     val isDarkTheme: Boolean = true,
-    val isSaveCommandsAlways: Boolean = false
+    val isSaveCommandsAlways: Boolean = false,
+    val isSaveResultInHistory: Boolean = false
 )

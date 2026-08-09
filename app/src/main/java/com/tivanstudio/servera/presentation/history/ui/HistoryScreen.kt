@@ -1,6 +1,7 @@
 package com.tivanstudio.servera.presentation.history.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,6 +32,7 @@ import com.tivanstudio.servera.domain.entity.CommandHistory
 import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.presentation.components.AppBottomBar
+import com.tivanstudio.servera.presentation.history.viewmodel.HistoryEvent
 import com.tivanstudio.servera.presentation.history.viewmodel.HistoryFilter
 import com.tivanstudio.servera.presentation.history.viewmodel.HistoryPeriod
 import com.tivanstudio.servera.presentation.history.viewmodel.HistoryStatus
@@ -48,9 +50,18 @@ fun HistoryScreen(
     viewModel: HistoryViewModel = hiltViewModel(),
     onNavigateToServers: () -> Unit,
     onNavigateToPresets: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToResult: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is HistoryEvent.NavigateToResult -> onNavigateToResult()
+            }
+        }
+    }
 
     HistoryContent(
         uiState = uiState,
@@ -61,7 +72,8 @@ fun HistoryScreen(
         onOpenFilter = viewModel::openFilter,
         onCloseFilter = viewModel::closeFilter,
         onUpdateFilter = viewModel::updateFilter,
-        onResetFilter = viewModel::resetFilter
+        onResetFilter = viewModel::resetFilter,
+        onOpenResult = viewModel::openResult
     )
 }
 
@@ -76,7 +88,8 @@ private fun HistoryContent(
     onOpenFilter: () -> Unit,
     onCloseFilter: () -> Unit,
     onUpdateFilter: (HistoryFilter) -> Unit,
-    onResetFilter: () -> Unit
+    onResetFilter: () -> Unit,
+    onOpenResult: (CommandHistory) -> Unit
 ) {
     var showClearDialog by remember { mutableStateOf(false) }
 
@@ -199,7 +212,7 @@ private fun HistoryContent(
                     ) {
                         item { Spacer(Modifier.height(8.dp)) }
                         items(uiState.filtered, key = { it.id }) { item ->
-                            HistoryItemCard(item = item)
+                            HistoryItemCard(item = item, onClick = { onOpenResult(item) })
                         }
                         item { Spacer(Modifier.height(8.dp)) }
                     }
@@ -421,11 +434,13 @@ private fun FilterSectionTitle(text: String) {
 }
 
 @Composable
-private fun HistoryItemCard(item: CommandHistory) {
+private fun HistoryItemCard(item: CommandHistory, onClick: () -> Unit) {
     val fmt = remember { SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.getDefault()) }
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -486,9 +501,9 @@ private fun HistoryContentPreview() {
             uiState = HistoryUiState(
                 isLoading = false,
                 allHistory = listOf(
-                    CommandHistory(1, 1, "ls -la /etc", "total 256\ndrwxr-xr-x", "", 0, System.currentTimeMillis(), "System"),
-                    CommandHistory(2, 2, "df -h", "Filesystem 80%", "", 0, System.currentTimeMillis() - 60_000, "Docker"),
-                    CommandHistory(3, 1, "cat /etc/invalid", "", "No such file", 1, System.currentTimeMillis() - 120_000)
+                    CommandHistory(1, 1, "ls -la /etc", "total 256\ndrwxr-xr-x", "", 0, System.currentTimeMillis(), "System", resultSaved = true),
+                    CommandHistory(2, 2, "df -h", "", "", 0, System.currentTimeMillis() - 60_000, "Docker", resultSaved = false),
+                    CommandHistory(3, 1, "cat /etc/invalid", "", "No such file", 1, System.currentTimeMillis() - 120_000, resultSaved = true)
                 ),
                 servers = listOf(
                     Server(1, "Production", "192.168.1.1", 22, "root", ""),
@@ -506,7 +521,8 @@ private fun HistoryContentPreview() {
             onOpenFilter = {},
             onCloseFilter = {},
             onUpdateFilter = {},
-            onResetFilter = {}
+            onResetFilter = {},
+            onOpenResult = {}
         )
     }
 }
@@ -524,8 +540,10 @@ private fun HistoryItemCardPreview() {
                 stderr = "",
                 exitCode = 0,
                 executedAt = System.currentTimeMillis(),
-                groupName = "System"
-            )
+                groupName = "System",
+                resultSaved = true
+            ),
+            onClick = {}
         )
     }
 }

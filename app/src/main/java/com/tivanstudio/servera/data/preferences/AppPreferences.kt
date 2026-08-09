@@ -22,7 +22,16 @@ class AppPreferences @Inject constructor(
         _isSaveCommandsAlways.value = enabled
     }
 
+    private val _saveResultInHistory = MutableStateFlow(prefs.getBoolean(KEY_SAVE_RESULT_IN_HISTORY, false))
+    val saveResultInHistory: StateFlow<Boolean> = _saveResultInHistory.asStateFlow()
+
+    fun setSaveResultInHistory(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SAVE_RESULT_IN_HISTORY, enabled).apply()
+        _saveResultInHistory.value = enabled
+    }
+
     companion object {
         private const val KEY_SAVE_COMMANDS_ALWAYS = "save_commands_always"
+        private const val KEY_SAVE_RESULT_IN_HISTORY = "save_result_in_history"
     }
 }

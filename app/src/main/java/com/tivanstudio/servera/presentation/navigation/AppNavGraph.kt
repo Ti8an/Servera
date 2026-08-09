@@ -102,7 +102,8 @@ fun AppNavGraph(navController: NavHostController) {
             HistoryScreen(
                 onNavigateToServers  = { navController.navigate(Screen.ServerList.route) { launchSingleTop = true } },
                 onNavigateToPresets  = { navController.navigate(Screen.Presets.route) { launchSingleTop = true } },
-                onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } }
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) { launchSingleTop = true } },
+                onNavigateToResult   = { navController.navigate(Screen.Result.route) }
             )
         }
 

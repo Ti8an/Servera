@@ -83,6 +83,13 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
     }
 }
 
+/** History records whether the command output was kept alongside the run. */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE command_history ADD COLUMN resultSaved INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 private const val DEFAULT_GROUP_COLOR = "#4CAF50"
 
 val MIGRATION_1_2 = object : Migration(1, 2) {

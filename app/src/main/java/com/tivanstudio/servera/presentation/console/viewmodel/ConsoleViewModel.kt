@@ -193,7 +193,8 @@ class ConsoleViewModel @Inject constructor(
                 server,
                 cmd.command,
                 saveOnFailure = appPreferences.isSaveCommandsAlways.value,
-                groupName     = cmd.groupName
+                groupName     = cmd.groupName,
+                saveResult    = appPreferences.saveResultInHistory.value
             )
                 .onSuccess { result ->
                     setRunState(
