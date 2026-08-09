@@ -3,12 +3,15 @@ package com.tivanstudio.servera.presentation.console.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.data.preferences.AppPreferences
 import com.tivanstudio.servera.di.CommandResultHolder
 import com.tivanstudio.servera.di.ServerCache
 import com.tivanstudio.servera.domain.entity.Preset
 import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.entity.QuickCommand
+import com.tivanstudio.servera.domain.entity.SshErrorType
+import com.tivanstudio.servera.domain.entity.SshException
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.history.GetCommandHistoryUseCase
 import com.tivanstudio.servera.domain.usecase.preset.GetGroupsUseCase
@@ -106,14 +109,23 @@ class ConsoleViewModel @Inject constructor(
     fun refreshServerInfo() {
         val server = _uiState.value.server ?: return
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingServerInfo = true, serverInfoError = null) }
+            _uiState.update { it.copy(isLoadingServerInfo = true, serverInfoErrorRes = null) }
             fetchServerInfo(server)
                 .onSuccess { info ->
                     serverCache.putInfo(serverId, info)
                     _uiState.update { it.copy(serverInfo = info, isLoadingServerInfo = false) }
                 }
                 .onFailure { e ->
-                    _uiState.update { it.copy(isLoadingServerInfo = false, serverInfoError = e.message) }
+                    val resId = when ((e as? SshException)?.type) {
+                        SshErrorType.AUTH           -> R.string.ssh_error_auth
+                        SshErrorType.TIMEOUT        -> R.string.ssh_error_timeout
+                        SshErrorType.UNREACHABLE    -> R.string.ssh_error_unreachable
+                        SshErrorType.HOST_NOT_FOUND -> R.string.ssh_error_host
+                        else                        -> R.string.ssh_error_unknown
+                    }
+                    _uiState.update {
+                        it.copy(isLoadingServerInfo = false, serverInfoErrorRes = resId)
+                    }
                 }
         }
     }

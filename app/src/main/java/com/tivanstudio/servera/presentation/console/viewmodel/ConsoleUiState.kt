@@ -22,7 +22,8 @@ data class ConsoleUiState(
     val recentHistory: List<CommandHistory> = emptyList(),
     val serverInfo: ServerInfo? = null,
     val isLoadingServerInfo: Boolean = false,
-    val serverInfoError: String? = null,
+    /** String resource describing why the last info fetch failed; null when there was none. */
+    val serverInfoErrorRes: Int? = null,
     val error: String? = null
 ) {
     /** Catalog suggestions per group, in group order; groups without presets are dropped. */

@@ -867,12 +867,12 @@ private fun InfoTab(uiState: ConsoleUiState, onRefresh: () -> Unit) {
         when {
             uiState.serverInfo != null -> ServerInfoContent(info = uiState.serverInfo)
 
-            uiState.serverInfoError != null -> Box(
+            uiState.serverInfoErrorRes != null -> Box(
                 modifier         = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text      = uiState.serverInfoError,
+                    text      = stringResource(uiState.serverInfoErrorRes),
                     color     = DangerRed,
                     textAlign = TextAlign.Center,
                     modifier  = Modifier.padding(32.dp)
@@ -1026,6 +1026,34 @@ private fun InfoTabEmptyPreview() {
                 server      = Server(1, "Production", "192.168.1.1", 22, "root", ""),
                 selectedTab = 1,
                 serverInfo  = null
+            ),
+            onBack              = {},
+            onExecute           = {},
+            onSelectTab         = {},
+            onInfoTabSelected   = {},
+            onRefreshServerInfo = {},
+            onOpenCommandDialog = {},
+            onDismissCommandDialog = {},
+            onEditCommand      = {},
+            onPickPreset       = {},
+            onSaveOwn          = { _, _, _, _ -> },
+            onRun              = {},
+            onRemove           = {},
+            onToggleHistory    = {}
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true)
+@Composable
+private fun InfoTabErrorPreview() {
+    ServeraTheme {
+        ConsoleScreenContent(
+            uiState = ConsoleUiState(
+                server             = Server(1, "Production", "192.168.1.1", 22, "root", ""),
+                selectedTab        = 1,
+                serverInfoErrorRes = R.string.ssh_error_auth
             ),
             onBack              = {},
             onExecute           = {},

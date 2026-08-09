@@ -162,4 +162,9 @@
     <string name="no_common_commands">No common commands yet</string>
     <string name="show_output_field">Show output</string>
     <string name="executed_commands">Executed commands</string>
+    <string name="ssh_error_auth">Authentication failed. Check login, password or key.</string>
+    <string name="ssh_error_timeout">Connection timed out.</string>
+    <string name="ssh_error_unreachable">Server is unreachable.</string>
+    <string name="ssh_error_host">Host not found. Check the address.</string>
+    <string name="ssh_error_unknown">Failed to connect to the server.</string>
 </resources>

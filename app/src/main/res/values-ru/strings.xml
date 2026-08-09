@@ -148,4 +148,9 @@
     <string name="no_common_commands">Общих команд пока нет</string>
     <string name="show_output_field">Показывать результат</string>
     <string name="executed_commands">Выполненные команды</string>
+    <string name="ssh_error_auth">Ошибка авторизации. Проверьте логин, пароль или ключ.</string>
+    <string name="ssh_error_timeout">Превышено время ожидания.</string>
+    <string name="ssh_error_unreachable">Сервер недоступен.</string>
+    <string name="ssh_error_host">Хост не найден. Проверьте адрес.</string>
+    <string name="ssh_error_unknown">Не удалось подключиться к серверу.</string>
 </resources>
