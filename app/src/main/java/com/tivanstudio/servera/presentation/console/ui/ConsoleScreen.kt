@@ -384,7 +384,7 @@ private fun AttachedCommandItem(
                     text       = cmd.command,
                     fontFamily = FontFamily.Monospace,
                     fontSize   = 12.sp,
-                    color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color      = MaterialTheme.colorScheme.onSurface,
                     maxLines   = 1,
                     overflow   = TextOverflow.Ellipsis
                 )
@@ -656,7 +656,7 @@ private fun CatalogPicker(
                                 text       = preset.command,
                                 fontFamily = FontFamily.Monospace,
                                 fontSize   = 12.sp,
-                                color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color      = MaterialTheme.colorScheme.onSurface,
                                 maxLines   = 1,
                                 overflow   = TextOverflow.Ellipsis
                             )
