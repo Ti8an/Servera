@@ -68,6 +68,14 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+/** Attached commands carry a snapshot of their catalog group (name + colour). */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE quick_commands ADD COLUMN groupName TEXT")
+        db.execSQL("ALTER TABLE quick_commands ADD COLUMN groupColorHex TEXT")
+    }
+}
+
 private const val DEFAULT_GROUP_COLOR = "#4CAF50"
 
 val MIGRATION_1_2 = object : Migration(1, 2) {

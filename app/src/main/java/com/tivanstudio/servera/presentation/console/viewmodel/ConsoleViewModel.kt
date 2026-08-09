@@ -3,10 +3,15 @@ package com.tivanstudio.servera.presentation.console.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.data.preferences.AppPreferences
 import com.tivanstudio.servera.di.CommandResultHolder
 import com.tivanstudio.servera.di.ServerCache
+import com.tivanstudio.servera.domain.entity.Preset
+import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.entity.QuickCommand
+import com.tivanstudio.servera.domain.entity.SshErrorType
+import com.tivanstudio.servera.domain.entity.SshException
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.history.GetCommandHistoryUseCase
 import com.tivanstudio.servera.domain.usecase.preset.GetGroupsUseCase
@@ -104,14 +109,23 @@ class ConsoleViewModel @Inject constructor(
     fun refreshServerInfo() {
         val server = _uiState.value.server ?: return
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingServerInfo = true, serverInfoError = null) }
+            _uiState.update { it.copy(isLoadingServerInfo = true, serverInfoErrorRes = null) }
             fetchServerInfo(server)
                 .onSuccess { info ->
                     serverCache.putInfo(serverId, info)
                     _uiState.update { it.copy(serverInfo = info, isLoadingServerInfo = false) }
                 }
                 .onFailure { e ->
-                    _uiState.update { it.copy(isLoadingServerInfo = false, serverInfoError = e.message) }
+                    val resId = when ((e as? SshException)?.type) {
+                        SshErrorType.AUTH           -> R.string.ssh_error_auth
+                        SshErrorType.TIMEOUT        -> R.string.ssh_error_timeout
+                        SshErrorType.UNREACHABLE    -> R.string.ssh_error_unreachable
+                        SshErrorType.HOST_NOT_FOUND -> R.string.ssh_error_host
+                        else                        -> R.string.ssh_error_unknown
+                    }
+                    _uiState.update {
+                        it.copy(isLoadingServerInfo = false, serverInfoErrorRes = resId)
+                    }
                 }
         }
     }
@@ -120,33 +134,64 @@ class ConsoleViewModel @Inject constructor(
         viewModelScope.launch { _events.send(ConsoleEvent.NavigateToExecute(serverId)) }
     }
 
-    fun openAddDialog() {
-        _uiState.update { it.copy(showAddDialog = true) }
+    fun openCommandDialog() {
+        _uiState.update { it.copy(showCommandDialog = true, editingCommand = null) }
     }
 
-    fun dismissAddDialog() {
-        _uiState.update { it.copy(showAddDialog = false) }
+    fun startEdit(cmd: QuickCommand) {
+        _uiState.update { it.copy(editingCommand = cmd, showCommandDialog = true) }
+    }
+
+    fun dismissCommandDialog() {
+        _uiState.update { it.copy(showCommandDialog = false, editingCommand = null) }
     }
 
     fun toggleHistory() {
         _uiState.update { it.copy(showHistory = !it.showHistory) }
     }
 
-    fun attachTyped(label: String, command: String, showOutput: Boolean) {
+    /**
+     * Attaches a catalog preset, keeping a snapshot of the group it came from.
+     * The dialog stays open so several presets can be attached in a row.
+     */
+    fun attachFromCatalog(preset: Preset) {
         val state = _uiState.value
-        if (label.isBlank() || command.isBlank()) return
+        val group = state.groups.firstOrNull { it.id == preset.groupId }
         viewModelScope.launch {
             saveQuickCommand(
                 QuickCommand(
-                    id         = 0,
-                    serverId   = serverId,
-                    label      = label.trim(),
-                    command    = command.trim(),
-                    sortOrder  = state.attachedCommands.size,
-                    showOutput = showOutput
+                    id            = 0,
+                    serverId      = serverId,
+                    label         = preset.label,
+                    command       = preset.command,
+                    sortOrder     = state.attachedCommands.size,
+                    showOutput    = true,
+                    groupName     = group?.name,
+                    groupColorHex = group?.colorHex
                 )
             )
-            _uiState.update { it.copy(showAddDialog = false) }
+        }
+    }
+
+    /** Saves a hand-typed command; an edit keeps its id, so REPLACE overwrites the row. */
+    fun saveOwn(label: String, command: String, showOutput: Boolean, group: PresetGroup) {
+        if (label.isBlank() || command.isBlank()) return
+        val state   = _uiState.value
+        val editing = state.editingCommand
+        viewModelScope.launch {
+            saveQuickCommand(
+                QuickCommand(
+                    id            = editing?.id ?: 0,
+                    serverId      = editing?.serverId ?: serverId,
+                    label         = label.trim(),
+                    command       = command.trim(),
+                    sortOrder     = editing?.sortOrder ?: state.attachedCommands.size,
+                    showOutput    = showOutput,
+                    groupName     = group.name,
+                    groupColorHex = group.colorHex
+                )
+            )
+            dismissCommandDialog()
         }
     }
 

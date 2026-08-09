@@ -1,9 +1,16 @@
 package com.tivanstudio.servera.presentation.console.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -17,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -24,8 +32,11 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
@@ -41,8 +52,10 @@ import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleEvent
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleUiState
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleViewModel
 import com.tivanstudio.servera.presentation.theme.*
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.roundToInt
 
 @Composable
 fun ConsoleScreen(
@@ -69,9 +82,11 @@ fun ConsoleScreen(
         onSelectTab        = viewModel::selectTab,
         onInfoTabSelected  = viewModel::onInfoTabSelected,
         onRefreshServerInfo = viewModel::refreshServerInfo,
-        onOpenAddDialog    = viewModel::openAddDialog,
-        onDismissAddDialog = viewModel::dismissAddDialog,
-        onSaveTyped        = viewModel::attachTyped,
+        onOpenCommandDialog = viewModel::openCommandDialog,
+        onDismissCommandDialog = viewModel::dismissCommandDialog,
+        onEditCommand      = viewModel::startEdit,
+        onPickPreset       = viewModel::attachFromCatalog,
+        onSaveOwn          = viewModel::saveOwn,
         onRun              = viewModel::runAttached,
         onRemove           = viewModel::removeAttached,
         onToggleHistory    = viewModel::toggleHistory
@@ -87,18 +102,22 @@ private fun ConsoleScreenContent(
     onSelectTab: (Int) -> Unit,
     onInfoTabSelected: () -> Unit,
     onRefreshServerInfo: () -> Unit,
-    onOpenAddDialog: () -> Unit,
-    onDismissAddDialog: () -> Unit,
-    onSaveTyped: (label: String, command: String, showOutput: Boolean) -> Unit,
+    onOpenCommandDialog: () -> Unit,
+    onDismissCommandDialog: () -> Unit,
+    onEditCommand: (QuickCommand) -> Unit,
+    onPickPreset: (Preset) -> Unit,
+    onSaveOwn: (label: String, command: String, showOutput: Boolean, group: PresetGroup) -> Unit,
     onRun: (QuickCommand) -> Unit,
     onRemove: (Long) -> Unit,
     onToggleHistory: () -> Unit
 ) {
-    if (uiState.showAddDialog) {
-        AddCommandDialog(
-            uiState   = uiState,
-            onDismiss = onDismissAddDialog,
-            onSave    = onSaveTyped
+    if (uiState.showCommandDialog) {
+        CommandDialog(
+            uiState      = uiState,
+            initial      = uiState.editingCommand,
+            onDismiss    = onDismissCommandDialog,
+            onPickPreset = onPickPreset,
+            onSaveOwn    = onSaveOwn
         )
     }
 
@@ -157,7 +176,8 @@ private fun ConsoleScreenContent(
                 0 -> ConsoleTab(
                     uiState         = uiState,
                     onExecute       = onExecute,
-                    onOpenAddDialog = onOpenAddDialog,
+                    onOpenCommandDialog = onOpenCommandDialog,
+                    onEditCommand   = onEditCommand,
                     onRun           = onRun,
                     onRemove        = onRemove,
                     onToggleHistory = onToggleHistory
@@ -173,7 +193,8 @@ private fun ConsoleScreenContent(
 private fun ConsoleTab(
     uiState: ConsoleUiState,
     onExecute: () -> Unit,
-    onOpenAddDialog: () -> Unit,
+    onOpenCommandDialog: () -> Unit,
+    onEditCommand: (QuickCommand) -> Unit,
     onRun: (QuickCommand) -> Unit,
     onRemove: (Long) -> Unit,
     onToggleHistory: () -> Unit
@@ -201,24 +222,8 @@ private fun ConsoleTab(
                         cmd      = cmd,
                         runState = uiState.runStates[cmd.id],
                         onRun    = { onRun(cmd) },
+                        onEdit   = { onEditCommand(cmd) },
                         onRemove = { onRemove(cmd.id) }
-                    )
-                }
-            }
-
-            item {
-                Button(
-                    onClick = onExecute,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors   = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
-                    shape    = MaterialTheme.shapes.medium
-                ) {
-                    Icon(Icons.Default.Terminal, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(R.string.new_command),
-                        fontWeight = FontWeight.Bold,
-                        color      = MaterialTheme.colorScheme.onPrimary
                     )
                 }
             }
@@ -254,7 +259,7 @@ private fun ConsoleTab(
         }
 
         FloatingActionButton(
-            onClick        = onOpenAddDialog,
+            onClick        = onOpenCommandDialog,
             containerColor = PrimaryGreen,
             modifier       = Modifier
                 .align(Alignment.BottomStart)
@@ -268,72 +273,117 @@ private fun ConsoleTab(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AttachedCommandItem(
     cmd: QuickCommand,
     runState: CommandRunState?,
     onRun: () -> Unit,
+    onEdit: () -> Unit,
     onRemove: () -> Unit
 ) {
     val isRunning = runState is CommandRunState.Running
 
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
-                onRemove()
-                true
-            } else {
-                false
-            }
-        }
-    )
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromStartToEnd = false,
-        enableDismissFromEndToStart = true,
-        backgroundContent = {
-            val color by animateColorAsState(
-                targetValue = when (dismissState.dismissDirection) {
-                    SwipeToDismissBoxValue.EndToStart -> DangerRed.copy(alpha = 0.85f)
-                    else                              -> Color.Transparent
-                },
-                label = "attached_swipe_bg"
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(color, shape = MaterialTheme.shapes.medium)
-                    .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
-                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
+    val offsetX = remember { Animatable(0f) }
+    val scope   = rememberCoroutineScope()
+    val density = LocalDensity.current
+
+    val maxDragPx       = with(density) { 96.dp.toPx() }
+    val actionThreshold = with(density) { 72.dp.toPx() }
+
+    val offset = offsetX.value
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            containerColor   = MaterialTheme.colorScheme.surface,
+            title = { Text(stringResource(R.string.delete_command_title)) },
+            text  = { Text(stringResource(R.string.delete_command_message, cmd.label)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    onRemove()
+                }) {
+                    Text(stringResource(R.string.delete_confirm), color = DangerRed)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(
+                        stringResource(R.string.cancel),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
+        )
+    }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        // Action layer, uncovered by the card as it follows the finger.
+        if (offset != 0f) {
+            val draggingRight = offset > 0f
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        color = if (draggingRight) InfoBlue.copy(alpha = 0.85f)
+                                else DangerRed.copy(alpha = 0.85f),
+                        shape = MaterialTheme.shapes.medium
+                    )
+                    .padding(horizontal = 16.dp),
+                contentAlignment = if (draggingRight) Alignment.CenterStart else Alignment.CenterEnd
+            ) {
+                Icon(
+                    imageVector        = if (draggingRight) Icons.Default.Edit else Icons.Default.Delete,
+                    contentDescription = null,
+                    tint               = Color.White
+                )
+            }
         }
-    ) {
+
         Card(
             colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape    = MaterialTheme.shapes.medium,
             modifier = Modifier
                 .fillMaxWidth()
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .draggable(
+                    orientation = Orientation.Horizontal,
+                    state = rememberDraggableState { delta ->
+                        scope.launch {
+                            offsetX.snapTo((offsetX.value + delta).coerceIn(-maxDragPx, maxDragPx))
+                        }
+                    },
+                    onDragStopped = {
+                        // Both actions open a dialog, so the row always slides back.
+                        when {
+                            offsetX.value >= actionThreshold  -> onEdit()
+                            offsetX.value <= -actionThreshold -> showDeleteConfirm = true
+                        }
+                        offsetX.animateTo(0f, tween(durationMillis = 200))
+                    }
+                )
                 .clickable(enabled = !isRunning, onClick = onRun)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text       = cmd.label,
-                    fontWeight = FontWeight.Medium,
-                    fontSize   = 14.sp,
-                    maxLines   = 1,
-                    overflow   = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text       = cmd.label,
+                        fontWeight = FontWeight.Medium,
+                        fontSize   = 14.sp,
+                        maxLines   = 1,
+                        overflow   = TextOverflow.Ellipsis,
+                        modifier   = Modifier.weight(1f, fill = false)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    CommandGroupTag(cmd = cmd)
+                }
                 Text(
                     text       = cmd.command,
                     fontFamily = FontFamily.Monospace,
                     fontSize   = 12.sp,
-                    color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color      = MaterialTheme.colorScheme.onSurface,
                     maxLines   = 1,
                     overflow   = TextOverflow.Ellipsis
                 )
@@ -376,190 +426,372 @@ private fun AttachedCommandItem(
 }
 
 @Composable
-private fun AddCommandDialog(
+private fun CommandGroupTag(cmd: QuickCommand) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        cmd.groupColorHex?.let { hex ->
+            GroupDot(colorHex = hex, size = 8)
+            Spacer(Modifier.width(4.dp))
+        }
+        Text(
+            text     = cmd.groupName ?: stringResource(R.string.group_custom),
+            style    = MaterialTheme.typography.labelSmall,
+            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/**
+ * Full-screen add/edit sheet. Adding offers both modes — pick a catalog preset or
+ * type your own; editing only ever touches an existing command, so it opens straight
+ * into the manual form.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CommandDialog(
     uiState: ConsoleUiState,
+    initial: QuickCommand?,
     onDismiss: () -> Unit,
-    onSave: (label: String, command: String, showOutput: Boolean) -> Unit
+    onPickPreset: (Preset) -> Unit,
+    onSaveOwn: (label: String, command: String, showOutput: Boolean, group: PresetGroup) -> Unit
 ) {
-    var label      by remember { mutableStateOf("") }
-    var command    by remember { mutableStateOf("") }
-    var showOutput by remember { mutableStateOf(true) }
+    val isEditing = initial != null
+    var ownMode by remember(initial) { mutableStateOf(isEditing) }
+    // Selection is keyed by group + command rather than by id, so it survives
+    // duplicate or unsaved ids in the catalog.
+    var selectedKey by remember { mutableStateOf<String?>(null) }
 
-    val canSubmit = label.isNotBlank() && command.isNotBlank()
-    val attached  = uiState.attachedCommandStrings
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope    = rememberCoroutineScope()
+    val addedMsg = stringResource(R.string.command_added)
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        containerColor   = MaterialTheme.colorScheme.surface,
-        title = {
-            Text(
-                text       = stringResource(R.string.add_command_title),
-                style      = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value         = label,
-                    onValueChange = { label = it },
-                    label         = { Text(stringResource(R.string.command_label_field)) },
-                    singleLine    = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor   = PrimaryGreen,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value         = command,
-                    onValueChange = { command = it },
-                    label         = { Text(stringResource(R.string.command_label)) },
-                    singleLine    = false,
-                    minLines      = 3,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization     = KeyboardCapitalization.None,
-                        autoCorrectEnabled = false
-                    ),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontSize   = 14.sp
-                    ),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        focusedBorderColor      = PrimaryGreen,
-                        unfocusedBorderColor    = MaterialTheme.colorScheme.surface
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(
-                    modifier              = Modifier.fillMaxWidth(),
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text     = stringResource(R.string.show_output_field),
-                        fontSize = 14.sp
-                    )
-                    Switch(
-                        checked         = showOutput,
-                        onCheckedChange = { showOutput = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                            checkedTrackColor = PrimaryGreen
+        properties       = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color    = MaterialTheme.colorScheme.background
+        ) {
+            Scaffold(
+                containerColor = MaterialTheme.colorScheme.background,
+                snackbarHost   = { SnackbarHost(snackbarHostState) },
+                topBar = {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                stringResource(
+                                    if (isEditing) R.string.edit_command_title
+                                    else R.string.add_command_title
+                                ),
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onDismiss) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.cancel)
+                                )
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.surface
                         )
                     )
                 }
+            ) { padding ->
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                ) {
+                    if (!isEditing) {
+                        TabRow(
+                            selectedTabIndex = if (ownMode) 1 else 0,
+                            containerColor   = MaterialTheme.colorScheme.surface,
+                            contentColor     = PrimaryGreen
+                        ) {
+                            Tab(
+                                selected = !ownMode,
+                                onClick  = { ownMode = false },
+                                text     = { Text(stringResource(R.string.mode_from_catalog)) }
+                            )
+                            Tab(
+                                selected = ownMode,
+                                onClick  = { ownMode = true },
+                                text     = { Text(stringResource(R.string.mode_own)) }
+                            )
+                        }
+                    }
 
-                Text(
-                    text       = stringResource(R.string.common_commands),
-                    style      = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium
-                )
+                    if (ownMode) {
+                        OwnCommandForm(
+                            uiState  = uiState,
+                            initial  = initial,
+                            onSave   = onSaveOwn,
+                            onCancel = onDismiss
+                        )
+                    } else {
+                        CatalogPicker(
+                            uiState     = uiState,
+                            selectedKey = selectedKey,
+                            onSelect    = { selectedKey = it },
+                            modifier    = Modifier.weight(1f)
+                        )
 
-                if (uiState.presets.isEmpty()) {
-                    Text(
-                        stringResource(R.string.no_common_commands),
-                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp
-                    )
-                } else {
-                    LazyColumn(modifier = Modifier.heightIn(max = 240.dp)) {
-                        uiState.grouped.forEach { (group, presets) ->
-                            item(key = "header_${group.id}") {
-                                Row(
-                                    modifier          = Modifier.padding(top = 8.dp, bottom = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    GroupDot(colorHex = group.colorHex, size = 8)
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        text  = group.name,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                        Button(
+                            onClick = {
+                                val preset = uiState.presets
+                                    .firstOrNull { it.selectionKey() == selectedKey }
+                                if (preset != null) {
+                                    onPickPreset(preset)
+                                    scope.launch { snackbarHostState.showSnackbar(addedMsg) }
+                                    // Cleared so the next preset can be picked right away.
+                                    selectedKey = null
                                 }
-                            }
-
-                            items(presets, key = { it.id }) { preset ->
-                                PresetSuggestionRow(
-                                    preset     = preset,
-                                    isAttached = preset.command in attached,
-                                    onClick    = {
-                                        label   = preset.label
-                                        command = preset.command
-                                    }
-                                )
-                            }
+                            },
+                            enabled  = selectedKey != null,
+                            colors   = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                            shape    = MaterialTheme.shapes.medium,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Text(stringResource(R.string.save_button), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onSave(label, command, showOutput) },
-                enabled = canSubmit
-            ) {
-                Text(
-                    stringResource(R.string.save_button),
-                    fontWeight = FontWeight.Medium,
-                    color = if (canSubmit) PrimaryGreen else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        }
+    }
+}
+
+/** Stable identity of a catalog row: ids may collide, group + command does not. */
+private fun Preset.selectionKey(): String = "$groupId|$command"
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CatalogPicker(
+    uiState: ConsoleUiState,
+    selectedKey: String?,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (uiState.grouped.isEmpty()) {
+        Box(
+            modifier         = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text      = stringResource(R.string.no_common_commands),
+                color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier  = Modifier.padding(32.dp)
+            )
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier       = modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(vertical = 8.dp)
+    ) {
+        uiState.grouped.forEach { (group, presets) ->
+            item(key = "header_${group.id}") {
+                Row(
+                    modifier          = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    GroupDot(colorHex = group.colorHex, size = 10)
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text  = group.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
+
+            items(presets, key = { "${it.groupId}_${it.command}" }) { preset ->
+                val isSelected = preset.selectionKey() == selectedKey
+                // Animated so picking another row reads as a move, not a flicker.
+                val containerColor by animateColorAsState(
+                    targetValue = if (isSelected) PrimaryGreen.copy(alpha = 0.18f)
+                                  else MaterialTheme.colorScheme.surface,
+                    label = "presetBackground"
+                )
+                Card(
+                    onClick  = { onSelect(preset.selectionKey()) },
+                    colors   = CardDefaults.cardColors(containerColor = containerColor),
+                    border   = if (isSelected) BorderStroke(1.5.dp, PrimaryGreen) else null,
+                    shape    = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
+                    Row(
+                        modifier          = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text       = preset.label,
+                                fontWeight = FontWeight.Medium,
+                                fontSize   = 14.sp,
+                                maxLines   = 1,
+                                overflow   = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text       = preset.command,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize   = 12.sp,
+                                color      = MaterialTheme.colorScheme.onSurface,
+                                maxLines   = 1,
+                                overflow   = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun OwnCommandForm(
+    uiState: ConsoleUiState,
+    initial: QuickCommand?,
+    onSave: (label: String, command: String, showOutput: Boolean, group: PresetGroup) -> Unit,
+    onCancel: () -> Unit
+) {
+    val groups = uiState.groups.sortedBy { it.sortOrder }
+
+    var label      by remember(initial) { mutableStateOf(initial?.label ?: "") }
+    var command    by remember(initial) { mutableStateOf(initial?.command ?: "") }
+    var showOutput by remember(initial) { mutableStateOf(initial?.showOutput ?: true) }
+    // An edited command only remembers its group by name, so match on that.
+    var group      by remember(initial, groups) {
+        mutableStateOf(
+            groups.firstOrNull { it.name == initial?.groupName } ?: groups.firstOrNull()
+        )
+    }
+
+    val selected  = group
+    val canSubmit = label.isNotBlank() && command.isNotBlank() && selected != null
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        OutlinedTextField(
+            value         = label,
+            onValueChange = { label = it },
+            label         = { Text(stringResource(R.string.command_label_field)) },
+            singleLine    = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor   = PrimaryGreen,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value         = command,
+            onValueChange = { command = it },
+            label         = { Text(stringResource(R.string.command_label)) },
+            singleLine    = false,
+            minLines      = 3,
+            keyboardOptions = KeyboardOptions(
+                capitalization     = KeyboardCapitalization.None,
+                autoCorrectEnabled = false
+            ),
+            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily = FontFamily.Monospace,
+                fontSize   = 14.sp
+            ),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedBorderColor      = PrimaryGreen,
+                unfocusedBorderColor    = MaterialTheme.colorScheme.surface
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Row(
+            modifier              = Modifier.fillMaxWidth(),
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = stringResource(R.string.show_output_field), fontSize = 14.sp)
+            Switch(
+                checked         = showOutput,
+                onCheckedChange = { showOutput = it },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    checkedTrackColor = PrimaryGreen
+                )
+            )
+        }
+
+        Text(
+            text       = stringResource(R.string.select_group),
+            style      = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Medium
+        )
+
+        if (groups.isEmpty()) {
+            Text(
+                text     = stringResource(R.string.no_groups_hint),
+                color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp
+            )
+        } else {
+            FlowRow(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement   = Arrangement.spacedBy(8.dp)
+            ) {
+                groups.forEach { candidate ->
+                    FilterChip(
+                        selected = candidate.id == selected?.id,
+                        onClick  = { group = candidate },
+                        label    = { Text(candidate.name) },
+                        leadingIcon = { GroupDot(colorHex = candidate.colorHex, size = 10) }
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        Row(
+            modifier              = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(onClick = onCancel) {
                 Text(
                     stringResource(R.string.cancel),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        }
-    )
-}
-
-@Composable
-private fun PresetSuggestionRow(
-    preset: Preset,
-    isAttached: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text       = preset.label,
-                fontWeight = FontWeight.Medium,
-                fontSize   = 14.sp,
-                maxLines   = 1,
-                overflow   = TextOverflow.Ellipsis
-            )
-            Text(
-                text       = preset.command,
-                fontFamily = FontFamily.Monospace,
-                fontSize   = 12.sp,
-                color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines   = 1,
-                overflow   = TextOverflow.Ellipsis
-            )
-        }
-        if (isAttached) {
             Spacer(Modifier.width(8.dp))
-            Icon(
-                Icons.Default.Check,
-                contentDescription = null,
-                tint     = PrimaryGreen,
-                modifier = Modifier.size(16.dp)
-            )
+            Button(
+                onClick = { selected?.let { onSave(label, command, showOutput, it) } },
+                enabled = canSubmit,
+                colors  = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                shape   = MaterialTheme.shapes.medium
+            ) {
+                Text(stringResource(R.string.save_button), fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -610,12 +842,12 @@ private fun InfoTab(uiState: ConsoleUiState, onRefresh: () -> Unit) {
         when {
             uiState.serverInfo != null -> ServerInfoContent(info = uiState.serverInfo)
 
-            uiState.serverInfoError != null -> Box(
+            uiState.serverInfoErrorRes != null -> Box(
                 modifier         = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text      = uiState.serverInfoError,
+                    text      = stringResource(uiState.serverInfoErrorRes),
                     color     = DangerRed,
                     textAlign = TextAlign.Center,
                     modifier  = Modifier.padding(32.dp)
@@ -710,7 +942,6 @@ private fun ConsoleTabPreview() {
                     3L to CommandRunState.Done(stdout = "", stderr = "unit not found", exitCode = 5),
                     4L to CommandRunState.Failure("Connection refused")
                 ),
-                showAddDialog = false,
                 showHistory   = false,
                 recentHistory = listOf(
                     CommandHistory(1, 1, "ls -la /etc", "output", "", 0, System.currentTimeMillis())
@@ -721,9 +952,11 @@ private fun ConsoleTabPreview() {
             onSelectTab         = {},
             onInfoTabSelected   = {},
             onRefreshServerInfo = {},
-            onOpenAddDialog    = {},
-            onDismissAddDialog = {},
-            onSaveTyped        = { _, _, _ -> },
+            onOpenCommandDialog = {},
+            onDismissCommandDialog = {},
+            onEditCommand      = {},
+            onPickPreset       = {},
+            onSaveOwn          = { _, _, _, _ -> },
             onRun              = {},
             onRemove           = {},
             onToggleHistory    = {}
@@ -746,9 +979,11 @@ private fun ConsoleTabEmptyPreview() {
             onSelectTab         = {},
             onInfoTabSelected   = {},
             onRefreshServerInfo = {},
-            onOpenAddDialog    = {},
-            onDismissAddDialog = {},
-            onSaveTyped        = { _, _, _ -> },
+            onOpenCommandDialog = {},
+            onDismissCommandDialog = {},
+            onEditCommand      = {},
+            onPickPreset       = {},
+            onSaveOwn          = { _, _, _, _ -> },
             onRun              = {},
             onRemove           = {},
             onToggleHistory    = {}
@@ -772,9 +1007,39 @@ private fun InfoTabEmptyPreview() {
             onSelectTab         = {},
             onInfoTabSelected   = {},
             onRefreshServerInfo = {},
-            onOpenAddDialog    = {},
-            onDismissAddDialog = {},
-            onSaveTyped        = { _, _, _ -> },
+            onOpenCommandDialog = {},
+            onDismissCommandDialog = {},
+            onEditCommand      = {},
+            onPickPreset       = {},
+            onSaveOwn          = { _, _, _, _ -> },
+            onRun              = {},
+            onRemove           = {},
+            onToggleHistory    = {}
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true)
+@Composable
+private fun InfoTabErrorPreview() {
+    ServeraTheme {
+        ConsoleScreenContent(
+            uiState = ConsoleUiState(
+                server             = Server(1, "Production", "192.168.1.1", 22, "root", ""),
+                selectedTab        = 1,
+                serverInfoErrorRes = R.string.ssh_error_auth
+            ),
+            onBack              = {},
+            onExecute           = {},
+            onSelectTab         = {},
+            onInfoTabSelected   = {},
+            onRefreshServerInfo = {},
+            onOpenCommandDialog = {},
+            onDismissCommandDialog = {},
+            onEditCommand      = {},
+            onPickPreset       = {},
+            onSaveOwn          = { _, _, _, _ -> },
             onRun              = {},
             onRemove           = {},
             onToggleHistory    = {}
@@ -791,6 +1056,7 @@ private fun AttachedCommandItemRunningPreview() {
             cmd      = QuickCommand(1, 1, "Disk free", "df -h", 0),
             runState = CommandRunState.Running,
             onRun    = {},
+            onEdit   = {},
             onRemove = {}
         )
     }

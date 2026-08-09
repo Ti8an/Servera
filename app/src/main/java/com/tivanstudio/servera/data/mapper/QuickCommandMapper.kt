@@ -9,7 +9,9 @@ fun QuickCommandEntity.toDomain(): QuickCommand = QuickCommand(
     label = label,
     command = command,
     sortOrder = sortOrder,
-    showOutput = showOutput
+    showOutput = showOutput,
+    groupName = groupName,
+    groupColorHex = groupColorHex
 )
 
 fun QuickCommand.toEntity(): QuickCommandEntity = QuickCommandEntity(
@@ -18,5 +20,7 @@ fun QuickCommand.toEntity(): QuickCommandEntity = QuickCommandEntity(
     label = label,
     command = command,
     sortOrder = sortOrder,
-    showOutput = showOutput
+    showOutput = showOutput,
+    groupName = groupName,
+    groupColorHex = groupColorHex
 )

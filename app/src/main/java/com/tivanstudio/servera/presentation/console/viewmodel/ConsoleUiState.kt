@@ -14,13 +14,16 @@ data class ConsoleUiState(
     val presets: List<Preset> = emptyList(),
     val groups: List<PresetGroup> = emptyList(),
     val attachedCommands: List<QuickCommand> = emptyList(),
-    val showAddDialog: Boolean = false,
+    val showCommandDialog: Boolean = false,
+    /** Attached command the open dialog edits; null means it is adding a new one. */
+    val editingCommand: QuickCommand? = null,
     val runStates: Map<Long, CommandRunState> = emptyMap(),
     val showHistory: Boolean = false,
     val recentHistory: List<CommandHistory> = emptyList(),
     val serverInfo: ServerInfo? = null,
     val isLoadingServerInfo: Boolean = false,
-    val serverInfoError: String? = null,
+    /** String resource describing why the last info fetch failed; null when there was none. */
+    val serverInfoErrorRes: Int? = null,
     val error: String? = null
 ) {
     /** Catalog suggestions per group, in group order; groups without presets are dropped. */

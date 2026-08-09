@@ -39,7 +39,6 @@
     <string name="cmd_status_failed">Failed</string>
     <string name="console_tab">Console</string>
     <string name="info_tab">Information</string>
-    <string name="new_command">New Command</string>
     <string name="recent_commands">Recent Commands</string>
     <string name="no_quick_commands">No quick commands. Tap + to add one.</string>
     <string name="add_command">Add command</string>
@@ -150,9 +149,22 @@
     <string name="presets_picker_empty">No presets yet</string>
     <string name="no_attached_commands">Add commands with +</string>
     <string name="add_command_title">New command</string>
+    <string name="edit_command_title">Edit command</string>
+    <string name="command_added">Command added</string>
+    <string name="mode_from_catalog">From catalog</string>
+    <string name="mode_own">Custom</string>
+    <string name="select_group">Group</string>
+    <string name="group_custom">Custom</string>
+    <string name="delete_command_title">Delete command?</string>
+    <string name="delete_command_message">Delete \"%1$s\"?</string>
     <string name="command_label_field">Name</string>
     <string name="common_commands">Common commands</string>
     <string name="no_common_commands">No common commands yet</string>
     <string name="show_output_field">Show output</string>
     <string name="executed_commands">Executed commands</string>
+    <string name="ssh_error_auth">Authentication failed. Check login, password or key.</string>
+    <string name="ssh_error_timeout">Connection timed out.</string>
+    <string name="ssh_error_unreachable">Server is unreachable.</string>
+    <string name="ssh_error_host">Host not found. Check the address.</string>
+    <string name="ssh_error_unknown">Failed to connect to the server.</string>
 </resources>

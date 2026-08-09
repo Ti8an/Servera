@@ -36,7 +36,6 @@
     <!-- Console -->
     <string name="console_tab">Консоль</string>
     <string name="info_tab">Информация</string>
-    <string name="new_command">Новая команда</string>
     <string name="recent_commands">Последние команды</string>
     <string name="add_command">Добавить команду</string>
     <string name="cmd_running">Выполняется…</string>
@@ -136,9 +135,22 @@
     <string name="presets_picker_empty">Пресетов пока нет</string>
     <string name="no_attached_commands">Добавьте команды кнопкой +</string>
     <string name="add_command_title">Новая команда</string>
+    <string name="edit_command_title">Редактировать команду</string>
+    <string name="command_added">Команда добавлена</string>
+    <string name="mode_from_catalog">Из каталога</string>
+    <string name="mode_own">Своя</string>
+    <string name="select_group">Группа</string>
+    <string name="group_custom">Пользовательская</string>
+    <string name="delete_command_title">Удалить команду?</string>
+    <string name="delete_command_message">Удалить «%1$s»?</string>
     <string name="command_label_field">Название</string>
     <string name="common_commands">Общие команды</string>
     <string name="no_common_commands">Общих команд пока нет</string>
     <string name="show_output_field">Показывать результат</string>
     <string name="executed_commands">Выполненные команды</string>
+    <string name="ssh_error_auth">Ошибка авторизации. Проверьте логин, пароль или ключ.</string>
+    <string name="ssh_error_timeout">Превышено время ожидания.</string>
+    <string name="ssh_error_unreachable">Сервер недоступен.</string>
+    <string name="ssh_error_host">Хост не найден. Проверьте адрес.</string>
+    <string name="ssh_error_unknown">Не удалось подключиться к серверу.</string>
 </resources>

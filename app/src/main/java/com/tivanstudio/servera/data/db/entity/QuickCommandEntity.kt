@@ -10,5 +10,7 @@ data class QuickCommandEntity(
     val label: String,
     val command: String,
     val sortOrder: Int,
-    val showOutput: Boolean = true
+    val showOutput: Boolean = true,
+    val groupName: String? = null,
+    val groupColorHex: String? = null
 )

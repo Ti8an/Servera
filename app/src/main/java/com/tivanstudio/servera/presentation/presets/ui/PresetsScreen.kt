@@ -285,7 +285,7 @@ private fun PresetRow(
                         text       = preset.command,
                         fontFamily = FontFamily.Monospace,
                         fontSize   = 12.sp,
-                        color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color      = MaterialTheme.colorScheme.onSurface,
                         maxLines   = 2,
                         overflow   = TextOverflow.Ellipsis
                     )
