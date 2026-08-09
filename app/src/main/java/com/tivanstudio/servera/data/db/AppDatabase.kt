@@ -21,7 +21,7 @@ import com.tivanstudio.servera.data.db.entity.ServerEntity
         PresetEntity::class,
         PresetGroupEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

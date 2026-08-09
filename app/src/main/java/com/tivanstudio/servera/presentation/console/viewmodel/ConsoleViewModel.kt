@@ -13,7 +13,6 @@ import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.entity.SshErrorType
 import com.tivanstudio.servera.domain.entity.SshException
 import com.tivanstudio.servera.domain.repository.ServerRepository
-import com.tivanstudio.servera.domain.usecase.history.GetCommandHistoryUseCase
 import com.tivanstudio.servera.domain.usecase.preset.GetGroupsUseCase
 import com.tivanstudio.servera.domain.usecase.preset.GetPresetsUseCase
 import com.tivanstudio.servera.domain.usecase.quickcommand.DeleteQuickCommandUseCase
@@ -35,7 +34,6 @@ import javax.inject.Inject
 @HiltViewModel
 class ConsoleViewModel @Inject constructor(
     private val serverRepository: ServerRepository,
-    private val getHistory: GetCommandHistoryUseCase,
     private val getPresets: GetPresetsUseCase,
     private val getGroups: GetGroupsUseCase,
     private val getQuickCommands: GetQuickCommandsUseCase,
@@ -59,7 +57,6 @@ class ConsoleViewModel @Inject constructor(
 
     init {
         loadServer()
-        observeHistory()
         observePresets()
         observeAttached()
     }
@@ -68,14 +65,6 @@ class ConsoleViewModel @Inject constructor(
         viewModelScope.launch {
             val server = serverRepository.getServerById(serverId)
             _uiState.update { it.copy(server = server, isLoading = false) }
-        }
-    }
-
-    private fun observeHistory() {
-        viewModelScope.launch {
-            getHistory.forServer(serverId).collect { history ->
-                _uiState.update { it.copy(recentHistory = history.take(10)) }
-            }
         }
     }
 
@@ -146,10 +135,6 @@ class ConsoleViewModel @Inject constructor(
         _uiState.update { it.copy(showCommandDialog = false, editingCommand = null) }
     }
 
-    fun toggleHistory() {
-        _uiState.update { it.copy(showHistory = !it.showHistory) }
-    }
-
     /**
      * Attaches a catalog preset, keeping a snapshot of the group it came from.
      * The dialog stays open so several presets can be attached in a row.
@@ -204,7 +189,12 @@ class ConsoleViewModel @Inject constructor(
         if (_uiState.value.runStates[cmd.id] is CommandRunState.Running) return
         viewModelScope.launch {
             setRunState(cmd.id, CommandRunState.Running)
-            executeCommand(server, cmd.command, saveOnFailure = appPreferences.isSaveCommandsAlways.value)
+            executeCommand(
+                server,
+                cmd.command,
+                saveOnFailure = appPreferences.isSaveCommandsAlways.value,
+                groupName     = cmd.groupName
+            )
                 .onSuccess { result ->
                     setRunState(
                         cmd.id,

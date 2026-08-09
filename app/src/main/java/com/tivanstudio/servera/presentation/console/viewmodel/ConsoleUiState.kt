@@ -1,6 +1,5 @@
 package com.tivanstudio.servera.presentation.console.viewmodel
 
-import com.tivanstudio.servera.domain.entity.CommandHistory
 import com.tivanstudio.servera.domain.entity.Preset
 import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.entity.QuickCommand
@@ -18,8 +17,6 @@ data class ConsoleUiState(
     /** Attached command the open dialog edits; null means it is adding a new one. */
     val editingCommand: QuickCommand? = null,
     val runStates: Map<Long, CommandRunState> = emptyMap(),
-    val showHistory: Boolean = false,
-    val recentHistory: List<CommandHistory> = emptyList(),
     val serverInfo: ServerInfo? = null,
     val isLoadingServerInfo: Boolean = false,
     /** String resource describing why the last info fetch failed; null when there was none. */

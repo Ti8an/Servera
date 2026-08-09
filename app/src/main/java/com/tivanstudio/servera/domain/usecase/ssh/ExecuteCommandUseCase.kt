@@ -14,7 +14,9 @@ class ExecuteCommandUseCase @Inject constructor(
     suspend operator fun invoke(
         server: Server,
         command: String,
-        saveOnFailure: Boolean = false
+        saveOnFailure: Boolean = false,
+        /** Group the command was attached to; null for a command typed by hand. */
+        groupName: String? = null
     ): Result<CommandResult> {
         val result = runCatching { sshClient.execute(server, command) }
 
@@ -27,7 +29,8 @@ class ExecuteCommandUseCase @Inject constructor(
                     stdout      = cmdResult.stdout,
                     stderr      = cmdResult.stderr,
                     exitCode    = cmdResult.exitCode,
-                    executedAt  = System.currentTimeMillis()
+                    executedAt  = System.currentTimeMillis(),
+                    groupName   = groupName
                 )
             )
         } else if (saveOnFailure) {
@@ -38,7 +41,8 @@ class ExecuteCommandUseCase @Inject constructor(
                     stdout      = "",
                     stderr      = result.exceptionOrNull()?.message ?: "Unknown error",
                     exitCode    = -1,
-                    executedAt  = System.currentTimeMillis()
+                    executedAt  = System.currentTimeMillis(),
+                    groupName   = groupName
                 )
             )
         }

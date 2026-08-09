@@ -147,10 +147,25 @@
     <string name="common_commands">Общие команды</string>
     <string name="no_common_commands">Общих команд пока нет</string>
     <string name="show_output_field">Показывать результат</string>
-    <string name="executed_commands">Выполненные команды</string>
     <string name="ssh_error_auth">Ошибка авторизации. Проверьте логин, пароль или ключ.</string>
     <string name="ssh_error_timeout">Превышено время ожидания.</string>
     <string name="ssh_error_unreachable">Сервер недоступен.</string>
     <string name="ssh_error_host">Хост не найден. Проверьте адрес.</string>
     <string name="ssh_error_unknown">Не удалось подключиться к серверу.</string>
+    <!-- History filters -->
+    <string name="filter_title">Фильтры</string>
+    <string name="filter_server">Сервер</string>
+    <string name="filter_group">Группа</string>
+    <string name="filter_status">Статус</string>
+    <string name="filter_period">Период</string>
+    <string name="filter_search">Поиск по команде</string>
+    <string name="filter_all">Все</string>
+    <string name="filter_status_success">Успех</string>
+    <string name="filter_status_error">Ошибка</string>
+    <string name="filter_period_all">Всё время</string>
+    <string name="filter_period_today">Сегодня</string>
+    <string name="filter_period_week">Неделя</string>
+    <string name="filter_apply">Применить</string>
+    <string name="filter_reset">Сбросить</string>
+    <string name="no_history_for_filter">Нет команд по фильтру</string>
 </resources>
