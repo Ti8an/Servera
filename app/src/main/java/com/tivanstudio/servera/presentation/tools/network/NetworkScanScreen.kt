@@ -122,7 +122,7 @@ private fun NetworkScanContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding      = PaddingValues(bottom = 16.dp)
                 ) {
-                    items(uiState.devices, key = { it.ip }) { device ->
+                    items(uiState.devices.filter { it.ip.isNotBlank() }, key = { it.ip }) { device ->
                         DeviceCard(device = device)
                     }
                 }

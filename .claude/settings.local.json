@@ -46,7 +46,10 @@
       "PowerShell($adb = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; $dst = \"C:\\\\Users\\\\tim\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-tim-Desktop-work-Android-Servera-app-Servera\\\\8f84380d-9727-41bb-82b0-6625c1c3be53\\\\scratchpad\\\\servera_copy.db\"; & $adb exec-out \"run-as com.tivanstudio.servera.debug cat /data/data/com.tivanstudio.servera.debug/databases/servera.db\" > $dst; \\(Get-Item $dst\\).Length)",
       "Bash(./gradlew assembleDebug)",
       "Bash(python -)",
-      "Bash(python \"C:/Users/tim/AppData/Local/Temp/claude/C--Users-tim-Desktop-work-Android-Servera-app-Servera/9d0edcf0-ee9e-49c9-bc08-6fcaf21ae296/scratchpad/patch_history_screen.py\")"
+      "Bash(python \"C:/Users/tim/AppData/Local/Temp/claude/C--Users-tim-Desktop-work-Android-Servera-app-Servera/9d0edcf0-ee9e-49c9-bc08-6fcaf21ae296/scratchpad/patch_history_screen.py\")",
+      "Bash(C:/Users/tim/AppData/Local/Android/Sdk/platform-tools/adb.exe devices *)",
+      "Bash(C:/Users/tim/AppData/Local/Android/Sdk/platform-tools/adb.exe shell *)",
+      "Bash(sort -t. -k4 -n)"
     ]
   }
 }
