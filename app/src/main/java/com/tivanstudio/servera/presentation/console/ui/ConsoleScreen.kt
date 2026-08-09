@@ -571,6 +571,7 @@ private fun CommandDialog(
 /** Stable identity of a catalog row: ids may collide, group + command does not. */
 private fun Preset.selectionKey(): String = "$groupId|$command"
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CatalogPicker(
     uiState: ConsoleUiState,
@@ -618,8 +619,10 @@ private fun CatalogPicker(
             }
 
             items(presets, key = { "${it.groupId}_${it.command}" }) { preset ->
+                // Only a hint that the same command text is already attached — presets
+                // differ by label and group, so an attached row stays pickable.
                 val isAttached = preset.command in attached
-                val isSelected = !isAttached && preset.selectionKey() == selectedKey
+                val isSelected = preset.selectionKey() == selectedKey
                 // Animated so picking another row reads as a move, not a flicker.
                 val containerColor by animateColorAsState(
                     targetValue = if (isSelected) PrimaryGreen.copy(alpha = 0.18f)
@@ -627,13 +630,13 @@ private fun CatalogPicker(
                     label = "presetBackground"
                 )
                 Card(
+                    onClick  = { onSelect(preset.selectionKey()) },
                     colors   = CardDefaults.cardColors(containerColor = containerColor),
                     border   = if (isSelected) BorderStroke(1.5.dp, PrimaryGreen) else null,
                     shape    = MaterialTheme.shapes.medium,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
-                        .clickable(enabled = !isAttached) { onSelect(preset.selectionKey()) }
                 ) {
                     Row(
                         modifier          = Modifier.padding(12.dp),

@@ -144,7 +144,6 @@ class ConsoleViewModel @Inject constructor(
      */
     fun attachFromCatalog(preset: Preset) {
         val state = _uiState.value
-        if (preset.command in state.attachedCommandStrings) return
         val group = state.groups.firstOrNull { it.id == preset.groupId }
         viewModelScope.launch {
             saveQuickCommand(
