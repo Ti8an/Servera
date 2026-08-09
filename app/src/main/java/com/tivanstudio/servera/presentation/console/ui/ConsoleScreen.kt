@@ -1,5 +1,6 @@
 package com.tivanstudio.servera.presentation.console.ui
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -619,12 +620,15 @@ private fun CatalogPicker(
             items(presets, key = { "${it.groupId}_${it.command}" }) { preset ->
                 val isAttached = preset.command in attached
                 val isSelected = !isAttached && preset.selectionKey() == selectedKey
+                // Animated so picking another row reads as a move, not a flicker.
+                val containerColor by animateColorAsState(
+                    targetValue = if (isSelected) PrimaryGreen.copy(alpha = 0.18f)
+                                  else MaterialTheme.colorScheme.surface,
+                    label = "presetBackground"
+                )
                 Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isSelected) PrimaryGreen.copy(alpha = 0.18f)
-                                         else MaterialTheme.colorScheme.surface
-                    ),
-                    border   = if (isSelected) BorderStroke(1.dp, PrimaryGreen) else null,
+                    colors   = CardDefaults.cardColors(containerColor = containerColor),
+                    border   = if (isSelected) BorderStroke(1.5.dp, PrimaryGreen) else null,
                     shape    = MaterialTheme.shapes.medium,
                     modifier = Modifier
                         .fillMaxWidth()

@@ -43,7 +43,8 @@
       "PowerShell($adb = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; & $adb shell input keyevent KEYCODE_BACK; Start-Sleep -Seconds 1; & $adb shell dumpsys window | Select-String -Pattern \"mCurrentFocus|mDreamingLockscreen\")",
       "PowerShell($adb = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; & $adb shell \"run-as com.tivanstudio.servera.debug ls /data/data/com.tivanstudio.servera.debug/databases/\" 2>&1)",
       "PowerShell($py = \\(Get-Command python -ErrorAction SilentlyContinue\\); if \\($py\\) { \"python: \" + $py.Source; & python --version } else { \"no python\" })",
-      "PowerShell($adb = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; $dst = \"C:\\\\Users\\\\tim\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-tim-Desktop-work-Android-Servera-app-Servera\\\\8f84380d-9727-41bb-82b0-6625c1c3be53\\\\scratchpad\\\\servera_copy.db\"; & $adb exec-out \"run-as com.tivanstudio.servera.debug cat /data/data/com.tivanstudio.servera.debug/databases/servera.db\" > $dst; \\(Get-Item $dst\\).Length)"
+      "PowerShell($adb = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\"; $dst = \"C:\\\\Users\\\\tim\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-tim-Desktop-work-Android-Servera-app-Servera\\\\8f84380d-9727-41bb-82b0-6625c1c3be53\\\\scratchpad\\\\servera_copy.db\"; & $adb exec-out \"run-as com.tivanstudio.servera.debug cat /data/data/com.tivanstudio.servera.debug/databases/servera.db\" > $dst; \\(Get-Item $dst\\).Length)",
+      "Bash(./gradlew assembleDebug)"
     ]
   }
 }
