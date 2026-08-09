@@ -48,10 +48,21 @@ class ExecuteCommandViewModel @Inject constructor(
                 _uiState.update { it.copy(isExecuting = false, error = "Сервер не найден") }
                 return@launch
             }
-            executeCommand(server, cmd, saveOnFailure = appPreferences.isSaveCommandsAlways.value)
+            executeCommand(
+                server,
+                cmd,
+                saveOnFailure = appPreferences.isSaveCommandsAlways.value,
+                saveResult    = appPreferences.saveResultInHistory.value
+            )
                 .onSuccess { result ->
-                    resultHolder.result   = result
-                    resultHolder.serverId = serverId
+                    resultHolder.result      = result
+                    resultHolder.serverId    = serverId
+                    resultHolder.serverName  = server.name
+                    resultHolder.serverHost  = server.host
+                    resultHolder.groupName   = null
+                    resultHolder.command     = result.command
+                    resultHolder.exitCode    = result.exitCode
+                    resultHolder.outputSaved = true
                     _uiState.update { it.copy(isExecuting = false) }
                     _events.send(ExecuteCommandEvent.NavigateToResult(result))
                 }

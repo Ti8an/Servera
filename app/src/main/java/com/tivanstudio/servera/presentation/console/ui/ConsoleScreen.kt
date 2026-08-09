@@ -40,7 +40,6 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
-import com.tivanstudio.servera.domain.entity.CommandHistory
 import com.tivanstudio.servera.domain.entity.Preset
 import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.presentation.presets.ui.GroupDot
@@ -53,8 +52,6 @@ import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleUiState
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleViewModel
 import com.tivanstudio.servera.presentation.theme.*
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
 import kotlin.math.roundToInt
 
 @Composable
@@ -88,8 +85,7 @@ fun ConsoleScreen(
         onPickPreset       = viewModel::attachFromCatalog,
         onSaveOwn          = viewModel::saveOwn,
         onRun              = viewModel::runAttached,
-        onRemove           = viewModel::removeAttached,
-        onToggleHistory    = viewModel::toggleHistory
+        onRemove           = viewModel::removeAttached
     )
 }
 
@@ -108,8 +104,7 @@ private fun ConsoleScreenContent(
     onPickPreset: (Preset) -> Unit,
     onSaveOwn: (label: String, command: String, showOutput: Boolean, group: PresetGroup) -> Unit,
     onRun: (QuickCommand) -> Unit,
-    onRemove: (Long) -> Unit,
-    onToggleHistory: () -> Unit
+    onRemove: (Long) -> Unit
 ) {
     if (uiState.showCommandDialog) {
         CommandDialog(
@@ -175,12 +170,10 @@ private fun ConsoleScreenContent(
             when (uiState.selectedTab) {
                 0 -> ConsoleTab(
                     uiState         = uiState,
-                    onExecute       = onExecute,
                     onOpenCommandDialog = onOpenCommandDialog,
                     onEditCommand   = onEditCommand,
                     onRun           = onRun,
-                    onRemove        = onRemove,
-                    onToggleHistory = onToggleHistory
+                    onRemove        = onRemove
                 )
                 1 -> InfoTab(uiState = uiState, onRefresh = onRefreshServerInfo)
             }
@@ -192,12 +185,10 @@ private fun ConsoleScreenContent(
 @Composable
 private fun ConsoleTab(
     uiState: ConsoleUiState,
-    onExecute: () -> Unit,
     onOpenCommandDialog: () -> Unit,
     onEditCommand: (QuickCommand) -> Unit,
     onRun: (QuickCommand) -> Unit,
-    onRemove: (Long) -> Unit,
-    onToggleHistory: () -> Unit
+    onRemove: (Long) -> Unit
 ) {
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -225,35 +216,6 @@ private fun ConsoleTab(
                         onEdit   = { onEditCommand(cmd) },
                         onRemove = { onRemove(cmd.id) }
                     )
-                }
-            }
-
-            if (uiState.recentHistory.isNotEmpty()) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(onClick = onToggleHistory)
-                            .padding(vertical = 4.dp),
-                        verticalAlignment     = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            stringResource(R.string.executed_commands),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Icon(
-                            if (uiState.showHistory) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                if (uiState.showHistory) {
-                    items(uiState.recentHistory) { history ->
-                        HistoryItem(history = history, onRepeat = onExecute)
-                    }
                 }
             }
         }
@@ -796,41 +758,6 @@ private fun OwnCommandForm(
     }
 }
 
-@Composable
-private fun HistoryItem(history: CommandHistory, onRepeat: () -> Unit) {
-    val fmt = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
-    Card(
-        colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier          = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text       = history.command,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize   = 13.sp,
-                    maxLines   = 1,
-                    overflow   = TextOverflow.Ellipsis
-                )
-                Text(
-                    text     = fmt.format(Date(history.executedAt)),
-                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 11.sp
-                )
-            }
-            Badge(
-                containerColor = if (history.exitCode == 0) PrimaryGreen else DangerRed,
-                contentColor   = MaterialTheme.colorScheme.onSurface
-            ) {
-                Text("${history.exitCode}", modifier = Modifier.padding(4.dp))
-            }
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun InfoTab(uiState: ConsoleUiState, onRefresh: () -> Unit) {
@@ -942,10 +869,6 @@ private fun ConsoleTabPreview() {
                     3L to CommandRunState.Done(stdout = "", stderr = "unit not found", exitCode = 5),
                     4L to CommandRunState.Failure("Connection refused")
                 ),
-                showHistory   = false,
-                recentHistory = listOf(
-                    CommandHistory(1, 1, "ls -la /etc", "output", "", 0, System.currentTimeMillis())
-                )
             ),
             onBack              = {},
             onExecute           = {},
@@ -958,8 +881,7 @@ private fun ConsoleTabPreview() {
             onPickPreset       = {},
             onSaveOwn          = { _, _, _, _ -> },
             onRun              = {},
-            onRemove           = {},
-            onToggleHistory    = {}
+            onRemove           = {}
         )
     }
 }
@@ -985,8 +907,7 @@ private fun ConsoleTabEmptyPreview() {
             onPickPreset       = {},
             onSaveOwn          = { _, _, _, _ -> },
             onRun              = {},
-            onRemove           = {},
-            onToggleHistory    = {}
+            onRemove           = {}
         )
     }
 }
@@ -1013,8 +934,7 @@ private fun InfoTabEmptyPreview() {
             onPickPreset       = {},
             onSaveOwn          = { _, _, _, _ -> },
             onRun              = {},
-            onRemove           = {},
-            onToggleHistory    = {}
+            onRemove           = {}
         )
     }
 }
@@ -1041,8 +961,7 @@ private fun InfoTabErrorPreview() {
             onPickPreset       = {},
             onSaveOwn          = { _, _, _, _ -> },
             onRun              = {},
-            onRemove           = {},
-            onToggleHistory    = {}
+            onRemove           = {}
         )
     }
 }

@@ -11,5 +11,7 @@ data class CommandHistoryEntity(
     val stdout: String,
     val stderr: String,
     val exitCode: Int,
-    val executedAt: Long
+    val executedAt: Long,
+    val groupName: String? = null,
+    val resultSaved: Boolean = false
 )

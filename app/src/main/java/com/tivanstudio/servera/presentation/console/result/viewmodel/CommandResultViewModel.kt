@@ -15,8 +15,14 @@ class CommandResultViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(
         CommandResultUiState(
-            result   = resultHolder.result,
-            serverId = resultHolder.serverId
+            result      = resultHolder.result,
+            serverId    = resultHolder.serverId,
+            serverName  = resultHolder.serverName,
+            serverHost  = resultHolder.serverHost,
+            groupName   = resultHolder.groupName,
+            command     = resultHolder.command,
+            exitCode    = resultHolder.exitCode,
+            outputSaved = resultHolder.outputSaved
         )
     )
     val uiState: StateFlow<CommandResultUiState> = _uiState.asStateFlow()

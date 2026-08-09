@@ -76,6 +76,20 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+/** History keeps a snapshot of the group it ran under, so it can be filtered by group. */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE command_history ADD COLUMN groupName TEXT")
+    }
+}
+
+/** History records whether the command output was kept alongside the run. */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE command_history ADD COLUMN resultSaved INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 private const val DEFAULT_GROUP_COLOR = "#4CAF50"
 
 val MIGRATION_1_2 = object : Migration(1, 2) {

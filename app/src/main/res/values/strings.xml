@@ -161,10 +161,32 @@
     <string name="common_commands">Common commands</string>
     <string name="no_common_commands">No common commands yet</string>
     <string name="show_output_field">Show output</string>
-    <string name="executed_commands">Executed commands</string>
     <string name="ssh_error_auth">Authentication failed. Check login, password or key.</string>
     <string name="ssh_error_timeout">Connection timed out.</string>
     <string name="ssh_error_unreachable">Server is unreachable.</string>
     <string name="ssh_error_host">Host not found. Check the address.</string>
     <string name="ssh_error_unknown">Failed to connect to the server.</string>
+    <!-- History filters -->
+    <string name="filter_title">Filters</string>
+    <string name="filter_server">Server</string>
+    <string name="filter_group">Group</string>
+    <string name="filter_status">Status</string>
+    <string name="filter_period">Period</string>
+    <string name="filter_search">Search command</string>
+    <string name="filter_all">All</string>
+    <string name="filter_status_success">Success</string>
+    <string name="filter_status_error">Error</string>
+    <string name="filter_period_all">All time</string>
+    <string name="filter_period_today">Today</string>
+    <string name="filter_period_week">Week</string>
+    <string name="filter_apply">Apply</string>
+    <string name="filter_reset">Reset</string>
+    <string name="no_history_for_filter">No commands match the filter</string>
+    <string name="save_result_setting">Save output in history</string>
+    <string name="save_result_description">Store command output so you can view it later</string>
+    <!-- Result details -->
+    <string name="result_server">Server</string>
+    <string name="result_ip">IP</string>
+    <string name="result_group">Group</string>
+    <string name="result_not_saved">Output not saved</string>
 </resources>
