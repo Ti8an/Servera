@@ -23,6 +23,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -637,6 +638,7 @@ private fun CatalogPicker(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
+                        .alpha(if (isAttached) 0.5f else 1f)
                 ) {
                     Row(
                         modifier          = Modifier.padding(12.dp),
@@ -658,26 +660,6 @@ private fun CatalogPicker(
                                 maxLines   = 1,
                                 overflow   = TextOverflow.Ellipsis
                             )
-                        }
-                        when {
-                            isAttached -> {
-                                Spacer(Modifier.width(8.dp))
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint     = PrimaryGreen,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            isSelected -> {
-                                Spacer(Modifier.width(8.dp))
-                                Icon(
-                                    Icons.Default.RadioButtonChecked,
-                                    contentDescription = null,
-                                    tint     = PrimaryGreen,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
                         }
                     }
                 }
