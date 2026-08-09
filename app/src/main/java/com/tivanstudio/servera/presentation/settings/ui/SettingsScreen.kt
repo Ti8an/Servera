@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.StarRate
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,7 +45,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onNavigateToServers: () -> Unit,
     onNavigateToHistory: () -> Unit,
-    onNavigateToPresets: () -> Unit
+    onNavigateToPresets: () -> Unit,
+    onNavigateToNetworkScan: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -88,6 +90,7 @@ fun SettingsScreen(
         onToggleDarkTheme = viewModel::toggleDarkTheme,
         onToggleSaveCommandsAlways = viewModel::toggleSaveCommandsAlways,
         onToggleSaveResultInHistory = viewModel::toggleSaveResultInHistory,
+        onNavigateToNetworkScan = onNavigateToNetworkScan,
         onRateApp = onRateApp
     )
 }
@@ -104,6 +107,7 @@ private fun SettingsContent(
     onToggleDarkTheme: (Boolean) -> Unit,
     onToggleSaveCommandsAlways: (Boolean) -> Unit,
     onToggleSaveResultInHistory: (Boolean) -> Unit,
+    onNavigateToNetworkScan: () -> Unit,
     onRateApp: () -> Unit
 ) {
     Scaffold(
@@ -187,6 +191,17 @@ private fun SettingsContent(
                 subtitle = stringResource(R.string.save_result_description),
                 checked = uiState.isSaveResultInHistory,
                 onCheckedChange = onToggleSaveResultInHistory
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            SectionTitle(stringResource(R.string.section_tools))
+
+            ActionCard(
+                icon = Icons.Default.Wifi,
+                title = stringResource(R.string.net_scan_title),
+                subtitle = stringResource(R.string.net_scan_subtitle),
+                onClick = onNavigateToNetworkScan
             )
 
             Spacer(Modifier.height(8.dp))
@@ -331,6 +346,7 @@ private fun SettingsContentDarkPreview() {
             onToggleDarkTheme = {},
             onToggleSaveCommandsAlways = {},
             onToggleSaveResultInHistory = {},
+            onNavigateToNetworkScan = {},
             onRateApp = {}
         )
     }
@@ -350,6 +366,7 @@ private fun SettingsContentLightPreview() {
             onToggleDarkTheme = {},
             onToggleSaveCommandsAlways = {},
             onToggleSaveResultInHistory = {},
+            onNavigateToNetworkScan = {},
             onRateApp = {}
         )
     }

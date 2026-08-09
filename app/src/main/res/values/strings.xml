@@ -189,4 +189,14 @@
     <string name="result_ip">IP</string>
     <string name="result_group">Group</string>
     <string name="result_not_saved">Output not saved</string>
+    <!-- Network scanner -->
+    <string name="section_tools">Tools</string>
+    <string name="net_scan_title">Network scanner</string>
+    <string name="net_scan_subtitle">Find devices on your Wi-Fi</string>
+    <string name="net_scan_button">Scan</string>
+    <string name="net_no_wifi">Connect to Wi-Fi to scan</string>
+    <string name="net_nothing_found">No devices found</string>
+    <string name="net_self">This device</string>
+    <string name="net_gateway">Gateway</string>
+    <string name="net_subnet">Subnet: %1$s</string>
 </resources>

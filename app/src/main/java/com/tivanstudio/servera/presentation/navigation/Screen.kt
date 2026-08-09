@@ -19,4 +19,5 @@ sealed class Screen(val route: String) {
     object Settings       : Screen("settings")
     object Presets        : Screen("presets")
     object PresetGroups   : Screen("preset_groups")
+    object NetworkScan    : Screen("network_scan")
 }
