@@ -93,8 +93,7 @@ fun AppNavGraph(navController: NavHostController) {
 
         composable(Screen.Result.route) {
             CommandResultScreen(
-                onBack   = { navController.popBackStack() },
-                onRepeat = { navController.popBackStack() }
+                onBack = { navController.popBackStack() }
             )
         }
 

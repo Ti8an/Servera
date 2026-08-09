@@ -55,8 +55,14 @@ class ExecuteCommandViewModel @Inject constructor(
                 saveResult    = appPreferences.saveResultInHistory.value
             )
                 .onSuccess { result ->
-                    resultHolder.result   = result
-                    resultHolder.serverId = serverId
+                    resultHolder.result      = result
+                    resultHolder.serverId    = serverId
+                    resultHolder.serverName  = server.name
+                    resultHolder.serverHost  = server.host
+                    resultHolder.groupName   = null
+                    resultHolder.command     = result.command
+                    resultHolder.exitCode    = result.exitCode
+                    resultHolder.outputSaved = true
                     _uiState.update { it.copy(isExecuting = false) }
                     _events.send(ExecuteCommandEvent.NavigateToResult(result))
                 }

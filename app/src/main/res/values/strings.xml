@@ -184,4 +184,9 @@
     <string name="no_history_for_filter">No commands match the filter</string>
     <string name="save_result_setting">Save output in history</string>
     <string name="save_result_description">Store command output so you can view it later</string>
+    <!-- Result details -->
+    <string name="result_server">Server</string>
+    <string name="result_ip">IP</string>
+    <string name="result_group">Group</string>
+    <string name="result_not_saved">Output not saved</string>
 </resources>

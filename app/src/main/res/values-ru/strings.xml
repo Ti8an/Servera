@@ -170,4 +170,9 @@
     <string name="no_history_for_filter">Нет команд по фильтру</string>
     <string name="save_result_setting">Сохранять результат в истории</string>
     <string name="save_result_description">Хранить вывод команд для последующего просмотра</string>
+    <!-- Result details -->
+    <string name="result_server">Сервер</string>
+    <string name="result_ip">IP</string>
+    <string name="result_group">Группа</string>
+    <string name="result_not_saved">Результат не сохранён</string>
 </resources>

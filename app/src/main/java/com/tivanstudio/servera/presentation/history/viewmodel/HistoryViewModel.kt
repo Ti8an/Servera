@@ -85,6 +85,7 @@ class HistoryViewModel @Inject constructor(
      * off carry no stdout/stderr, so the holder gets null and the screen shows "no data".
      */
     fun openResult(item: CommandHistory) {
+        val server = _uiState.value.servers.firstOrNull { it.id == item.serverId }
         resultHolder.result = if (item.resultSaved) {
             CommandResult(
                 command    = item.command,
@@ -96,7 +97,13 @@ class HistoryViewModel @Inject constructor(
         } else {
             null
         }
-        resultHolder.serverId = item.serverId
+        resultHolder.serverId    = item.serverId
+        resultHolder.serverName  = server?.name
+        resultHolder.serverHost  = server?.host
+        resultHolder.groupName   = item.groupName
+        resultHolder.command     = item.command
+        resultHolder.exitCode    = item.exitCode
+        resultHolder.outputSaved = item.resultSaved
         viewModelScope.launch { _events.send(HistoryEvent.NavigateToResult) }
     }
 

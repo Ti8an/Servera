@@ -206,8 +206,14 @@ class ConsoleViewModel @Inject constructor(
                         )
                     )
                     if (cmd.showOutput) {
-                        resultHolder.result   = result
-                        resultHolder.serverId = serverId
+                        resultHolder.result      = result
+                        resultHolder.serverId    = serverId
+                        resultHolder.serverName  = server.name
+                        resultHolder.serverHost  = server.host
+                        resultHolder.groupName   = null
+                        resultHolder.command     = result.command
+                        resultHolder.exitCode    = result.exitCode
+                        resultHolder.outputSaved = true
                         _events.send(ConsoleEvent.NavigateToResult)
                     }
                 }
