@@ -40,7 +40,7 @@ data class ConsoleUiState(
 sealed interface CommandRunState {
     object Running : CommandRunState
     data class Done(val stdout: String, val stderr: String, val exitCode: Int) : CommandRunState
-    data class Failure(val message: String) : CommandRunState
+    data class Failure(val messageRes: Int) : CommandRunState
 }
 
 sealed class ConsoleEvent {

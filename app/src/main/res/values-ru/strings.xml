@@ -175,4 +175,15 @@
     <string name="result_ip">IP</string>
     <string name="result_group">Группа</string>
     <string name="result_not_saved">Результат не сохранён</string>
+    <!-- Network scanner -->
+    <string name="section_tools">Инструменты</string>
+    <string name="net_scan_title">Сканер сети</string>
+    <string name="net_scan_subtitle">Устройства в вашей сети</string>
+    <string name="net_scan_button">Сканировать</string>
+    <string name="net_no_wifi">Подключитесь к Wi-Fi для сканирования</string>
+    <string name="net_nothing_found">Устройства не найдены</string>
+    <string name="net_self">Это устройство</string>
+    <string name="net_gateway">Шлюз</string>
+    <string name="net_subnet">Подсеть: %1$s</string>
+    <string name="error_server_not_found">Сервер не найден</string>
 </resources>

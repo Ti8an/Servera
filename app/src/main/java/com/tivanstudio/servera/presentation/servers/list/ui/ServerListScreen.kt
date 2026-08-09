@@ -97,7 +97,7 @@ private fun ServerListContent(
         AlertDialog(
             onDismissRequest = onDismissStatusError,
             title = { Text(stringResource(R.string.status_problem_title)) },
-            text  = { Text("$serverName\n\n${statusError.message}") },
+            text  = { Text("$serverName\n\n${stringResource(statusError.messageRes)}") },
             confirmButton = {
                 TextButton(onClick = onDismissStatusError) { Text(stringResource(R.string.ok)) }
             },

@@ -45,8 +45,15 @@ class SshClientImpl @Inject constructor() : SshClient {
         val type = when {
             "unknownhostexception" in text || "unknown host" in text -> SshErrorType.HOST_NOT_FOUND
             "timeout" in text || "timed out" in text                 -> SshErrorType.TIMEOUT
-            "connection refused" in text                             -> SshErrorType.UNREACHABLE
-            "auth" in text || "password" in text                     -> SshErrorType.AUTH
+            "connection refused" in text ||
+                "no route to host" in text ||
+                "network is unreachable" in text                     -> SshErrorType.UNREACHABLE
+            "auth fail" in text ||
+                "auth cancel" in text ||
+                "permission denied" in text ||
+                "publickey" in text ||
+                "password" in text ||
+                "auth" in text                                       -> SshErrorType.AUTH
             else                                                     -> SshErrorType.UNKNOWN
         }
         return SshException(type, e)
@@ -78,9 +85,10 @@ class SshClientImpl @Inject constructor() : SshClient {
     override suspend fun execute(server: Server, command: String): CommandResult =
         withContext(Dispatchers.IO) {
             val start = System.currentTimeMillis()
-            val session = createSession(server)
+            var session: Session? = null
             try {
-                val result = runOnSession(session, command)
+                val open = createSession(server).also { session = it }
+                val result = runOnSession(open, command)
                 CommandResult(
                     command = command,
                     stdout = result.stdout,
@@ -88,8 +96,10 @@ class SshClientImpl @Inject constructor() : SshClient {
                     exitCode = result.exitCode,
                     durationMs = System.currentTimeMillis() - start
                 )
+            } catch (e: Exception) {
+                throw mapSshError(e)
             } finally {
-                session.disconnect()
+                session?.disconnect()
             }
         }
 

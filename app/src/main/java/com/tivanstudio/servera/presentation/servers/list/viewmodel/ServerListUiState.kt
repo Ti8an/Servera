@@ -10,7 +10,8 @@ data class ServerListUiState(
 
 data class StatusError(
     val serverId: Long,
-    val message: String
+    /** String resource describing why the check failed. */
+    val messageRes: Int
 )
 
 data class ServerUiModel(

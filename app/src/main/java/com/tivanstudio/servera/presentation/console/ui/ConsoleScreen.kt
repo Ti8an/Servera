@@ -374,11 +374,10 @@ private fun AttachedCommandItem(
                         modifier = Modifier.padding(top = 6.dp)
                     )
                     is CommandRunState.Failure -> Text(
-                        text       = runState.message,
-                        color      = DangerRed,
-                        fontSize   = 12.sp,
-                        fontFamily = FontFamily.Monospace,
-                        modifier   = Modifier.padding(top = 6.dp)
+                        text     = stringResource(runState.messageRes),
+                        color    = DangerRed,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 6.dp)
                     )
                     null -> Unit
                 }
@@ -867,7 +866,7 @@ private fun ConsoleTabPreview() {
                         exitCode = 0
                     ),
                     3L to CommandRunState.Done(stdout = "", stderr = "unit not found", exitCode = 5),
-                    4L to CommandRunState.Failure("Connection refused")
+                    4L to CommandRunState.Failure(R.string.ssh_error_unreachable)
                 ),
             ),
             onBack              = {},

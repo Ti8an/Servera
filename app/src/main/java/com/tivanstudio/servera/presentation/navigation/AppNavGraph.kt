@@ -17,6 +17,7 @@ import com.tivanstudio.servera.presentation.presets.ui.PresetsScreen
 import com.tivanstudio.servera.presentation.servers.add.ui.AddServerScreen
 import com.tivanstudio.servera.presentation.servers.list.ui.ServerListScreen
 import com.tivanstudio.servera.presentation.settings.ui.SettingsScreen
+import com.tivanstudio.servera.presentation.tools.network.NetworkScanScreen
 
 @Composable
 fun AppNavGraph(navController: NavHostController) {
@@ -110,7 +111,14 @@ fun AppNavGraph(navController: NavHostController) {
             SettingsScreen(
                 onNavigateToServers  = { navController.navigate(Screen.ServerList.route) { launchSingleTop = true } },
                 onNavigateToPresets  = { navController.navigate(Screen.Presets.route) { launchSingleTop = true } },
-                onNavigateToHistory  = { navController.navigate(Screen.History.route) { launchSingleTop = true } }
+                onNavigateToHistory  = { navController.navigate(Screen.History.route) { launchSingleTop = true } },
+                onNavigateToNetworkScan = { navController.navigate(Screen.NetworkScan.route) }
+            )
+        }
+
+        composable(Screen.NetworkScan.route) {
+            NetworkScanScreen(
+                onBack = { navController.popBackStack() }
             )
         }
 
