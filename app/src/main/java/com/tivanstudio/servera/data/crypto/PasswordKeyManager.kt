@@ -6,6 +6,7 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.tivanstudio.servera.di.PrefsFileName
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.security.SecureRandom
 import javax.crypto.Cipher
@@ -24,7 +25,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class PasswordKeyManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    @PrefsFileName private val prefsFileName: String = DEFAULT_PREFS_FILE
 ) {
 
     private val prefs by lazy {
@@ -43,7 +45,7 @@ class PasswordKeyManager @Inject constructor(
 
         EncryptedSharedPreferences.create(
             context,
-            "auth_prefs",
+            prefsFileName,
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
@@ -153,6 +155,7 @@ class PasswordKeyManager @Inject constructor(
     private fun String.fromBase64(): ByteArray = Base64.decode(this, Base64.NO_WRAP)
 
     companion object {
+        const val DEFAULT_PREFS_FILE = "auth_prefs"
         const val PBKDF2_ITERATIONS = 210_000
         const val SCHEME_V2 = 2
 

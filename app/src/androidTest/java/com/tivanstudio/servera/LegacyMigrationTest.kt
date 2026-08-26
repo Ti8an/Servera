@@ -23,6 +23,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 import javax.crypto.Cipher
 
 /**
@@ -50,8 +51,9 @@ class LegacyMigrationTest {
         session = SessionKeyHolder()
         keystoreManager = KeystoreManager()
         encryption = EncryptionHelper(keystoreManager, session)
-        passwordKeyManager = PasswordKeyManager(context)
-        passwordKeyManager.clearCrypto()
+        // A throwaway store: the production "auth_prefs" is never opened by this test.
+        passwordKeyManager = PasswordKeyManager(context, TEST_PREFS)
+        context.deleteSharedPreferences(TEST_PREFS)
 
         context.deleteDatabase(TEST_DB)
         db = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB).build()
@@ -60,9 +62,15 @@ class LegacyMigrationTest {
 
     @After
     fun tearDown() {
-        db.close()
-        session.clear()
-        passwordKeyManager.clearCrypto()
+        // Guarded so a failure in setUp surfaces its own cause instead of a lateinit error.
+        if (::db.isInitialized) db.close()
+        if (::session.isInitialized) session.clear()
+        if (::passwordKeyManager.isInitialized) passwordKeyManager.clearCrypto()
+        // clearCrypto writes with apply(); a synchronous commit on the same file flushes that
+        // queue, otherwise the pending write recreates the file right after we delete it.
+        context.getSharedPreferences(TEST_PREFS, Context.MODE_PRIVATE).edit().clear().commit()
+        context.deleteSharedPreferences(TEST_PREFS)
+        testPrefsFile().delete()
         context.deleteDatabase(TEST_DB)
     }
 
@@ -175,7 +183,24 @@ class LegacyMigrationTest {
         assertNull(passwordKeyManager.unlock("wrong-password".toCharArray()))
     }
 
+    /** Guards the isolation itself: a regression here would put the user's vault at risk. */
+    @Test
+    fun testStoreIsSeparateFromTheProductionOne() {
+        assertNotEquals(PasswordKeyManager.DEFAULT_PREFS_FILE, TEST_PREFS)
+
+        passwordKeyManager.initialize("upgrade-test-pw".toCharArray())
+        assertTrue(passwordKeyManager.isInitialized())
+
+        // The vault landed in the throwaway file; the production one is never even opened,
+        // so whatever state the user's vault is in, this test cannot affect or depend on it.
+        assertTrue(testPrefsFile().exists())
+    }
+
+    private fun testPrefsFile() =
+        File(File(context.applicationInfo.dataDir, "shared_prefs"), "$TEST_PREFS.xml")
+
     private companion object {
         const val TEST_DB = "migration_test.db"
+        const val TEST_PREFS = "auth_prefs_test"
     }
 }
