@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.usecase.auth.ChangePasswordUseCase
+import com.tivanstudio.servera.presentation.auth.PasswordStrength
+import com.tivanstudio.servera.presentation.auth.checkPassword
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,8 +23,15 @@ data class ChangePasswordUiState(
     val confirm: String = "",
     val isPasswordVisible: Boolean = false,
     val isLoading: Boolean = false,
+    val strength: PasswordStrength = PasswordStrength.WEAK,
+    /** Why the new password is rejected; null once it satisfies the minimum. */
+    @StringRes val passwordError: Int? = null,
     @StringRes val error: Int? = null
-)
+) {
+    val canSubmit: Boolean
+        get() = oldPassword.isNotEmpty() && passwordError == null &&
+            newPassword.isNotEmpty() && newPassword == confirm
+}
 
 sealed class ChangePasswordEvent {
     object PasswordChanged : ChangePasswordEvent()
@@ -40,15 +49,25 @@ class ChangePasswordViewModel @Inject constructor(
     val events = _events.receiveAsFlow()
 
     fun onOldPasswordChange(v: String) = _uiState.update { it.copy(oldPassword = v, error = null) }
-    fun onNewPasswordChange(v: String) = _uiState.update { it.copy(newPassword = v, error = null) }
+    fun onNewPasswordChange(v: String) {
+        val check = checkPassword(v)
+        _uiState.update {
+            it.copy(
+                newPassword = v,
+                strength = check.strength,
+                passwordError = check.errorRes,
+                error = null
+            )
+        }
+    }
     fun onConfirmChange(v: String)     = _uiState.update { it.copy(confirm = v, error = null) }
     fun onToggleVisibility()           = _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
 
     fun submit() {
         val state = _uiState.value
         when {
-            state.newPassword.length < CreatePasswordViewModel.MIN_PASSWORD_LENGTH ->
-                _uiState.update { it.copy(error = R.string.error_password_too_short) }
+            state.passwordError != null ->
+                _uiState.update { it.copy(error = state.passwordError) }
             state.newPassword != state.confirm ->
                 _uiState.update { it.copy(error = R.string.error_passwords_dont_match) }
             else -> viewModelScope.launch {

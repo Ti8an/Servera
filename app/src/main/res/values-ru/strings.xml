@@ -198,4 +198,11 @@
     <string name="reset_password">Забыли пароль</string>
     <string name="reset_warning">Все данные будут удалены безвозвратно: серверы, пресеты, прикреплённые команды и история. Восстановления нет — ключ шифрования уничтожается вместе с паролем. После этого нужно будет создать новый пароль.</string>
     <string name="reset_confirm">Удалить всё</string>
+    <!-- Password rules -->
+    <string name="pwd_too_short">Минимум 8 символов</string>
+    <string name="pwd_need_letter_digit">Добавьте букву и цифру</string>
+    <string name="pwd_requirements">8+ символов, буква и цифра</string>
+    <string name="pwd_weak">Слабый</string>
+    <string name="pwd_medium">Средний</string>
+    <string name="pwd_strong">Надёжный</string>
 </resources>

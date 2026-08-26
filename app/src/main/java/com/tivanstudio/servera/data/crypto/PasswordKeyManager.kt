@@ -109,16 +109,20 @@ class PasswordKeyManager @Inject constructor(
         return runCatching { SecretKeySpec(aesGcmDecrypt(kek, wrapped), "AES") }.getOrNull()
     }
 
-    /** Re-wraps the same DEK under a new password, so the stored data stays readable. */
+    /**
+     * Re-wraps the same DEK under a new password, so the stored data stays readable.
+     * Writes the current [PBKDF2_ITERATIONS]: a vault created with an older work factor picks
+     * the new one up here, since [unlock] always reads whatever was stored alongside the salt.
+     */
     fun rewrap(dek: SecretKey, newPassword: CharArray) {
-        val iterations = prefs.getInt(KEY_KDF_ITERATIONS, PBKDF2_ITERATIONS)
         val salt = ByteArray(SALT_SIZE).also { SecureRandom().nextBytes(it) }
-        val kek = deriveKek(newPassword, salt, iterations)
+        val kek = deriveKek(newPassword, salt, PBKDF2_ITERATIONS)
         val wrapped = aesGcmEncrypt(kek, dek.encoded)
 
         prefs.edit()
             .putString(KEY_WRAPPED_DEK, wrapped.toBase64())
             .putString(KEY_KDF_SALT, salt.toBase64())
+            .putInt(KEY_KDF_ITERATIONS, PBKDF2_ITERATIONS)
             .apply()
     }
 
@@ -149,7 +153,7 @@ class PasswordKeyManager @Inject constructor(
     private fun String.fromBase64(): ByteArray = Base64.decode(this, Base64.NO_WRAP)
 
     companion object {
-        const val PBKDF2_ITERATIONS = 600_000
+        const val PBKDF2_ITERATIONS = 210_000
         const val SCHEME_V2 = 2
 
         private const val KEY_WRAPPED_DEK = "wrapped_dek"

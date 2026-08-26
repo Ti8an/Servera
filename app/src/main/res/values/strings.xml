@@ -212,4 +212,11 @@
     <string name="reset_password">Forgot password</string>
     <string name="reset_warning">All data will be permanently deleted: servers, presets, attached commands and history. There is no recovery — the encryption key is destroyed together with the password. You will then create a new password.</string>
     <string name="reset_confirm">Delete everything</string>
+    <!-- Password rules -->
+    <string name="pwd_too_short">At least 8 characters</string>
+    <string name="pwd_need_letter_digit">Add a letter and a digit</string>
+    <string name="pwd_requirements">8+ characters, a letter and a digit</string>
+    <string name="pwd_weak">Weak</string>
+    <string name="pwd_medium">Medium</string>
+    <string name="pwd_strong">Strong</string>
 </resources>

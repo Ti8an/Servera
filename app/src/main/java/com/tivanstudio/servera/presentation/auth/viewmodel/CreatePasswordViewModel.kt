@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.usecase.auth.SetPasswordUseCase
+import com.tivanstudio.servera.presentation.auth.PasswordStrength
+import com.tivanstudio.servera.presentation.auth.checkPassword
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,8 +22,15 @@ data class CreatePasswordUiState(
     val confirm: String = "",
     val isPasswordVisible: Boolean = false,
     val isLoading: Boolean = false,
+    val strength: PasswordStrength = PasswordStrength.WEAK,
+    /** Why the password itself is rejected; null once it satisfies the minimum. */
+    @StringRes val passwordError: Int? = null,
     @StringRes val error: Int? = null
-)
+) {
+    /** The password passes the rules and the confirmation matches it. */
+    val canSubmit: Boolean
+        get() = passwordError == null && password.isNotEmpty() && password == confirm
+}
 
 sealed class CreatePasswordEvent {
     object PasswordCreated : CreatePasswordEvent()
@@ -39,15 +48,26 @@ class CreatePasswordViewModel @Inject constructor(
     private val _events = Channel<CreatePasswordEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
-    fun onPasswordChange(v: String) = _uiState.update { it.copy(password = v, error = null) }
-    fun onConfirmChange(v: String)  = _uiState.update { it.copy(confirm = v, error = null) }
-    fun onToggleVisibility()        = _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
+    fun onPasswordChange(v: String) {
+        val check = checkPassword(v)
+        _uiState.update {
+            it.copy(
+                password = v,
+                strength = check.strength,
+                passwordError = check.errorRes,
+                error = null
+            )
+        }
+    }
+
+    fun onConfirmChange(v: String) = _uiState.update { it.copy(confirm = v, error = null) }
+    fun onToggleVisibility()       = _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
 
     fun createPassword() {
         val state = _uiState.value
         when {
-            state.password.length < MIN_PASSWORD_LENGTH ->
-                _uiState.update { it.copy(error = R.string.error_password_too_short) }
+            state.passwordError != null ->
+                _uiState.update { it.copy(error = state.passwordError) }
             state.password != state.confirm ->
                 _uiState.update { it.copy(error = R.string.error_passwords_dont_match) }
             else -> viewModelScope.launch {
@@ -57,9 +77,5 @@ class CreatePasswordViewModel @Inject constructor(
                 _events.send(CreatePasswordEvent.PasswordCreated)
             }
         }
-    }
-
-    companion object {
-        const val MIN_PASSWORD_LENGTH = 4
     }
 }

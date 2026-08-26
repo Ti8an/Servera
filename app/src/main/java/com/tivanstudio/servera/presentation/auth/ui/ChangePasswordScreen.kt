@@ -19,12 +19,15 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
+import com.tivanstudio.servera.presentation.auth.PasswordStrength
 import com.tivanstudio.servera.presentation.auth.viewmodel.ChangePasswordEvent
 import com.tivanstudio.servera.presentation.auth.viewmodel.ChangePasswordUiState
 import com.tivanstudio.servera.presentation.auth.viewmodel.ChangePasswordViewModel
+import com.tivanstudio.servera.presentation.theme.DangerRed
 import com.tivanstudio.servera.presentation.theme.PrimaryGreen
 import com.tivanstudio.servera.presentation.theme.ServeraTheme
 
@@ -108,6 +111,24 @@ private fun ChangePasswordContent(
                 isVisible = uiState.isPasswordVisible
             )
 
+            Spacer(Modifier.height(8.dp))
+
+            if (uiState.newPassword.isNotEmpty()) {
+                PasswordStrengthMeter(strength = uiState.strength)
+                Spacer(Modifier.height(6.dp))
+            }
+
+            Text(
+                text = uiState.passwordError
+                    ?.takeIf { uiState.newPassword.isNotEmpty() }
+                    ?.let { stringResource(it) }
+                    ?: stringResource(R.string.pwd_requirements),
+                color = if (uiState.passwordError != null && uiState.newPassword.isNotEmpty()) DangerRed
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+                modifier = Modifier.align(Alignment.Start).padding(start = 4.dp)
+            )
+
             Spacer(Modifier.height(12.dp))
 
             PasswordField(
@@ -132,7 +153,7 @@ private fun ChangePasswordContent(
             Button(
                 onClick = onSubmit,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-                enabled = !uiState.isLoading,
+                enabled = !uiState.isLoading && uiState.canSubmit,
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                 shape = MaterialTheme.shapes.medium
             ) {
@@ -212,8 +233,9 @@ private fun ChangePasswordContentErrorPreview() {
         ChangePasswordContent(
             uiState = ChangePasswordUiState(
                 oldPassword = "old",
-                newPassword = "newpass",
-                confirm = "newpass",
+                newPassword = "newpass12",
+                confirm = "newpass12",
+                strength = PasswordStrength.MEDIUM,
                 error = R.string.error_wrong_password
             ),
             onOldPasswordChange = {},
