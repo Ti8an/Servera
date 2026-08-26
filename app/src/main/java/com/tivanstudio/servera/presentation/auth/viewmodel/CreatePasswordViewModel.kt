@@ -1,7 +1,9 @@
 package com.tivanstudio.servera.presentation.auth.viewmodel
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.usecase.auth.SetPasswordUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -18,7 +20,7 @@ data class CreatePasswordUiState(
     val confirm: String = "",
     val isPasswordVisible: Boolean = false,
     val isLoading: Boolean = false,
-    val error: String? = null
+    @StringRes val error: Int? = null
 )
 
 sealed class CreatePasswordEvent {
@@ -44,8 +46,10 @@ class CreatePasswordViewModel @Inject constructor(
     fun createPassword() {
         val state = _uiState.value
         when {
-            state.password.length < 4 -> _uiState.update { it.copy(error = "Пароль слишком короткий (мин. 4 символа)") }
-            state.password != state.confirm -> _uiState.update { it.copy(error = "Пароли не совпадают") }
+            state.password.length < MIN_PASSWORD_LENGTH ->
+                _uiState.update { it.copy(error = R.string.error_password_too_short) }
+            state.password != state.confirm ->
+                _uiState.update { it.copy(error = R.string.error_passwords_dont_match) }
             else -> viewModelScope.launch {
                 _uiState.update { it.copy(isLoading = true, error = null) }
                 setPassword(state.password)
@@ -53,5 +57,9 @@ class CreatePasswordViewModel @Inject constructor(
                 _events.send(CreatePasswordEvent.PasswordCreated)
             }
         }
+    }
+
+    companion object {
+        const val MIN_PASSWORD_LENGTH = 4
     }
 }

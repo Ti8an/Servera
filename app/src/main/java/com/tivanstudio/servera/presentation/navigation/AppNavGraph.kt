@@ -6,6 +6,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.tivanstudio.servera.presentation.auth.ui.ChangePasswordScreen
 import com.tivanstudio.servera.presentation.auth.ui.CreatePasswordScreen
 import com.tivanstudio.servera.presentation.auth.ui.LoginScreen
 import com.tivanstudio.servera.presentation.console.ui.ConsoleScreen
@@ -112,7 +113,14 @@ fun AppNavGraph(navController: NavHostController) {
                 onNavigateToServers  = { navController.navigate(Screen.ServerList.route) { launchSingleTop = true } },
                 onNavigateToPresets  = { navController.navigate(Screen.Presets.route) { launchSingleTop = true } },
                 onNavigateToHistory  = { navController.navigate(Screen.History.route) { launchSingleTop = true } },
-                onNavigateToNetworkScan = { navController.navigate(Screen.NetworkScan.route) }
+                onNavigateToNetworkScan = { navController.navigate(Screen.NetworkScan.route) },
+                onNavigateToChangePassword = { navController.navigate(Screen.ChangePassword.route) }
+            )
+        }
+
+        composable(Screen.ChangePassword.route) {
+            ChangePasswordScreen(
+                onBack = { navController.popBackStack() }
             )
         }
 

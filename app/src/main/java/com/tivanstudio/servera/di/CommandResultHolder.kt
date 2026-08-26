@@ -19,4 +19,15 @@ class CommandResultHolder @Inject constructor() {
     var command: String? = null
     var exitCode: Int? = null
     var outputSaved: Boolean = true
+
+    fun clear() {
+        result = null
+        serverId = -1L
+        serverName = null
+        serverHost = null
+        groupName = null
+        command = null
+        exitCode = null
+        outputSaved = true
+    }
 }

@@ -30,6 +30,13 @@ class AppPreferences @Inject constructor(
         _saveResultInHistory.value = enabled
     }
 
+    /** Drops every account-tied preference back to its default. Used by the vault reset. */
+    fun clear() {
+        prefs.edit().clear().apply()
+        _isSaveCommandsAlways.value = false
+        _saveResultInHistory.value = false
+    }
+
     companion object {
         private const val KEY_SAVE_COMMANDS_ALWAYS = "save_commands_always"
         private const val KEY_SAVE_RESULT_IN_HISTORY = "save_result_in_history"

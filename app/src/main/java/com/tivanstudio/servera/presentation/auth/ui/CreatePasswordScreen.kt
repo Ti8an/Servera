@@ -135,7 +135,7 @@ private fun CreatePasswordContent(
 
             if (uiState.error != null) {
                 Text(
-                    text = uiState.error!!,
+                    text = stringResource(uiState.error),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.align(Alignment.Start).padding(start = 4.dp, top = 4.dp)
@@ -184,7 +184,7 @@ private fun CreatePasswordContentErrorPreview() {
             uiState = CreatePasswordUiState(
                 password = "pass",
                 confirm = "pass2",
-                error = "Passwords do not match"
+                error = R.string.error_passwords_dont_match
             ),
             onPasswordChange = {},
             onConfirmChange = {},

@@ -186,4 +186,16 @@
     <string name="net_gateway">Шлюз</string>
     <string name="net_subnet">Подсеть: %1$s</string>
     <string name="error_server_not_found">Сервер не найден</string>
+    <!-- Change password -->
+    <string name="change_password_title">Сменить пароль</string>
+    <string name="change_password_subtitle">Перешифровать хранилище новым паролем</string>
+    <string name="change_password_old_hint">Текущий пароль</string>
+    <string name="change_password_new_hint">Новый пароль</string>
+    <string name="change_password_confirm_hint">Подтвердите новый пароль</string>
+    <string name="change_password_button">Сменить пароль</string>
+    <string name="change_password_success">Пароль изменён</string>
+    <!-- Vault reset -->
+    <string name="reset_password">Забыли пароль</string>
+    <string name="reset_warning">Все данные будут удалены безвозвратно: серверы, пресеты, прикреплённые команды и история. Восстановления нет — ключ шифрования уничтожается вместе с паролем. После этого нужно будет создать новый пароль.</string>
+    <string name="reset_confirm">Удалить всё</string>
 </resources>

@@ -1,5 +1,7 @@
 package com.tivanstudio.servera.presentation.auth.viewmodel
 
+import androidx.annotation.StringRes
+
 data class LoginUiState(
     val isFirstLaunch: Boolean = false,
     val isLoading: Boolean = true,
@@ -7,7 +9,9 @@ data class LoginUiState(
     val isBiometricEnabled: Boolean = false,
     val password: String = "",
     val isPasswordVisible: Boolean = false,
-    val error: String? = null,
+    @StringRes val error: Int? = null,
+    val showResetDialog: Boolean = false,
+    val isResetting: Boolean = false,
     val isAuthenticated: Boolean = false
 )
 

@@ -200,4 +200,16 @@
     <string name="net_gateway">Gateway</string>
     <string name="net_subnet">Subnet: %1$s</string>
     <string name="error_server_not_found">Server not found</string>
+    <!-- Change password -->
+    <string name="change_password_title">Change password</string>
+    <string name="change_password_subtitle">Re-encrypt the vault with a new password</string>
+    <string name="change_password_old_hint">Current password</string>
+    <string name="change_password_new_hint">New password</string>
+    <string name="change_password_confirm_hint">Confirm new password</string>
+    <string name="change_password_button">Change password</string>
+    <string name="change_password_success">Password changed</string>
+    <!-- Vault reset -->
+    <string name="reset_password">Forgot password</string>
+    <string name="reset_warning">All data will be permanently deleted: servers, presets, attached commands and history. There is no recovery — the encryption key is destroyed together with the password. You will then create a new password.</string>
+    <string name="reset_confirm">Delete everything</string>
 </resources>

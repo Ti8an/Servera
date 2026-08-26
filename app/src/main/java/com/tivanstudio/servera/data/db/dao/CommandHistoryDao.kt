@@ -17,4 +17,7 @@ interface CommandHistoryDao {
 
     @Query("DELETE FROM command_history WHERE serverId = :serverId")
     suspend fun clearByServer(serverId: Long)
+
+    @Query("DELETE FROM command_history")
+    suspend fun clearAll()
 }

@@ -14,4 +14,7 @@ interface QuickCommandDao {
 
     @Query("DELETE FROM quick_commands WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM quick_commands")
+    suspend fun clearAll()
 }

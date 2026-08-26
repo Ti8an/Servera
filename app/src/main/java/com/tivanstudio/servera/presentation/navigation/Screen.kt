@@ -3,6 +3,7 @@ package com.tivanstudio.servera.presentation.navigation
 sealed class Screen(val route: String) {
     object Login          : Screen("login")
     object CreatePassword : Screen("create_password")
+    object ChangePassword : Screen("change_password")
     object ServerList     : Screen("servers")
     object AddServer      : Screen("servers/add?serverId={serverId}") {
         fun createRoute(id: Long? = null) =
