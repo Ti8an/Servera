@@ -224,6 +224,7 @@ private fun ServerListItem(
 ) {
     val statusColor by animateColorAsState(
         targetValue = when {
+            server.isCorrupted       -> DangerRed
             server.isChecking        -> MaterialTheme.colorScheme.onSurfaceVariant
             server.isOnline == true  -> PrimaryGreen
             server.isOnline == false -> DangerRed
@@ -243,7 +244,7 @@ private fun ServerListItem(
                 dismissState.snapTo(SwipeToDismissBoxValue.Settled)
             }
             SwipeToDismissBoxValue.StartToEnd -> {
-                onEdit()
+                if (!server.isCorrupted) onEdit()
                 dismissState.snapTo(SwipeToDismissBoxValue.Settled)
             }
             else -> {}
@@ -255,10 +256,10 @@ private fun ServerListItem(
         backgroundContent = {
             val swipeDir = dismissState.targetValue
             val bgColor by animateColorAsState(
-                targetValue = when (swipeDir) {
-                    SwipeToDismissBoxValue.EndToStart -> DangerRed
-                    SwipeToDismissBoxValue.StartToEnd -> PrimaryGreen
-                    else                             -> Color.Transparent
+                targetValue = when {
+                    swipeDir == SwipeToDismissBoxValue.EndToStart -> DangerRed
+                    swipeDir == SwipeToDismissBoxValue.StartToEnd && !server.isCorrupted -> PrimaryGreen
+                    else                                          -> Color.Transparent
                 },
                 label = "swipe_bg_color"
             )
@@ -273,10 +274,10 @@ private fun ServerListItem(
                     else                             -> Alignment.CenterStart
                 }
             ) {
-                when (swipeDir) {
-                    SwipeToDismissBoxValue.EndToStart ->
+                when {
+                    swipeDir == SwipeToDismissBoxValue.EndToStart ->
                         Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
-                    SwipeToDismissBoxValue.StartToEnd ->
+                    swipeDir == SwipeToDismissBoxValue.StartToEnd && !server.isCorrupted ->
                         Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White)
                     else -> {}
                 }
@@ -286,7 +287,7 @@ private fun ServerListItem(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick),
+                .clickable(enabled = !server.isCorrupted, onClick = onClick),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape  = MaterialTheme.shapes.medium
         ) {
@@ -295,9 +296,9 @@ private fun ServerListItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Default.Dns,
+                    if (server.isCorrupted) Icons.Default.LockReset else Icons.Default.Dns,
                     contentDescription = null,
-                    tint = InfoBlue,
+                    tint = if (server.isCorrupted) DangerRed else InfoBlue,
                     modifier = Modifier.size(40.dp)
                 )
                 Spacer(Modifier.width(12.dp))
@@ -326,6 +327,7 @@ private fun ServerListItem(
                         Spacer(Modifier.width(6.dp))
                         Text(
                             text = when {
+                                server.isCorrupted       -> stringResource(R.string.status_corrupted)
                                 server.isChecking        -> stringResource(R.string.status_checking)
                                 server.isOnline == true  -> stringResource(R.string.status_online)
                                 server.isOnline == false -> stringResource(R.string.status_offline)
@@ -335,9 +337,25 @@ private fun ServerListItem(
                             fontSize = 11.sp
                         )
                     }
+                    if (server.isCorrupted) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.server_corrupted_hint),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
+                    }
                 }
 
-                IconButton(onClick = onCheckOne, enabled = !server.isChecking) {
+                if (server.isCorrupted) {
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = stringResource(R.string.delete_confirm),
+                            tint = DangerRed
+                        )
+                    }
+                } else IconButton(onClick = onCheckOne, enabled = !server.isChecking) {
                     if (server.isChecking) {
                         CircularProgressIndicator(
                             modifier    = Modifier.size(18.dp),

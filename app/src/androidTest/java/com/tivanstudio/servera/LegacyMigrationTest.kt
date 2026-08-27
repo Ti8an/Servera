@@ -62,7 +62,8 @@ class LegacyMigrationTest {
 
         context.deleteDatabase(TEST_DB)
         db = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB).build()
-        migrationManager = MigrationManager(db, db.serverDao(), encryption, passwordKeyManager)
+        migrationManager =
+            MigrationManager(db, db.serverDao(), encryption, passwordKeyManager, session)
     }
 
     @After
@@ -166,6 +167,56 @@ class LegacyMigrationTest {
 
         migrationManager.migrateIfNeeded()
         assertEquals(afterFirst, dao.getAllServersOnce())
+    }
+
+    @Test
+    fun anUnreadableRowLoadsAsCorruptedInsteadOfThrowing() = runBlocking {
+        val dao = db.serverDao()
+        val goodId = dao.insert(legacyServer("good", "pw", null))
+        val badId = dao.insert(
+            legacyServer("bad", "pw", null)
+                .copy(encryptedPassword = Base64.encodeToString(ByteArray(42), Base64.NO_WRAP))
+        )
+
+        session.dek = passwordKeyManager.initialize("upgrade-test-pw".toCharArray())
+        migrationManager.migrateIfNeeded()
+
+        // The whole list has to load: one bad row must not take the others down with it.
+        val servers = dao.getAllServersOnce().map { it.toDomain(encryption) }.associateBy { it.id }
+
+        val good = servers.getValue(goodId)
+        assertFalse(good.isCorrupted)
+        assertEquals("pw", good.password)
+
+        val bad = servers.getValue(badId)
+        assertTrue("An unreadable row must be flagged", bad.isCorrupted)
+        assertEquals("Secrets of a corrupted row must not leak through", "", bad.password)
+        assertNull(bad.privateKey)
+        assertEquals("Non-secret fields stay readable", "bad", bad.name)
+    }
+
+    @Test
+    fun migrationIsDeferredWhileTheVaultIsLocked() = runBlocking {
+        val dao = db.serverDao()
+        dao.insert(legacyServer("only", "pw", null))
+        val before = dao.getAllServersOnce()
+
+        passwordKeyManager.initialize("upgrade-test-pw".toCharArray())
+        session.clear()
+        migrationManager.migrateIfNeeded()
+
+        assertFalse(
+            "A locked pass must not claim the migration is done",
+            passwordKeyManager.isLegacyMigrated()
+        )
+        assertEquals("Nothing may be rewritten without the DEK", before, dao.getAllServersOnce())
+
+        // Unlocking later still gets the row across.
+        session.dek = passwordKeyManager.unlock("upgrade-test-pw".toCharArray())
+        migrationManager.migrateIfNeeded()
+
+        assertTrue(passwordKeyManager.isLegacyMigrated())
+        assertEquals("pw", encryption.decrypt(dao.getAllServersOnce().first().encryptedPassword))
     }
 
     @Test

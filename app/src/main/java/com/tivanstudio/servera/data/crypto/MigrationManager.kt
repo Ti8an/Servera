@@ -5,6 +5,7 @@ import androidx.room.withTransaction
 import com.tivanstudio.servera.data.db.AppDatabase
 import com.tivanstudio.servera.data.db.dao.ServerDao
 import com.tivanstudio.servera.data.db.entity.ServerEntity
+import com.tivanstudio.servera.di.SessionKeyHolder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -23,7 +24,8 @@ class MigrationManager @Inject constructor(
     private val db: AppDatabase,
     private val serverDao: ServerDao,
     private val encryption: EncryptionHelper,
-    private val passwordKeyManager: PasswordKeyManager
+    private val passwordKeyManager: PasswordKeyManager,
+    private val session: SessionKeyHolder
 ) {
 
     /**
@@ -35,6 +37,12 @@ class MigrationManager @Inject constructor(
     suspend fun migrateIfNeeded() = withContext(Dispatchers.IO) {
         if (!passwordKeyManager.isInitialized()) return@withContext
         if (passwordKeyManager.isLegacyMigrated()) return@withContext
+        // Without the DEK every re-encryption would fail and be counted as an unreadable row,
+        // and the pass would then mark itself done -- stranding legacy data for good.
+        if (!session.isUnlocked()) {
+            Log.w(TAG, "Migration asked for while the vault is locked, deferred")
+            return@withContext
+        }
 
         val servers = serverDao.getAllServersOnce()
         if (servers.isEmpty()) {

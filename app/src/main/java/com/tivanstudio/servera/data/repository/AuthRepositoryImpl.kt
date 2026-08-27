@@ -70,7 +70,11 @@ class AuthRepositoryImpl @Inject constructor(
         presetGroupDao.clearAll()
 
         appPreferences.clear()
-        prefs.edit().remove(KEY_BIOMETRIC_ENABLED).apply()
+        prefs.edit()
+            .remove(KEY_BIOMETRIC_ENABLED)
+            // Pre-V2 builds stored a password hash here; upgraded installs still carry it.
+            .remove(KEY_LEGACY_PASSWORD_HASH)
+            .apply()
 
         serverCache.clear()
         commandResultHolder.clear()
@@ -85,5 +89,6 @@ class AuthRepositoryImpl @Inject constructor(
 
     companion object {
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
+        private const val KEY_LEGACY_PASSWORD_HASH = "password_hash"
     }
 }

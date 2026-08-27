@@ -96,6 +96,8 @@
     <string name="check_status">Check status</string>
     <string name="status_unknown">Not checked</string>
     <string name="status_problem_title">Connection problem</string>
+    <string name="status_corrupted">Cannot be decrypted</string>
+    <string name="server_corrupted_hint">This server was saved with a different key and can no longer be opened. Delete it and add it again.</string>
     <string name="ok">OK</string>
     <string name="info_swipe_hint">Swipe down to load server info</string>
     <!-- Bottom Nav -->

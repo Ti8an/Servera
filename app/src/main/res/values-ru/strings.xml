@@ -82,6 +82,8 @@
     <string name="check_status">Проверить статус</string>
     <string name="status_unknown">Не проверен</string>
     <string name="status_problem_title">Проблема подключения</string>
+    <string name="status_corrupted">Не расшифровывается</string>
+    <string name="server_corrupted_hint">Этот сервер сохранён с другим ключом и больше не открывается. Удалите его и добавьте заново.</string>
     <string name="ok">OK</string>
     <string name="info_swipe_hint">Свайпните вниз для загрузки информации</string>
     <!-- Bottom Nav -->
