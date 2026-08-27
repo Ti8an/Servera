@@ -1,13 +1,8 @@
 package com.tivanstudio.servera.data.crypto
 
-import android.content.Context
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
+import android.content.SharedPreferences
 import android.util.Base64
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
-import com.tivanstudio.servera.di.PrefsFileName
-import dagger.hilt.android.qualifiers.ApplicationContext
+import com.tivanstudio.servera.di.AuthPrefs
 import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -25,32 +20,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class PasswordKeyManager @Inject constructor(
-    @ApplicationContext private val context: Context,
-    @PrefsFileName private val prefsFileName: String = DEFAULT_PREFS_FILE
+    @AuthPrefs private val prefs: SharedPreferences
 ) {
-
-    private val prefs by lazy {
-        val spec = KeyGenParameterSpec.Builder(
-            MasterKey.DEFAULT_MASTER_KEY_ALIAS,
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-        )
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setKeySize(256)
-            .build()
-
-        val masterKey = MasterKey.Builder(context)
-            .setKeyGenParameterSpec(spec)
-            .build()
-
-        EncryptedSharedPreferences.create(
-            context,
-            prefsFileName,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
-    }
 
     private fun deriveKek(password: CharArray, salt: ByteArray, iterations: Int): SecretKey {
         val spec = PBEKeySpec(password, salt, iterations, KEY_LENGTH_BITS)
@@ -155,7 +126,6 @@ class PasswordKeyManager @Inject constructor(
     private fun String.fromBase64(): ByteArray = Base64.decode(this, Base64.NO_WRAP)
 
     companion object {
-        const val DEFAULT_PREFS_FILE = "auth_prefs"
         const val PBKDF2_ITERATIONS = 210_000
         const val SCHEME_V2 = 2
 

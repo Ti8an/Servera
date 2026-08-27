@@ -1,7 +1,11 @@
 package com.tivanstudio.servera
 
 import android.content.Context
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -12,6 +16,7 @@ import com.tivanstudio.servera.data.crypto.PasswordKeyManager
 import com.tivanstudio.servera.data.db.AppDatabase
 import com.tivanstudio.servera.data.db.entity.ServerEntity
 import com.tivanstudio.servera.data.mapper.toDomain
+import com.tivanstudio.servera.di.CryptoModule
 import com.tivanstudio.servera.di.SessionKeyHolder
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -52,8 +57,8 @@ class LegacyMigrationTest {
         keystoreManager = KeystoreManager()
         encryption = EncryptionHelper(keystoreManager, session)
         // A throwaway store: the production "auth_prefs" is never opened by this test.
-        passwordKeyManager = PasswordKeyManager(context, TEST_PREFS)
         context.deleteSharedPreferences(TEST_PREFS)
+        passwordKeyManager = PasswordKeyManager(encryptedPrefs(TEST_PREFS))
 
         context.deleteDatabase(TEST_DB)
         db = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB).build()
@@ -186,7 +191,7 @@ class LegacyMigrationTest {
     /** Guards the isolation itself: a regression here would put the user's vault at risk. */
     @Test
     fun testStoreIsSeparateFromTheProductionOne() {
-        assertNotEquals(PasswordKeyManager.DEFAULT_PREFS_FILE, TEST_PREFS)
+        assertNotEquals(CryptoModule.DEFAULT_PREFS_FILE, TEST_PREFS)
 
         passwordKeyManager.initialize("upgrade-test-pw".toCharArray())
         assertTrue(passwordKeyManager.isInitialized())
@@ -195,6 +200,26 @@ class LegacyMigrationTest {
         // so whatever state the user's vault is in, this test cannot affect or depend on it.
         assertTrue(testPrefsFile().exists())
     }
+
+    /** The same store CryptoModule builds in production, pointed at the test file. */
+    private fun encryptedPrefs(fileName: String) = EncryptedSharedPreferences.create(
+        context,
+        fileName,
+        MasterKey.Builder(context)
+            .setKeyGenParameterSpec(
+                KeyGenParameterSpec.Builder(
+                    MasterKey.DEFAULT_MASTER_KEY_ALIAS,
+                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+                )
+                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                    .setKeySize(256)
+                    .build()
+            )
+            .build(),
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
 
     private fun testPrefsFile() =
         File(File(context.applicationInfo.dataDir, "shared_prefs"), "$TEST_PREFS.xml")

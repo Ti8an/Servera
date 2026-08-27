@@ -1,10 +1,6 @@
 package com.tivanstudio.servera.data.repository
 
-import android.content.Context
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
+import android.content.SharedPreferences
 import com.tivanstudio.servera.data.crypto.MigrationManager
 import com.tivanstudio.servera.data.crypto.PasswordKeyManager
 import com.tivanstudio.servera.data.db.dao.CommandHistoryDao
@@ -13,17 +9,17 @@ import com.tivanstudio.servera.data.db.dao.PresetGroupDao
 import com.tivanstudio.servera.data.db.dao.QuickCommandDao
 import com.tivanstudio.servera.data.db.dao.ServerDao
 import com.tivanstudio.servera.data.preferences.AppPreferences
+import com.tivanstudio.servera.di.AuthPrefs
 import com.tivanstudio.servera.di.CommandResultHolder
 import com.tivanstudio.servera.di.ServerCache
 import com.tivanstudio.servera.di.SessionKeyHolder
 import com.tivanstudio.servera.domain.repository.AuthRepository
-import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @AuthPrefs private val prefs: SharedPreferences,
     private val passwordKeyManager: PasswordKeyManager,
     private val migrationManager: MigrationManager,
     private val session: SessionKeyHolder,
@@ -36,29 +32,6 @@ class AuthRepositoryImpl @Inject constructor(
     private val serverCache: ServerCache,
     private val commandResultHolder: CommandResultHolder
 ) : AuthRepository {
-
-    private val prefs by lazy {
-        val spec = KeyGenParameterSpec.Builder(
-            MasterKey.DEFAULT_MASTER_KEY_ALIAS,
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-        )
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setKeySize(256)
-            .build()
-
-        val masterKey = MasterKey.Builder(context)
-            .setKeyGenParameterSpec(spec)
-            .build()
-
-        EncryptedSharedPreferences.create(
-            context,
-            "auth_prefs",
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
-    }
 
     override suspend fun setPassword(password: String) {
         session.dek = passwordKeyManager.initialize(password.toCharArray())
