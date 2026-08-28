@@ -102,7 +102,10 @@ private fun LoginContent(
     onConfirmReset: () -> Unit
 ) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-    if (uiState.isLoading) {
+    // isAuthenticated covers the gap between "we already have the DEK" and the navigation
+    // callback actually firing -- without it the password form flashes for a frame on an
+    // unlocked session.
+    if (uiState.isLoading || uiState.isAuthenticated) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = PrimaryGreen)
         }

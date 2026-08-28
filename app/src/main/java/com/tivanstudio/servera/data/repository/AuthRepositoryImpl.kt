@@ -14,6 +14,8 @@ import com.tivanstudio.servera.di.CommandResultHolder
 import com.tivanstudio.servera.di.ServerCache
 import com.tivanstudio.servera.di.SessionKeyHolder
 import com.tivanstudio.servera.domain.repository.AuthRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,14 +36,29 @@ class AuthRepositoryImpl @Inject constructor(
 ) : AuthRepository {
 
     override suspend fun setPassword(password: String) {
-        session.dek = passwordKeyManager.initialize(password.toCharArray())
+        // PBKDF2 is deliberately expensive, so it must never run on the caller's thread --
+        // this is reached from viewModelScope, which is Main.
+        session.dek = withContext(Dispatchers.Default) {
+            passwordKeyManager.initialize(password.toCharArray())
+        }
         // Upgrading users set their first password here: their existing rows are still
         // encrypted with the legacy Keystore key and have to move onto the fresh DEK now.
         migrationManager.migrateIfNeeded()
     }
 
     override suspend fun verifyPassword(password: String): Boolean {
-        val dek = passwordKeyManager.unlock(password.toCharArray()) ?: return false
+        val dek = withContext(Dispatchers.Default) {
+            passwordKeyManager.unlock(password.toCharArray())?.also { unlocked ->
+                // A vault created before the work factor was lowered stays pinned to the
+                // iteration count baked into it, so every login pays the old price forever.
+                // The password is in hand right now, so re-wrap the same DEK under the
+                // current one. Idempotent: the next unlock sees the counts match.
+                if (passwordKeyManager.storedIterations() != PasswordKeyManager.PBKDF2_ITERATIONS) {
+                    passwordKeyManager.rewrap(unlocked, password.toCharArray())
+                }
+            }
+        } ?: return false
+
         session.dek = dek
         // No-op once the flag is set; retries a pass that died half-way through.
         migrationManager.migrateIfNeeded()
@@ -49,8 +66,13 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun changePassword(oldPassword: String, newPassword: String): Boolean {
-        val dek = passwordKeyManager.unlock(oldPassword.toCharArray()) ?: return false
-        passwordKeyManager.rewrap(dek, newPassword.toCharArray())
+        // Two PBKDF2 derivations back to back (unwrap, then re-wrap), so off the caller's thread.
+        val dek = withContext(Dispatchers.Default) {
+            passwordKeyManager.unlock(oldPassword.toCharArray())?.also { unlocked ->
+                passwordKeyManager.rewrap(unlocked, newPassword.toCharArray())
+            }
+        } ?: return false
+
         session.dek = dek
         return true
     }

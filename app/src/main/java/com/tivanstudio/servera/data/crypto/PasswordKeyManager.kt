@@ -2,6 +2,7 @@ package com.tivanstudio.servera.data.crypto
 
 import android.content.SharedPreferences
 import android.util.Base64
+import androidx.annotation.VisibleForTesting
 import com.tivanstudio.servera.di.AuthPrefs
 import java.security.SecureRandom
 import javax.crypto.Cipher
@@ -51,18 +52,25 @@ class PasswordKeyManager @Inject constructor(
      * Creates a fresh DEK and wraps it with a KEK derived from [password].
      * @throws IllegalStateException if a password has already been set.
      */
-    fun initialize(password: CharArray): SecretKey {
+    fun initialize(password: CharArray): SecretKey = initialize(password, PBKDF2_ITERATIONS)
+
+    /**
+     * Exposed so a test can build a vault at an older work factor and check that the next
+     * unlock upgrades it; production always goes through [initialize].
+     */
+    @VisibleForTesting
+    fun initialize(password: CharArray, iterations: Int): SecretKey {
         check(!isInitialized()) { "Crypto is already initialized" }
 
         val salt = ByteArray(SALT_SIZE).also { SecureRandom().nextBytes(it) }
         val dek = KeyGenerator.getInstance("AES").apply { init(KEY_LENGTH_BITS) }.generateKey()
-        val kek = deriveKek(password, salt, PBKDF2_ITERATIONS)
+        val kek = deriveKek(password, salt, iterations)
         val wrapped = aesGcmEncrypt(kek, dek.encoded)
 
         prefs.edit()
             .putString(KEY_WRAPPED_DEK, wrapped.toBase64())
             .putString(KEY_KDF_SALT, salt.toBase64())
-            .putInt(KEY_KDF_ITERATIONS, PBKDF2_ITERATIONS)
+            .putInt(KEY_KDF_ITERATIONS, iterations)
             .putInt(KEY_CRYPTO_SCHEME, SCHEME_V2)
             .apply()
 
@@ -76,7 +84,7 @@ class PasswordKeyManager @Inject constructor(
     fun unlock(password: CharArray): SecretKey? {
         val wrapped = prefs.getString(KEY_WRAPPED_DEK, null)?.fromBase64() ?: return null
         val salt = prefs.getString(KEY_KDF_SALT, null)?.fromBase64() ?: return null
-        val iterations = prefs.getInt(KEY_KDF_ITERATIONS, PBKDF2_ITERATIONS)
+        val iterations = storedIterations()
 
         val kek = deriveKek(password, salt, iterations)
         return runCatching { SecretKeySpec(aesGcmDecrypt(kek, wrapped), "AES") }.getOrNull()
@@ -98,6 +106,12 @@ class PasswordKeyManager @Inject constructor(
             .putInt(KEY_KDF_ITERATIONS, PBKDF2_ITERATIONS)
             .apply()
     }
+
+    /**
+     * The work factor this vault was wrapped with. Older vaults keep whatever
+     * [PBKDF2_ITERATIONS] was current when they were created, which is what [unlock] honours.
+     */
+    fun storedIterations(): Int = prefs.getInt(KEY_KDF_ITERATIONS, PBKDF2_ITERATIONS)
 
     fun isInitialized(): Boolean =
         prefs.getString(KEY_WRAPPED_DEK, null) != null &&

@@ -7,6 +7,7 @@ import com.tivanstudio.servera.domain.usecase.auth.IsBiometricEnabledUseCase
 import com.tivanstudio.servera.domain.usecase.auth.IsPasswordSetUseCase
 import com.tivanstudio.servera.domain.usecase.auth.ResetVaultUseCase
 import com.tivanstudio.servera.domain.usecase.auth.VerifyPasswordUseCase
+import com.tivanstudio.servera.di.SessionKeyHolder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +32,8 @@ class LoginViewModel @Inject constructor(
     private val isPasswordSet: IsPasswordSetUseCase,
     private val verifyPassword: VerifyPasswordUseCase,
     private val isBiometricEnabled: IsBiometricEnabledUseCase,
-    private val resetVault: ResetVaultUseCase
+    private val resetVault: ResetVaultUseCase,
+    private val session: SessionKeyHolder
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -46,6 +48,15 @@ class LoginViewModel @Inject constructor(
 
     private fun checkAuthState() {
         viewModelScope.launch {
+            // The DEK outlives this screen: it is dropped only on process death, never on
+            // backgrounding. Coming back to an unlocked session must not ask for the password
+            // again -- and must not pay for another PBKDF2 derivation to learn nothing new.
+            if (session.isUnlocked()) {
+                _uiState.update { it.copy(isLoading = false, isAuthenticated = true) }
+                _events.send(LoginEvent.NavigateToServers)
+                return@launch
+            }
+
             val passwordSet = isPasswordSet()
             _uiState.update {
                 it.copy(
@@ -65,6 +76,8 @@ class LoginViewModel @Inject constructor(
     fun login() {
         val password = _uiState.value.password
         viewModelScope.launch {
+            // Set before the call so the spinner gets a frame: verifyPassword now suspends
+            // onto Dispatchers.Default instead of blocking this one.
             _uiState.update { it.copy(isLoading = true, error = null) }
             val ok = verifyPassword(password)
             if (ok) {
