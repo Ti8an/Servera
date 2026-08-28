@@ -24,12 +24,12 @@ data class ChangePasswordUiState(
     val isPasswordVisible: Boolean = false,
     val isLoading: Boolean = false,
     val strength: PasswordStrength = PasswordStrength.WEAK,
-    /** Why the new password is rejected; null once it satisfies the minimum. */
-    @StringRes val passwordError: Int? = null,
+    /** Advisory estimate of how long the new password would take to crack. */
+    @StringRes val crackTimeRes: Int = R.string.crack_instant,
     @StringRes val error: Int? = null
 ) {
     val canSubmit: Boolean
-        get() = oldPassword.isNotEmpty() && passwordError == null &&
+        get() = oldPassword.isNotEmpty() &&
             newPassword.isNotEmpty() && newPassword == confirm
 }
 
@@ -55,7 +55,7 @@ class ChangePasswordViewModel @Inject constructor(
             it.copy(
                 newPassword = v,
                 strength = check.strength,
-                passwordError = check.errorRes,
+                crackTimeRes = check.crackTimeRes,
                 error = null
             )
         }
@@ -66,9 +66,7 @@ class ChangePasswordViewModel @Inject constructor(
     fun submit() {
         val state = _uiState.value
         when {
-            state.passwordError != null ->
-                _uiState.update { it.copy(error = state.passwordError) }
-            state.newPassword != state.confirm ->
+            state.newPassword.isEmpty() || state.newPassword != state.confirm ->
                 _uiState.update { it.copy(error = R.string.error_passwords_dont_match) }
             else -> viewModelScope.launch {
                 _uiState.update { it.copy(isLoading = true, error = null) }

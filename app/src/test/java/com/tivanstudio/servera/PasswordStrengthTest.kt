@@ -3,51 +3,68 @@ package com.tivanstudio.servera
 import com.tivanstudio.servera.presentation.auth.PasswordStrength
 import com.tivanstudio.servera.presentation.auth.checkPassword
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PasswordStrengthTest {
 
     @Test
-    fun `shorter than eight characters is rejected`() {
-        listOf("", "a1", "abc123", "abc1234").forEach { password ->
+    fun `empty password is weak and cracked instantly`() {
+        val check = checkPassword("")
+        assertEquals(PasswordStrength.WEAK, check.strength)
+        assertEquals(R.string.crack_instant, check.crackTimeRes)
+    }
+
+    @Test
+    fun `very short passwords are weak and cracked instantly`() {
+        listOf("a", "ab1", "abc123").forEach { password ->
             val check = checkPassword(password)
-            assertFalse(password, check.valid)
-            assertEquals(PasswordStrength.WEAK, check.strength)
-            assertEquals(R.string.pwd_too_short, check.errorRes)
+            assertEquals(password, PasswordStrength.WEAK, check.strength)
+            assertEquals(password, R.string.crack_instant, check.crackTimeRes)
         }
     }
 
     @Test
-    fun `long enough but missing a letter or a digit is rejected`() {
-        listOf("12345678", "abcdefgh", "!@#$%^&*").forEach { password ->
-            val check = checkPassword(password)
-            assertFalse(password, check.valid)
-            assertEquals(R.string.pwd_need_letter_digit, check.errorRes)
-        }
-    }
-
-    @Test
-    fun `letter and digit at the minimum length is medium`() {
+    fun `eight letters and digits is still weak but takes hours`() {
         val check = checkPassword("abcdefg1")
-        assertTrue(check.valid)
+        assertEquals(PasswordStrength.WEAK, check.strength)
+        assertEquals(R.string.crack_hours, check.crackTimeRes)
+    }
+
+    @Test
+    fun `ten letters and digits is medium`() {
+        val check = checkPassword("abcdefgh12")
         assertEquals(PasswordStrength.MEDIUM, check.strength)
-        assertNull(check.errorRes)
+        assertEquals(R.string.crack_days, check.crackTimeRes)
     }
 
     @Test
-    fun `strong needs twelve characters and a special character`() {
-        assertEquals(PasswordStrength.MEDIUM, checkPassword("abcdefghijk1").strength)
-        assertEquals(PasswordStrength.MEDIUM, checkPassword("abcdef1!").strength)
-        assertEquals(PasswordStrength.STRONG, checkPassword("abcdefghijk1!").strength)
+    fun `twelve letters and digits is medium measured in years`() {
+        val check = checkPassword("abcdefghij12")
+        assertEquals(PasswordStrength.MEDIUM, check.strength)
+        assertEquals(R.string.crack_years, check.crackTimeRes)
     }
 
     @Test
-    fun `non-latin letters count as letters`() {
+    fun `long password with special characters is strong`() {
+        listOf("correct-horse7!", "Str0ng-P@ssw0rd!").forEach { password ->
+            val check = checkPassword(password)
+            assertEquals(password, PasswordStrength.STRONG, check.strength)
+            assertEquals(password, R.string.crack_centuries, check.crackTimeRes)
+        }
+    }
+
+    @Test
+    fun `mixing character classes widens the alphabet`() {
+        // Same length, richer alphabet -> a stronger verdict.
+        val plain = checkPassword("abcdefghij")
+        val mixed = checkPassword("aBcDeF1!j#")
+        assertEquals(PasswordStrength.WEAK, plain.strength)
+        assertEquals(PasswordStrength.STRONG, mixed.strength)
+    }
+
+    @Test
+    fun `non-latin letters count towards the alphabet`() {
         val check = checkPassword("парольный1")
-        assertTrue(check.valid)
         assertEquals(PasswordStrength.MEDIUM, check.strength)
     }
 }

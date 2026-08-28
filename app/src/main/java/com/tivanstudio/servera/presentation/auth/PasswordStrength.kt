@@ -2,32 +2,41 @@ package com.tivanstudio.servera.presentation.auth
 
 import androidx.annotation.StringRes
 import com.tivanstudio.servera.R
+import kotlin.math.log10
 
 enum class PasswordStrength { WEAK, MEDIUM, STRONG }
 
+/** Advisory only: nothing here blocks a password, it just describes how weak it is. */
 data class PasswordCheck(
-    val valid: Boolean,
     val strength: PasswordStrength,
-    @StringRes val errorRes: Int?
+    @StringRes val crackTimeRes: Int
 )
 
-private const val MIN_LENGTH = 8
-private const val STRONG_LENGTH = 12
+/** Guesses per second an attacker is assumed to manage — deliberately generous (1e10). */
+private const val LOG10_GUESSES_PER_SECOND = 10.0
 
 /**
- * The single rule set behind both the create-password and change-password screens:
- * at least [MIN_LENGTH] characters with a letter and a digit, and a longer passphrase
- * carrying a special character counts as strong.
+ * Estimates how long a brute force over the password's own alphabet would take and maps
+ * that to a colour band. Everything is kept in log10 so long passphrases cannot overflow.
  */
-fun checkPassword(password: String): PasswordCheck = when {
-    password.length < MIN_LENGTH ->
-        PasswordCheck(false, PasswordStrength.WEAK, R.string.pwd_too_short)
+fun checkPassword(password: String): PasswordCheck {
+    if (password.isEmpty()) return PasswordCheck(PasswordStrength.WEAK, R.string.crack_instant)
 
-    !password.any { it.isLetter() } || !password.any { it.isDigit() } ->
-        PasswordCheck(false, PasswordStrength.WEAK, R.string.pwd_need_letter_digit)
+    var alphabet = 0
+    if (password.any { it.isDigit() }) alphabet += 10
+    if (password.any { it.isLowerCase() }) alphabet += 26
+    if (password.any { it.isUpperCase() }) alphabet += 26
+    if (password.any { !it.isLetterOrDigit() }) alphabet += 33
+    if (alphabet == 0) alphabet = 26
 
-    password.length >= STRONG_LENGTH && password.any { !it.isLetterOrDigit() } ->
-        PasswordCheck(true, PasswordStrength.STRONG, null)
+    val log10Combos = password.length * log10(alphabet.toDouble())
+    val log10Seconds = log10Combos - LOG10_GUESSES_PER_SECOND
 
-    else -> PasswordCheck(true, PasswordStrength.MEDIUM, null)
+    return when {
+        log10Seconds < 2 -> PasswordCheck(PasswordStrength.WEAK, R.string.crack_instant)
+        log10Seconds < 4.5 -> PasswordCheck(PasswordStrength.WEAK, R.string.crack_hours)
+        log10Seconds < 7 -> PasswordCheck(PasswordStrength.MEDIUM, R.string.crack_days)
+        log10Seconds < 9.5 -> PasswordCheck(PasswordStrength.MEDIUM, R.string.crack_years)
+        else -> PasswordCheck(PasswordStrength.STRONG, R.string.crack_centuries)
+    }
 }

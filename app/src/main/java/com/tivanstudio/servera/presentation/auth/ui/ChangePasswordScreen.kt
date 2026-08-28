@@ -27,7 +27,6 @@ import com.tivanstudio.servera.presentation.auth.PasswordStrength
 import com.tivanstudio.servera.presentation.auth.viewmodel.ChangePasswordEvent
 import com.tivanstudio.servera.presentation.auth.viewmodel.ChangePasswordUiState
 import com.tivanstudio.servera.presentation.auth.viewmodel.ChangePasswordViewModel
-import com.tivanstudio.servera.presentation.theme.DangerRed
 import com.tivanstudio.servera.presentation.theme.PrimaryGreen
 import com.tivanstudio.servera.presentation.theme.ServeraTheme
 
@@ -116,18 +115,15 @@ private fun ChangePasswordContent(
             if (uiState.newPassword.isNotEmpty()) {
                 PasswordStrengthMeter(strength = uiState.strength)
                 Spacer(Modifier.height(6.dp))
-            }
 
-            Text(
-                text = uiState.passwordError
-                    ?.takeIf { uiState.newPassword.isNotEmpty() }
-                    ?.let { stringResource(it) }
-                    ?: stringResource(R.string.pwd_requirements),
-                color = if (uiState.passwordError != null && uiState.newPassword.isNotEmpty()) DangerRed
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp,
-                modifier = Modifier.align(Alignment.Start).padding(start = 4.dp)
-            )
+                Text(
+                    text = stringResource(R.string.crack_prefix) + " " +
+                        stringResource(uiState.crackTimeRes),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    modifier = Modifier.align(Alignment.Start).padding(start = 4.dp)
+                )
+            }
 
             Spacer(Modifier.height(12.dp))
 
@@ -236,6 +232,7 @@ private fun ChangePasswordContentErrorPreview() {
                 newPassword = "newpass12",
                 confirm = "newpass12",
                 strength = PasswordStrength.MEDIUM,
+                crackTimeRes = R.string.crack_days,
                 error = R.string.error_wrong_password
             ),
             onOldPasswordChange = {},
