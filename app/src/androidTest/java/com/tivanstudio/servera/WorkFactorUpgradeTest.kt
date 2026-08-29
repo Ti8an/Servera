@@ -68,7 +68,8 @@ class WorkFactorUpgradeTest {
             prefs = prefs,
             passwordKeyManager = passwordKeyManager,
             migrationManager = MigrationManager(
-                db, db.serverDao(), encryption, passwordKeyManager, session
+                db, db.serverDao(), db.presetDao(), db.quickCommandDao(),
+                db.commandHistoryDao(), encryption, passwordKeyManager, session
             ),
             session = session,
             serverDao = db.serverDao(),
@@ -108,9 +109,9 @@ class WorkFactorUpgradeTest {
         db.serverDao().insert(
             ServerEntity(
                 name = name,
-                host = "10.0.0.1",
+                encryptedHost = encryption.encrypt("10.0.0.1"),
                 port = 22,
-                login = "root",
+                encryptedLogin = encryption.encrypt("root"),
                 encryptedPassword = encryption.encrypt(password),
                 encryptedPrivateKey = null,
                 timeout = 30,

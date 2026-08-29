@@ -14,8 +14,14 @@ import com.tivanstudio.servera.data.crypto.KeystoreManager
 import com.tivanstudio.servera.data.crypto.MigrationManager
 import com.tivanstudio.servera.data.crypto.PasswordKeyManager
 import com.tivanstudio.servera.data.db.AppDatabase
+import com.tivanstudio.servera.data.db.entity.CommandHistoryEntity
+import com.tivanstudio.servera.data.db.entity.PresetEntity
+import com.tivanstudio.servera.data.db.entity.PresetGroupEntity
+import com.tivanstudio.servera.data.db.entity.QuickCommandEntity
 import com.tivanstudio.servera.data.db.entity.ServerEntity
 import com.tivanstudio.servera.data.mapper.toDomain
+import com.tivanstudio.servera.data.mapper.toEntity
+import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.di.CryptoModule
 import com.tivanstudio.servera.di.SessionKeyHolder
 import kotlinx.coroutines.runBlocking
@@ -62,8 +68,10 @@ class LegacyMigrationTest {
 
         context.deleteDatabase(TEST_DB)
         db = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB).build()
-        migrationManager =
-            MigrationManager(db, db.serverDao(), encryption, passwordKeyManager, session)
+        migrationManager = MigrationManager(
+            db, db.serverDao(), db.presetDao(), db.quickCommandDao(),
+            db.commandHistoryDao(), encryption, passwordKeyManager, session
+        )
     }
 
     @After
@@ -90,11 +98,21 @@ class LegacyMigrationTest {
         )
     }
 
-    private fun legacyServer(name: String, password: String, privateKey: String?) = ServerEntity(
+    /**
+     * A pre-V2 row as the v8 -> v9 schema migration leaves it: secrets under the legacy Keystore
+     * key, host and login still the plaintext the old schema stored in those columns.
+     */
+    private fun legacyServer(
+        name: String,
+        password: String,
+        privateKey: String?,
+        host: String = LEGACY_HOST,
+        login: String = LEGACY_LOGIN
+    ) = ServerEntity(
         name = name,
-        host = "10.0.0.1",
+        encryptedHost = host,
         port = 22,
-        login = "root",
+        encryptedLogin = login,
         encryptedPassword = legacyEncrypt(password),
         encryptedPrivateKey = privateKey?.let { legacyEncrypt(it) },
         timeout = 30,
@@ -140,9 +158,23 @@ class LegacyMigrationTest {
                 plainPassword,
                 encryption.decrypt(row.encryptedPassword)
             )
+            assertNotEquals(
+                "Host of server $id was left in plaintext",
+                LEGACY_HOST,
+                row.encryptedHost
+            )
+            assertNotEquals(
+                "Login of server $id was left in plaintext",
+                LEGACY_LOGIN,
+                row.encryptedLogin
+            )
+
             // The path the app actually uses when it loads a server.
             val server = row.toDomain(encryption)
+            assertFalse("Server $id must not read back as corrupted", server.isCorrupted)
             assertEquals(plainPassword, server.password)
+            assertEquals(LEGACY_HOST, server.host)
+            assertEquals(LEGACY_LOGIN, server.login)
             assertEquals(before.getValue(id).name, server.name)
         }
 
@@ -154,6 +186,161 @@ class LegacyMigrationTest {
             before.getValue(corruptId),
             after.getValue(corruptId)
         )
+    }
+
+    /**
+     * The v8 -> v9 columns arrive holding plaintext. The pass has to encrypt them as they stand
+     * -- and a later login must not run over them a second time, which would encrypt the
+     * ciphertext and lose the row.
+     */
+    @Test
+    fun plaintextHostAndLoginAreEncryptedOnceAndStayReadable() = runBlocking {
+        val dao = db.serverDao()
+        val host = "srv-01.internal.example.com"
+        val login = "deploy-üser"
+        val id = dao.insert(legacyServer("plain", "pw", null, host = host, login = login))
+
+        session.dek = passwordKeyManager.initialize("upgrade-test-pw".toCharArray())
+        migrationManager.migrateIfNeeded()
+
+        val migrated = dao.getServerById(id)!!
+        assertNotEquals("Host must not stay in plaintext", host, migrated.encryptedHost)
+        assertNotEquals("Login must not stay in plaintext", login, migrated.encryptedLogin)
+        assertEquals(host, encryption.decrypt(migrated.encryptedHost))
+        assertEquals(login, encryption.decrypt(migrated.encryptedLogin))
+
+        // Logging in again: the flag has to keep the pass off already-migrated ciphertext.
+        session.clear()
+        session.dek = passwordKeyManager.unlock("upgrade-test-pw".toCharArray())
+        migrationManager.migrateIfNeeded()
+
+        assertEquals("A second login must leave the row alone", migrated, dao.getServerById(id))
+        val server = dao.getServerById(id)!!.toDomain(encryption)
+        assertFalse(server.isCorrupted)
+        assertEquals(host, server.host)
+        assertEquals(login, server.login)
+    }
+
+    /**
+     * Presets, attached commands and history arrive from the v9 -> v10 rename holding plaintext
+     * commands. All three tables go through the same pass, and all three have to read back.
+     */
+    @Test
+    fun plaintextCommandsAreEncryptedAcrossAllThreeTables() = runBlocking {
+        val serverId = db.serverDao().insert(legacyServer("box", "pw", null))
+        val groupId = db.presetGroupDao().insert(PresetGroupEntity(name = "Disk", colorHex = "#4CAF50", sortOrder = 0))
+        val presetCommand = "df -h --output=source,pcent"
+        val attachedCommand = "systemctl restart nginx"
+        val historyCommand = "grep -R 'пароль' /etc"
+
+        val presetId = db.presetDao().insert(
+            PresetEntity(groupId = groupId, label = "Disk usage", encryptedCommand = presetCommand, sortOrder = 0)
+        )
+        val attachedId = db.quickCommandDao().insert(
+            QuickCommandEntity(
+                serverId = serverId,
+                label = "Restart nginx",
+                encryptedCommand = attachedCommand,
+                sortOrder = 0
+            )
+        )
+        db.commandHistoryDao().insert(
+            CommandHistoryEntity(
+                serverId = serverId,
+                encryptedCommand = historyCommand,
+                stdout = "",
+                stderr = "",
+                exitCode = 0,
+                executedAt = 1_700_000_000_000
+            )
+        )
+
+        session.dek = passwordKeyManager.initialize("upgrade-test-pw".toCharArray())
+        migrationManager.migrateIfNeeded()
+
+        val preset = db.presetDao().getAllOnce().single { it.id == presetId }
+        val attached = db.quickCommandDao().getAllOnce().single { it.id == attachedId }
+        val history = db.commandHistoryDao().getAllOnce().single()
+
+        assertNotEquals("Preset command left in plaintext", presetCommand, preset.encryptedCommand)
+        assertNotEquals("Attached command left in plaintext", attachedCommand, attached.encryptedCommand)
+        assertNotEquals("History command left in plaintext", historyCommand, history.encryptedCommand)
+
+        // The paths the app actually loads through.
+        assertEquals(presetCommand, preset.toDomain(encryption).command)
+        assertEquals(attachedCommand, attached.toDomain(encryption).command)
+        assertEquals(historyCommand, history.toDomain(encryption).command)
+
+        // Labels and group snapshots were never secret and must come through untouched.
+        assertEquals("Disk usage", preset.toDomain(encryption).label)
+        assertEquals("Restart nginx", attached.toDomain(encryption).label)
+
+        // A second login must not run over ciphertext, which would encrypt it again.
+        session.clear()
+        session.dek = passwordKeyManager.unlock("upgrade-test-pw".toCharArray())
+        migrationManager.migrateIfNeeded()
+
+        assertEquals(preset, db.presetDao().getAllOnce().single { it.id == presetId })
+        assertEquals(attached, db.quickCommandDao().getAllOnce().single { it.id == attachedId })
+        assertEquals(history, db.commandHistoryDao().getAllOnce().single())
+    }
+
+    /**
+     * GCM picks a fresh IV per write, so the same command encrypts to a different string every
+     * time. Anything comparing commands -- the attached-command dedup above all -- has to work on
+     * the decrypted text, never on what sits in the column.
+     */
+    @Test
+    fun equalCommandsMatchOnlyAfterDecryption() = runBlocking {
+        val serverId = db.serverDao().insert(legacyServer("box", "pw", null))
+        session.dek = passwordKeyManager.initialize("upgrade-test-pw".toCharArray())
+        migrationManager.migrateIfNeeded()
+
+        val command = "systemctl restart nginx"
+        listOf("From catalog", "Typed by hand").forEachIndexed { index, label ->
+            db.quickCommandDao().insert(
+                QuickCommand(
+                    serverId = serverId,
+                    label = label,
+                    command = command,
+                    sortOrder = index
+                ).toEntity(encryption)
+            )
+        }
+
+        val rows = db.quickCommandDao().getAllOnce()
+        assertNotEquals(
+            "Two writes of the same command must not share a ciphertext",
+            rows[0].encryptedCommand,
+            rows[1].encryptedCommand
+        )
+
+        val domain = rows.map { it.toDomain(encryption) }
+        assertEquals("Dedup on the domain model must collapse them", 1, domain.map { it.command }.toSet().size)
+        assertEquals(setOf(command), domain.map { it.command }.toSet())
+    }
+
+    /** A command written under another key must blank out, not take its list down. */
+    @Test
+    fun anUnreadableCommandComesBackEmpty() = runBlocking {
+        val serverId = db.serverDao().insert(legacyServer("box", "pw", null))
+        session.dek = passwordKeyManager.initialize("upgrade-test-pw".toCharArray())
+        migrationManager.migrateIfNeeded()
+
+        db.commandHistoryDao().insert(
+            CommandHistoryEntity(
+                serverId = serverId,
+                encryptedCommand = Base64.encodeToString(ByteArray(42), Base64.NO_WRAP),
+                stdout = "out",
+                stderr = "",
+                exitCode = 0,
+                executedAt = 1_700_000_000_000
+            )
+        )
+
+        val item = db.commandHistoryDao().getAllOnce().single().toDomain(encryption)
+        assertEquals("", item.command)
+        assertEquals("Fields that were never encrypted stay readable", "out", item.stdout)
     }
 
     @Test
@@ -192,6 +379,9 @@ class LegacyMigrationTest {
         assertTrue("An unreadable row must be flagged", bad.isCorrupted)
         assertEquals("Secrets of a corrupted row must not leak through", "", bad.password)
         assertNull(bad.privateKey)
+        // Host and login share the row's single decryption attempt, so they go the same way.
+        assertEquals("", bad.host)
+        assertEquals("", bad.login)
         assertEquals("Non-secret fields stay readable", "bad", bad.name)
     }
 
@@ -278,5 +468,7 @@ class LegacyMigrationTest {
     private companion object {
         const val TEST_DB = "migration_test.db"
         const val TEST_PREFS = "auth_prefs_test"
+        const val LEGACY_HOST = "10.0.0.1"
+        const val LEGACY_LOGIN = "root"
     }
 }

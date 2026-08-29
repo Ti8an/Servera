@@ -1,5 +1,6 @@
 package com.tivanstudio.servera.data.repository
 
+import com.tivanstudio.servera.data.crypto.EncryptionHelper
 import com.tivanstudio.servera.data.db.dao.PresetDao
 import com.tivanstudio.servera.data.db.dao.PresetGroupDao
 import com.tivanstudio.servera.data.mapper.toDomain
@@ -13,7 +14,8 @@ import javax.inject.Inject
 
 class PresetRepositoryImpl @Inject constructor(
     private val dao: PresetDao,
-    private val groupDao: PresetGroupDao
+    private val groupDao: PresetGroupDao,
+    private val encryption: EncryptionHelper
 ) : PresetRepository {
 
     override fun getGroups(): Flow<List<PresetGroup>> =
@@ -29,10 +31,10 @@ class PresetRepositoryImpl @Inject constructor(
         groupDao.deleteById(id)
 
     override fun getPresets(): Flow<List<Preset>> =
-        dao.getAll().map { presets -> presets.map { it.toDomain() } }
+        dao.getAll().map { presets -> presets.map { it.toDomain(encryption) } }
 
     override suspend fun addPreset(preset: Preset): Long =
-        dao.insert(preset.toEntity())
+        dao.insert(preset.toEntity(encryption))
 
     override suspend fun deletePreset(id: Long) =
         dao.deleteById(id)
