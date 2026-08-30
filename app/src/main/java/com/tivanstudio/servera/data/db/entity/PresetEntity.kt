@@ -21,6 +21,6 @@ data class PresetEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val groupId: Long,
     val label: String,
-    val command: String,
+    val encryptedCommand: String,
     val sortOrder: Int
 )

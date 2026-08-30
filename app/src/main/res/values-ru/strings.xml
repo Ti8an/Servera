@@ -82,6 +82,8 @@
     <string name="check_status">Проверить статус</string>
     <string name="status_unknown">Не проверен</string>
     <string name="status_problem_title">Проблема подключения</string>
+    <string name="status_corrupted">Не расшифровывается</string>
+    <string name="server_corrupted_hint">Этот сервер сохранён с другим ключом и больше не открывается. Удалите его и добавьте заново.</string>
     <string name="ok">OK</string>
     <string name="info_swipe_hint">Свайпните вниз для загрузки информации</string>
     <!-- Bottom Nav -->
@@ -186,4 +188,26 @@
     <string name="net_gateway">Шлюз</string>
     <string name="net_subnet">Подсеть: %1$s</string>
     <string name="error_server_not_found">Сервер не найден</string>
+    <!-- Change password -->
+    <string name="change_password_title">Сменить пароль</string>
+    <string name="change_password_subtitle">Перешифровать хранилище новым паролем</string>
+    <string name="change_password_old_hint">Текущий пароль</string>
+    <string name="change_password_new_hint">Новый пароль</string>
+    <string name="change_password_confirm_hint">Подтвердите новый пароль</string>
+    <string name="change_password_button">Сменить пароль</string>
+    <string name="change_password_success">Пароль изменён</string>
+    <!-- Vault reset -->
+    <string name="reset_password">Забыли пароль</string>
+    <string name="reset_warning">Все данные будут удалены безвозвратно: серверы, пресеты, прикреплённые команды и история. Восстановления нет — ключ шифрования уничтожается вместе с паролем. После этого нужно будет создать новый пароль.</string>
+    <string name="reset_confirm">Удалить всё</string>
+    <!-- Password strength hint (advisory only) -->
+    <string name="pwd_weak">Слабый</string>
+    <string name="pwd_medium">Средний</string>
+    <string name="pwd_strong">Надёжный</string>
+    <string name="crack_prefix">Примерное время взлома:</string>
+    <string name="crack_instant">мгновенно</string>
+    <string name="crack_hours">часы</string>
+    <string name="crack_days">дни</string>
+    <string name="crack_years">годы</string>
+    <string name="crack_centuries">века</string>
 </resources>

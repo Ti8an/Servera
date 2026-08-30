@@ -21,4 +21,9 @@ class ServerCache @Inject constructor() {
     fun putInfo(serverId: Long, info: ServerInfo) {
         infos[serverId] = info
     }
+
+    fun clear() {
+        statuses.clear()
+        infos.clear()
+    }
 }

@@ -15,6 +15,9 @@ interface PresetGroupDao {
     @Query("DELETE FROM preset_groups WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("DELETE FROM preset_groups")
+    suspend fun clearAll()
+
     @Update
     suspend fun update(entity: PresetGroupEntity)
 }

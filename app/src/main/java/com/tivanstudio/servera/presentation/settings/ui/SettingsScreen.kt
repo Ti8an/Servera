@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.StarRate
@@ -46,7 +47,8 @@ fun SettingsScreen(
     onNavigateToServers: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToPresets: () -> Unit,
-    onNavigateToNetworkScan: () -> Unit
+    onNavigateToNetworkScan: () -> Unit,
+    onNavigateToChangePassword: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -91,6 +93,7 @@ fun SettingsScreen(
         onToggleSaveCommandsAlways = viewModel::toggleSaveCommandsAlways,
         onToggleSaveResultInHistory = viewModel::toggleSaveResultInHistory,
         onNavigateToNetworkScan = onNavigateToNetworkScan,
+        onNavigateToChangePassword = onNavigateToChangePassword,
         onRateApp = onRateApp
     )
 }
@@ -108,6 +111,7 @@ private fun SettingsContent(
     onToggleSaveCommandsAlways: (Boolean) -> Unit,
     onToggleSaveResultInHistory: (Boolean) -> Unit,
     onNavigateToNetworkScan: () -> Unit,
+    onNavigateToChangePassword: () -> Unit,
     onRateApp: () -> Unit
 ) {
     Scaffold(
@@ -172,6 +176,13 @@ private fun SettingsContent(
                     modifier = Modifier.padding(start = 4.dp)
                 )
             }
+
+            ActionCard(
+                icon = Icons.Default.Key,
+                title = stringResource(R.string.change_password_title),
+                subtitle = stringResource(R.string.change_password_subtitle),
+                onClick = onNavigateToChangePassword
+            )
 
             Spacer(Modifier.height(8.dp))
 
@@ -347,6 +358,7 @@ private fun SettingsContentDarkPreview() {
             onToggleSaveCommandsAlways = {},
             onToggleSaveResultInHistory = {},
             onNavigateToNetworkScan = {},
+            onNavigateToChangePassword = {},
             onRateApp = {}
         )
     }
@@ -367,6 +379,7 @@ private fun SettingsContentLightPreview() {
             onToggleSaveCommandsAlways = {},
             onToggleSaveResultInHistory = {},
             onNavigateToNetworkScan = {},
+            onNavigateToChangePassword = {},
             onRateApp = {}
         )
     }

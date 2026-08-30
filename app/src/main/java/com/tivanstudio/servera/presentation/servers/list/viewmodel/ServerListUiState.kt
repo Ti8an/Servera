@@ -21,5 +21,7 @@ data class ServerUiModel(
     val port: Int,
     val login: String,
     val isOnline: Boolean? = null,
-    val isChecking: Boolean = false
+    val isChecking: Boolean = false,
+    /** Secrets could not be decrypted: the row can only be deleted. */
+    val isCorrupted: Boolean = false
 )

@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -81,7 +82,10 @@ fun LoginScreen(
                 .build()
             prompt.authenticate(info)
         },
-        onNavigateToCreatePassword = viewModel::navigateToCreatePassword
+        onNavigateToCreatePassword = viewModel::navigateToCreatePassword,
+        onForgotPassword = viewModel::onForgotPassword,
+        onDismissResetDialog = viewModel::onDismissResetDialog,
+        onConfirmReset = viewModel::confirmReset
     )
 }
 
@@ -92,10 +96,16 @@ private fun LoginContent(
     onTogglePasswordVisibility: () -> Unit,
     onLoginClick: () -> Unit,
     onBiometricClick: () -> Unit,
-    onNavigateToCreatePassword: () -> Unit
+    onNavigateToCreatePassword: () -> Unit,
+    onForgotPassword: () -> Unit,
+    onDismissResetDialog: () -> Unit,
+    onConfirmReset: () -> Unit
 ) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-    if (uiState.isLoading) {
+    // isAuthenticated covers the gap between "we already have the DEK" and the navigation
+    // callback actually firing -- without it the password form flashes for a frame on an
+    // unlocked session.
+    if (uiState.isLoading || uiState.isAuthenticated) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = PrimaryGreen)
         }
@@ -162,7 +172,7 @@ private fun LoginContent(
 
         if (uiState.error != null) {
             Text(
-                text = uiState.error!!,
+                text = stringResource(uiState.error),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier
@@ -204,15 +214,64 @@ private fun LoginContent(
 
         Spacer(Modifier.height(24.dp))
 
-        TextButton(onClick = onNavigateToCreatePassword) {
-            Text(
-                text = stringResource(R.string.login_first_launch),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 13.sp
-            )
+        if (uiState.isFirstLaunch) {
+            TextButton(onClick = onNavigateToCreatePassword) {
+                Text(
+                    text = stringResource(R.string.login_first_launch),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp
+                )
+            }
+        } else {
+            TextButton(onClick = onForgotPassword) {
+                Text(
+                    text = stringResource(R.string.reset_password),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp
+                )
+            }
         }
     }
+
+    if (uiState.showResetDialog) {
+        ResetVaultDialog(
+            isResetting = uiState.isResetting,
+            onDismiss = onDismissResetDialog,
+            onConfirm = onConfirmReset
+        )
+    }
     } // Surface
+}
+
+@Composable
+private fun ResetVaultDialog(
+    isResetting: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = { if (!isResetting) onDismiss() },
+        icon = {
+            Icon(
+                Icons.Default.WarningAmber,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error
+            )
+        },
+        title = { Text(stringResource(R.string.reset_password), fontWeight = FontWeight.Bold) },
+        text = { Text(stringResource(R.string.reset_warning)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = !isResetting) {
+                Text(stringResource(R.string.reset_confirm), color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isResetting) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
+    )
 }
 
 @Preview(showBackground = true)
@@ -225,7 +284,10 @@ private fun LoginContentPreview() {
             onTogglePasswordVisibility = {},
             onLoginClick = {},
             onBiometricClick = {},
-            onNavigateToCreatePassword = {}
+            onNavigateToCreatePassword = {},
+            onForgotPassword = {},
+            onDismissResetDialog = {},
+            onConfirmReset = {}
         )
     }
 }
@@ -240,7 +302,10 @@ private fun LoginContentWithBiometricPreview() {
             onTogglePasswordVisibility = {},
             onLoginClick = {},
             onBiometricClick = {},
-            onNavigateToCreatePassword = {}
+            onNavigateToCreatePassword = {},
+            onForgotPassword = {},
+            onDismissResetDialog = {},
+            onConfirmReset = {}
         )
     }
 }

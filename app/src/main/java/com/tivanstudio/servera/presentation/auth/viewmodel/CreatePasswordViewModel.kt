@@ -1,8 +1,12 @@
 package com.tivanstudio.servera.presentation.auth.viewmodel
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.usecase.auth.SetPasswordUseCase
+import com.tivanstudio.servera.presentation.auth.PasswordStrength
+import com.tivanstudio.servera.presentation.auth.checkPassword
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,8 +22,15 @@ data class CreatePasswordUiState(
     val confirm: String = "",
     val isPasswordVisible: Boolean = false,
     val isLoading: Boolean = false,
-    val error: String? = null
-)
+    val strength: PasswordStrength = PasswordStrength.WEAK,
+    /** Advisory estimate of how long the password would take to crack. */
+    @StringRes val crackTimeRes: Int = R.string.crack_instant,
+    @StringRes val error: Int? = null
+) {
+    /** Any non-empty password is accepted as long as the confirmation matches it. */
+    val canSubmit: Boolean
+        get() = password.isNotEmpty() && password == confirm
+}
 
 sealed class CreatePasswordEvent {
     object PasswordCreated : CreatePasswordEvent()
@@ -37,15 +48,26 @@ class CreatePasswordViewModel @Inject constructor(
     private val _events = Channel<CreatePasswordEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
-    fun onPasswordChange(v: String) = _uiState.update { it.copy(password = v, error = null) }
-    fun onConfirmChange(v: String)  = _uiState.update { it.copy(confirm = v, error = null) }
-    fun onToggleVisibility()        = _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
+    fun onPasswordChange(v: String) {
+        val check = checkPassword(v)
+        _uiState.update {
+            it.copy(
+                password = v,
+                strength = check.strength,
+                crackTimeRes = check.crackTimeRes,
+                error = null
+            )
+        }
+    }
+
+    fun onConfirmChange(v: String) = _uiState.update { it.copy(confirm = v, error = null) }
+    fun onToggleVisibility()       = _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
 
     fun createPassword() {
         val state = _uiState.value
         when {
-            state.password.length < 4 -> _uiState.update { it.copy(error = "Пароль слишком короткий (мин. 4 символа)") }
-            state.password != state.confirm -> _uiState.update { it.copy(error = "Пароли не совпадают") }
+            state.password.isEmpty() || state.password != state.confirm ->
+                _uiState.update { it.copy(error = R.string.error_passwords_dont_match) }
             else -> viewModelScope.launch {
                 _uiState.update { it.copy(isLoading = true, error = null) }
                 setPassword(state.password)

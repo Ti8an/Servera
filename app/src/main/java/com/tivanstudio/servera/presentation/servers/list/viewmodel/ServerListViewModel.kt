@@ -43,7 +43,8 @@ class ServerListViewModel @Inject constructor(
                             port     = s.port,
                             login    = s.login,
                             isOnline = serverCache.statusOf(s.id),
-                            isChecking = false
+                            isChecking = false,
+                            isCorrupted = s.isCorrupted
                         )
                     }
                 }
@@ -68,7 +69,7 @@ class ServerListViewModel @Inject constructor(
     fun onSearch(q: String) = _uiState.update { it.copy(searchQuery = q) }
 
     fun checkOne(id: Long) {
-        if (_uiState.value.servers.any { it.id == id && it.isChecking }) return
+        if (_uiState.value.servers.any { it.id == id && (it.isChecking || it.isCorrupted) }) return
         viewModelScope.launch {
             setChecking(id, true)
             checkStatus(id)
