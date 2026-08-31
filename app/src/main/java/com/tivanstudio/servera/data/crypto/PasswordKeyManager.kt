@@ -14,10 +14,38 @@ import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.abs
+
+/**
+ * How hard the vault makes an offline password guess. The whole cost is the PBKDF2 work factor,
+ * so a level is nothing but an iteration count -- the wrapped DEK and the data underneath it
+ * stay as they are when the user moves between levels.
+ */
+enum class SecurityLevel(val iterations: Int) {
+    MIN(100_000),
+    MID(210_000),
+    HIGH(600_000);
+
+    companion object {
+        /**
+         * Maps a stored work factor back onto a level. A count no level uses (a vault from an
+         * older build, or one hand-edited) resolves to the nearest one, so the UI always has
+         * something honest to show.
+         */
+        fun fromIterations(iterations: Int): SecurityLevel =
+            entries.firstOrNull { it.iterations == iterations }
+                ?: entries.minByOrNull { abs(it.iterations - iterations) }
+                ?: MIN
+    }
+}
 
 /**
  * Two-level key scheme: password -> KEK (PBKDF2) -> wraps the DEK, and the DEK encrypts the data.
  * There is no recovery phrase, so a forgotten password means a wipe.
+ *
+ * The work factor lives in one place only: `kdf_iterations` in prefs. Every unlock reads it as it
+ * stands and nothing rewrites it on its own -- it moves only when the user picks a different
+ * [SecurityLevel] through [changeSecurityLevel].
  */
 @Singleton
 class PasswordKeyManager @Inject constructor(
@@ -49,14 +77,14 @@ class PasswordKeyManager @Inject constructor(
     }
 
     /**
-     * Creates a fresh DEK and wraps it with a KEK derived from [password].
+     * Creates a fresh DEK and wraps it with a KEK derived from [password], at [DEFAULT_LEVEL].
      * @throws IllegalStateException if a password has already been set.
      */
-    fun initialize(password: CharArray): SecretKey = initialize(password, PBKDF2_ITERATIONS)
+    fun initialize(password: CharArray): SecretKey = initialize(password, DEFAULT_LEVEL.iterations)
 
     /**
-     * Exposed so a test can build a vault at an older work factor and check that the next
-     * unlock upgrades it; production always goes through [initialize].
+     * Exposed so a test can build a vault at an arbitrary work factor; production always goes
+     * through [initialize] or [changeSecurityLevel].
      */
     @VisibleForTesting
     fun initialize(password: CharArray, iterations: Int): SecretKey {
@@ -91,27 +119,39 @@ class PasswordKeyManager @Inject constructor(
     }
 
     /**
-     * Re-wraps the same DEK under a new password, so the stored data stays readable.
-     * Writes the current [PBKDF2_ITERATIONS]: a vault created with an older work factor picks
-     * the new one up here, since [unlock] always reads whatever was stored alongside the salt.
+     * Re-wraps the same DEK under a new password, so the stored data stays readable. The work
+     * factor is deliberately carried over: changing a password is not a place to silently move
+     * the vault to another [SecurityLevel].
      */
     fun rewrap(dek: SecretKey, newPassword: CharArray) {
+        wrap(dek, newPassword, storedIterations())
+    }
+
+    /**
+     * Re-wraps the same DEK at the work factor of [level]. The DEK -- and therefore every
+     * encrypted row -- is untouched; only the KEK, the salt and the stored iteration count move.
+     */
+    fun changeSecurityLevel(dek: SecretKey, password: CharArray, level: SecurityLevel) {
+        wrap(dek, password, level.iterations)
+    }
+
+    private fun wrap(dek: SecretKey, password: CharArray, iterations: Int) {
         val salt = ByteArray(SALT_SIZE).also { SecureRandom().nextBytes(it) }
-        val kek = deriveKek(newPassword, salt, PBKDF2_ITERATIONS)
+        val kek = deriveKek(password, salt, iterations)
         val wrapped = aesGcmEncrypt(kek, dek.encoded)
 
         prefs.edit()
             .putString(KEY_WRAPPED_DEK, wrapped.toBase64())
             .putString(KEY_KDF_SALT, salt.toBase64())
-            .putInt(KEY_KDF_ITERATIONS, PBKDF2_ITERATIONS)
+            .putInt(KEY_KDF_ITERATIONS, iterations)
             .apply()
     }
 
-    /**
-     * The work factor this vault was wrapped with. Older vaults keep whatever
-     * [PBKDF2_ITERATIONS] was current when they were created, which is what [unlock] honours.
-     */
+    /** The work factor this vault was wrapped with, which is what [unlock] honours. */
     fun storedIterations(): Int = prefs.getInt(KEY_KDF_ITERATIONS, PBKDF2_ITERATIONS)
+
+    /** The level [storedIterations] corresponds to, for the settings screen. */
+    fun currentLevel(): SecurityLevel = SecurityLevel.fromIterations(storedIterations())
 
     fun isInitialized(): Boolean =
         prefs.getString(KEY_WRAPPED_DEK, null) != null &&
@@ -140,6 +180,14 @@ class PasswordKeyManager @Inject constructor(
     private fun String.fromBase64(): ByteArray = Base64.decode(this, Base64.NO_WRAP)
 
     companion object {
+        /** What a brand new vault is created at. */
+        val DEFAULT_LEVEL = SecurityLevel.MIN
+
+        /**
+         * Historical work factor, kept only as the fallback for reading `kdf_iterations`: every
+         * build that wrote a V2 vault used exactly this count, so guessing anything else for a
+         * vault whose count somehow went missing would lock it out.
+         */
         const val PBKDF2_ITERATIONS = 210_000
         const val SCHEME_V2 = 2
 

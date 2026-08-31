@@ -8,6 +8,7 @@ import androidx.biometric.BiometricManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.StarRate
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.*
@@ -28,12 +30,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
+import com.tivanstudio.servera.data.crypto.SecurityLevel
 import com.tivanstudio.servera.presentation.components.AppBottomBar
 import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.settings.viewmodel.SettingsUiState
@@ -92,11 +97,27 @@ fun SettingsScreen(
         onToggleDarkTheme = viewModel::toggleDarkTheme,
         onToggleSaveCommandsAlways = viewModel::toggleSaveCommandsAlways,
         onToggleSaveResultInHistory = viewModel::toggleSaveResultInHistory,
+        onToggleEnhanced = viewModel::onToggleEnhanced,
+        onPickLevel = viewModel::onPickLevel,
+        onConfirmDisableEnhanced = viewModel::onConfirmDisableEnhanced,
+        onSubmitLevelPassword = viewModel::onSubmitLevelPassword,
+        onDismissLevelChange = viewModel::onDismissLevelChange,
+        onMessageShown = viewModel::onMessageShown,
         onNavigateToNetworkScan = onNavigateToNetworkScan,
         onNavigateToChangePassword = onNavigateToChangePassword,
         onRateApp = onRateApp
     )
 }
+
+/** The label for a level, shared by the picker and the caption under the switch. */
+@Composable
+private fun levelLabel(level: SecurityLevel): String = stringResource(
+    when (level) {
+        SecurityLevel.MIN -> R.string.level_min
+        SecurityLevel.MID -> R.string.level_mid
+        SecurityLevel.HIGH -> R.string.level_high
+    }
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,11 +131,63 @@ private fun SettingsContent(
     onToggleDarkTheme: (Boolean) -> Unit,
     onToggleSaveCommandsAlways: (Boolean) -> Unit,
     onToggleSaveResultInHistory: (Boolean) -> Unit,
+    onToggleEnhanced: (Boolean) -> Unit,
+    onPickLevel: (SecurityLevel) -> Unit,
+    onConfirmDisableEnhanced: () -> Unit,
+    onSubmitLevelPassword: (String) -> Unit,
+    onDismissLevelChange: () -> Unit,
+    onMessageShown: () -> Unit,
     onNavigateToNetworkScan: () -> Unit,
     onNavigateToChangePassword: () -> Unit,
     onRateApp: () -> Unit
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val message = uiState.messageRes?.let { stringResource(it) }
+
+    LaunchedEffect(message) {
+        if (message != null) {
+            snackbarHostState.showSnackbar(message)
+            onMessageShown()
+        }
+    }
+
+    if (uiState.showLevelPicker) {
+        LevelPickerDialog(
+            currentLevel = uiState.currentLevel,
+            onApply = onPickLevel,
+            onDismiss = onDismissLevelChange
+        )
+    }
+
+    if (uiState.showDisableConfirm) {
+        AlertDialog(
+            onDismissRequest = onDismissLevelChange,
+            title = { Text(stringResource(R.string.enhanced_title)) },
+            text = { Text(stringResource(R.string.enhanced_off_msg)) },
+            confirmButton = {
+                TextButton(onClick = onConfirmDisableEnhanced) {
+                    Text(stringResource(R.string.level_apply))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissLevelChange) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (uiState.pendingLevel != null) {
+        LevelPasswordDialog(
+            isWorking = uiState.isChangingLevel,
+            isError = uiState.levelPasswordError,
+            onSubmit = onSubmitLevelPassword,
+            onDismiss = onDismissLevelChange
+        )
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.Bold) },
@@ -171,6 +244,23 @@ private fun SettingsContent(
             if (!isBiometricAvailable) {
                 Text(
                     stringResource(R.string.biometric_unavailable),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
+
+            SettingSwitchCard(
+                icon = Icons.Default.Shield,
+                title = stringResource(R.string.enhanced_title),
+                subtitle = stringResource(R.string.enhanced_desc),
+                checked = uiState.enhancedEnabled,
+                onCheckedChange = onToggleEnhanced
+            )
+
+            if (uiState.enhancedEnabled) {
+                Text(
+                    levelLabel(uiState.currentLevel),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(start = 4.dp)
@@ -245,6 +335,105 @@ private fun SettingsContent(
             Spacer(Modifier.height(24.dp))
         }
     }
+}
+
+/** Three radio rows plus Apply; picking here only moves on to the password step. */
+@Composable
+private fun LevelPickerDialog(
+    currentLevel: SecurityLevel,
+    onApply: (SecurityLevel) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selected by remember(currentLevel) { mutableStateOf(currentLevel) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.level_pick_title)) },
+        text = {
+            Column {
+                SecurityLevel.entries.forEach { level ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selected = level }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = level == selected, onClick = { selected = level })
+                        Spacer(Modifier.width(8.dp))
+                        Text(levelLabel(level), color = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onApply(selected) }) {
+                Text(stringResource(R.string.level_apply))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        }
+    )
+}
+
+/**
+ * The re-wrap needs the password to unwrap the DEK first. It is a full PBKDF2 derivation each
+ * way, so the dialog locks down and shows a spinner while it runs.
+ */
+@Composable
+private fun LevelPasswordDialog(
+    isWorking: Boolean,
+    isError: Boolean,
+    onSubmit: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var password by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = { if (!isWorking) onDismiss() },
+        title = { Text(stringResource(R.string.level_pick_title)) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text(stringResource(R.string.level_password_prompt)) },
+                    singleLine = true,
+                    enabled = !isWorking,
+                    isError = isError,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (isError) {
+                    Text(
+                        stringResource(R.string.level_wrong_password),
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+                    )
+                }
+                if (isWorking) {
+                    Spacer(Modifier.height(12.dp))
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSubmit(password) },
+                enabled = !isWorking && password.isNotEmpty()
+            ) {
+                Text(stringResource(R.string.level_apply))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isWorking) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 @Composable
@@ -357,6 +546,12 @@ private fun SettingsContentDarkPreview() {
             onToggleDarkTheme = {},
             onToggleSaveCommandsAlways = {},
             onToggleSaveResultInHistory = {},
+            onToggleEnhanced = {},
+            onPickLevel = {},
+            onConfirmDisableEnhanced = {},
+            onSubmitLevelPassword = {},
+            onDismissLevelChange = {},
+            onMessageShown = {},
             onNavigateToNetworkScan = {},
             onNavigateToChangePassword = {},
             onRateApp = {}
@@ -378,6 +573,12 @@ private fun SettingsContentLightPreview() {
             onToggleDarkTheme = {},
             onToggleSaveCommandsAlways = {},
             onToggleSaveResultInHistory = {},
+            onToggleEnhanced = {},
+            onPickLevel = {},
+            onConfirmDisableEnhanced = {},
+            onSubmitLevelPassword = {},
+            onDismissLevelChange = {},
+            onMessageShown = {},
             onNavigateToNetworkScan = {},
             onNavigateToChangePassword = {},
             onRateApp = {}

@@ -210,4 +210,16 @@
     <string name="crack_days">дни</string>
     <string name="crack_years">годы</string>
     <string name="crack_centuries">века</string>
+    <!-- Enhanced login security -->
+    <string name="enhanced_title">Усиленная защита входа</string>
+    <string name="enhanced_desc">Медленнее вход, выше стойкость к перебору</string>
+    <string name="enhanced_off_msg">Отключить усиленную защиту? Вход станет быстрее, но менее стойким к перебору.</string>
+    <string name="level_pick_title">Уровень защиты</string>
+    <string name="level_min">Минимальный (~0,4с)</string>
+    <string name="level_mid">Средний (~0,7с)</string>
+    <string name="level_high">Высокий (~2с)</string>
+    <string name="level_password_prompt">Введите пароль для применения</string>
+    <string name="level_wrong_password">Неверный пароль</string>
+    <string name="level_apply">Применить</string>
+    <string name="level_changed">Уровень защиты обновлён</string>
 </resources>

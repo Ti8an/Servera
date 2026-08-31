@@ -224,4 +224,16 @@
     <string name="crack_days">days</string>
     <string name="crack_years">years</string>
     <string name="crack_centuries">centuries</string>
+    <!-- Enhanced login security -->
+    <string name="enhanced_title">Enhanced login security</string>
+    <string name="enhanced_desc">Slower login, stronger brute-force protection</string>
+    <string name="enhanced_off_msg">Turn off enhanced security? Login will be faster but less resistant to brute force.</string>
+    <string name="level_pick_title">Security level</string>
+    <string name="level_min">Minimal (~0.4s)</string>
+    <string name="level_mid">Medium (~0.7s)</string>
+    <string name="level_high">High (~2s)</string>
+    <string name="level_password_prompt">Enter password to apply</string>
+    <string name="level_wrong_password">Wrong password</string>
+    <string name="level_apply">Apply</string>
+    <string name="level_changed">Security level updated</string>
 </resources>
