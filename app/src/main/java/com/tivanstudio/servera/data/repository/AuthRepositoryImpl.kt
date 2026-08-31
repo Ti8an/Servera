@@ -3,6 +3,7 @@ package com.tivanstudio.servera.data.repository
 import android.content.SharedPreferences
 import com.tivanstudio.servera.data.crypto.MigrationManager
 import com.tivanstudio.servera.data.crypto.PasswordKeyManager
+import com.tivanstudio.servera.data.crypto.SecurityLevel
 import com.tivanstudio.servera.data.db.dao.CommandHistoryDao
 import com.tivanstudio.servera.data.db.dao.PresetDao
 import com.tivanstudio.servera.data.db.dao.PresetGroupDao
@@ -47,16 +48,10 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun verifyPassword(password: String): Boolean {
+        // Login reads the stored work factor and leaves it alone: the level is the user's
+        // choice, made in settings, not something a login quietly rewrites underneath them.
         val dek = withContext(Dispatchers.Default) {
-            passwordKeyManager.unlock(password.toCharArray())?.also { unlocked ->
-                // A vault created before the work factor was lowered stays pinned to the
-                // iteration count baked into it, so every login pays the old price forever.
-                // The password is in hand right now, so re-wrap the same DEK under the
-                // current one. Idempotent: the next unlock sees the counts match.
-                if (passwordKeyManager.storedIterations() != PasswordKeyManager.PBKDF2_ITERATIONS) {
-                    passwordKeyManager.rewrap(unlocked, password.toCharArray())
-                }
-            }
+            passwordKeyManager.unlock(password.toCharArray())
         } ?: return false
 
         session.dek = dek
@@ -108,6 +103,22 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun setBiometricEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_BIOMETRIC_ENABLED, enabled).apply()
     }
+
+    override fun getSecurityLevel(): SecurityLevel = passwordKeyManager.currentLevel()
+
+    override fun isEnhancedEnabled(): Boolean = getSecurityLevel() != PasswordKeyManager.DEFAULT_LEVEL
+
+    override suspend fun changeSecurityLevel(level: SecurityLevel, password: String): Result<Unit> =
+        withContext(Dispatchers.Default) {
+            val dek = passwordKeyManager.unlock(password.toCharArray())
+                ?: return@withContext Result.failure(IllegalArgumentException("Wrong password"))
+
+            passwordKeyManager.changeSecurityLevel(dek, password.toCharArray(), level)
+            // Same DEK as before, but the caller may be re-wrapping while locked out of session
+            // state (e.g. after a background kill), so put it back in hand either way.
+            session.dek = dek
+            Result.success(Unit)
+        }
 
     companion object {
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"

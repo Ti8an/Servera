@@ -1,5 +1,7 @@
 package com.tivanstudio.servera.domain.repository
 
+import com.tivanstudio.servera.data.crypto.SecurityLevel
+
 interface AuthRepository {
     /** Initializes the vault: creates the DEK, wraps it with [password] and unlocks the session. */
     suspend fun setPassword(password: String)
@@ -24,4 +26,16 @@ interface AuthRepository {
 
     fun isBiometricEnabled(): Boolean
     suspend fun setBiometricEnabled(enabled: Boolean)
+
+    /** The work factor the vault is currently wrapped at. */
+    fun getSecurityLevel(): SecurityLevel
+
+    /** True while the vault sits above the default level. */
+    fun isEnhancedEnabled(): Boolean
+
+    /**
+     * Re-wraps the DEK at [level]. [password] is needed to unwrap it first, so a wrong one
+     * fails and leaves the vault exactly as it was. Runs two PBKDF2 derivations back to back.
+     */
+    suspend fun changeSecurityLevel(level: SecurityLevel, password: String): Result<Unit>
 }
