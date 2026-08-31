@@ -8,6 +8,7 @@ import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.server.AddServerUseCase
 import com.tivanstudio.servera.domain.usecase.server.UpdateServerUseCase
 import com.tivanstudio.servera.domain.usecase.ssh.TestConnectionUseCase
+import com.tivanstudio.servera.presentation.servers.add.validateHost
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,14 +51,17 @@ class AddServerViewModel @Inject constructor(
                     login      = server.login,
                     password   = server.password,
                     privateKey = server.privateKey ?: "",
-                    timeout    = server.timeout.toString()
+                    timeout    = server.timeout.toString(),
+                    hostErrorRes = validateHost(server.host)
                 )
             }
         }
     }
 
     fun onNameChange(v: String)       = _uiState.update { it.copy(name = v, error = null) }
-    fun onHostChange(v: String)       = _uiState.update { it.copy(host = v, error = null) }
+    fun onHostChange(v: String)       = _uiState.update {
+        it.copy(host = v, error = null, hostErrorRes = validateHost(v))
+    }
     fun onPortChange(v: String)       = _uiState.update { it.copy(port = v, error = null) }
     fun onLoginChange(v: String)      = _uiState.update { it.copy(login = v, error = null) }
     fun onPasswordChange(v: String)   = _uiState.update { it.copy(password = v, error = null) }
@@ -92,6 +96,11 @@ class AddServerViewModel @Inject constructor(
     }
 
     private fun buildServer(state: AddServerUiState): Server? {
+        val hostError = validateHost(state.host)
+        if (hostError != null) {
+            _uiState.update { it.copy(hostErrorRes = hostError) }
+            return null
+        }
         val port = state.port.toIntOrNull()
         if (port == null || port !in 1..65535) {
             _uiState.update { it.copy(error = "Неверный порт (1–65535)") }

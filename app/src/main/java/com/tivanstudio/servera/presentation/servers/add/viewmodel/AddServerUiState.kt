@@ -14,8 +14,12 @@ data class AddServerUiState(
     val isTesting: Boolean = false,
     val testResult: Boolean? = null,
     val error: String? = null,
+    /** Error shown under the host field; null while the host is acceptable. */
+    val hostErrorRes: Int? = null,
     val isEditing: Boolean = false
-)
+) {
+    val isHostValid: Boolean get() = hostErrorRes == null
+}
 
 sealed class AddServerEvent {
     object Saved : AddServerEvent()

@@ -119,6 +119,7 @@
     <!-- Errors -->
     <string name="error_name_required">Укажите название</string>
     <string name="error_host_required">Укажите хост</string>
+    <string name="invalid_ip">Неверный IP-адрес</string>
     <string name="error_invalid_port">Неверный порт (1–65535)</string>
     <string name="error_login_required">Укажите логин</string>
     <string name="error_wrong_password">Неверный пароль</string>
