@@ -84,6 +84,10 @@
     <string name="save_commands_always_setting">Save All Commands</string>
     <string name="save_commands_always_description">Save to history even when connection fails</string>
     <string name="biometric_unavailable">Biometrics not available on this device</string>
+    <string name="biometric_enroll_title">Enable fingerprint login</string>
+    <string name="biometric_enroll_subtitle">Confirm your fingerprint</string>
+    <string name="biometric_enabled_msg">Fingerprint login enabled</string>
+    <string name="biometric_enroll_failed">Couldn\'t enable fingerprint login</string>
     <string name="encryption_label">Encryption</string>
     <string name="section_support">SUPPORT</string>
     <string name="rate_app_title">Rate the app</string>
@@ -117,6 +121,9 @@
     <string name="search_hint">Search…</string>
     <!-- Biometric -->
     <string name="biometric_prompt_title">Authentication</string>
+    <string name="biometric_login_title">Sign in</string>
+    <string name="biometric_login_subtitle">Confirm your fingerprint</string>
+    <string name="biometric_reset_use_password">Fingerprint changed. Please sign in with your password.</string>
     <string name="biometric_prompt_subtitle">Log in using biometrics</string>
     <string name="biometric_cancel">Cancel</string>
     <!-- Dialogs -->

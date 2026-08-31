@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +36,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
@@ -58,10 +61,54 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
+    // STRONG, not WEAK: the BEK is bound to a class-3 biometric, so a face sensor the platform
+    // ranks as weak could never release it and the switch would fail on the prompt.
     val isBiometricAvailable = remember {
         val mgr = BiometricManager.from(context)
-        mgr.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK) ==
+        mgr.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) ==
                 BiometricManager.BIOMETRIC_SUCCESS
+    }
+
+    val enrollTitle    = stringResource(R.string.biometric_enroll_title)
+    val enrollSubtitle = stringResource(R.string.biometric_enroll_subtitle)
+    val enrollCancel   = stringResource(R.string.biometric_cancel)
+
+    LaunchedEffect(uiState.showBiometricPrompt) {
+        val cipher = uiState.pendingBiometricCipher
+        if (!uiState.showBiometricPrompt || cipher == null) return@LaunchedEffect
+
+        val activity = context as? FragmentActivity
+        if (activity == null) {
+            viewModel.onBiometricEnrollError()
+            return@LaunchedEffect
+        }
+
+        val callback = object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                // The cipher out of the result is the one the hardware unlocked; the one we
+                // handed in is still gated and would throw on doFinal.
+                val authenticated = result.cryptoObject?.cipher
+                if (authenticated != null) {
+                    viewModel.onBiometricEnrollSuccess(authenticated)
+                } else {
+                    viewModel.onBiometricEnrollError()
+                }
+            }
+
+            override fun onAuthenticationError(code: Int, msg: CharSequence) {
+                viewModel.onBiometricEnrollError()
+            }
+        }
+
+        val info = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(enrollTitle)
+            .setSubtitle(enrollSubtitle)
+            .setNegativeButtonText(enrollCancel)
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            .build()
+
+        BiometricPrompt(activity, ContextCompat.getMainExecutor(context), callback)
+            .authenticate(info, BiometricPrompt.CryptoObject(cipher))
     }
 
     val rateAppError = stringResource(R.string.rate_app_error)
@@ -93,7 +140,7 @@ fun SettingsScreen(
         onNavigateToServers = onNavigateToServers,
         onNavigateToHistory = onNavigateToHistory,
         onNavigateToPresets = onNavigateToPresets,
-        onToggleBiometric = viewModel::toggleBiometric,
+        onToggleBiometric = viewModel::onBiometricToggle,
         onToggleDarkTheme = viewModel::toggleDarkTheme,
         onToggleSaveCommandsAlways = viewModel::toggleSaveCommandsAlways,
         onToggleSaveResultInHistory = viewModel::toggleSaveResultInHistory,

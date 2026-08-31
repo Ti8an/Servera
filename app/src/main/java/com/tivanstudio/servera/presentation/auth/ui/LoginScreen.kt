@@ -1,6 +1,7 @@
 package com.tivanstudio.servera.presentation.auth.ui
 
 import android.widget.Toast
+import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
@@ -44,9 +45,17 @@ fun LoginScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val biometricTitle    = stringResource(R.string.biometric_prompt_title)
-    val biometricSubtitle = stringResource(R.string.biometric_prompt_subtitle)
+    val biometricTitle    = stringResource(R.string.biometric_login_title)
+    val biometricSubtitle = stringResource(R.string.biometric_login_subtitle)
     val biometricCancel   = stringResource(R.string.biometric_cancel)
+
+    // STRONG only: the BEK is bound to a class-3 biometric, so a sensor the platform ranks as
+    // weak could never release it.
+    val isBiometricAvailable = remember {
+        BiometricManager.from(context).canAuthenticate(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG
+        ) == BiometricManager.BIOMETRIC_SUCCESS
+    }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -60,15 +69,22 @@ fun LoginScreen(
 
     LoginContent(
         uiState = uiState,
+        isBiometricAvailable = isBiometricAvailable,
         onPasswordChange = viewModel::onPasswordChange,
         onTogglePasswordVisibility = viewModel::onTogglePasswordVisibility,
         onLoginClick = viewModel::login,
         onBiometricClick = {
             val activity = context as? FragmentActivity ?: return@LoginContent
+            // Asked for at press time, not at composition: a new enrollment can kill the BEK
+            // while this screen is up, and a null answer hides the button and says so.
+            val cipher = viewModel.getBiometricCipher() ?: return@LoginContent
             val executor = ContextCompat.getMainExecutor(context)
             val callback = object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    viewModel.onBiometricSuccess()
+                    // The cipher out of the result is the one the hardware unlocked; the one we
+                    // handed in is still gated and would throw on doFinal.
+                    val authenticated = result.cryptoObject?.cipher
+                    if (authenticated != null) viewModel.onBiometricSuccess(authenticated)
                 }
                 override fun onAuthenticationError(code: Int, msg: CharSequence) {
                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
@@ -79,8 +95,9 @@ fun LoginScreen(
                 .setTitle(biometricTitle)
                 .setSubtitle(biometricSubtitle)
                 .setNegativeButtonText(biometricCancel)
+                .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
                 .build()
-            prompt.authenticate(info)
+            prompt.authenticate(info, BiometricPrompt.CryptoObject(cipher))
         },
         onNavigateToCreatePassword = viewModel::navigateToCreatePassword,
         onForgotPassword = viewModel::onForgotPassword,
@@ -92,6 +109,7 @@ fun LoginScreen(
 @Composable
 private fun LoginContent(
     uiState: LoginUiState,
+    isBiometricAvailable: Boolean,
     onPasswordChange: (String) -> Unit,
     onTogglePasswordVisibility: () -> Unit,
     onLoginClick: () -> Unit,
@@ -194,7 +212,7 @@ private fun LoginContent(
             Text(stringResource(R.string.login_button), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
         }
 
-        if (uiState.isBiometricEnabled) {
+        if (uiState.isBiometricEnabled && isBiometricAvailable) {
             Spacer(Modifier.height(12.dp))
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.surface)
             Text(stringResource(R.string.or_divider), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
@@ -280,6 +298,7 @@ private fun LoginContentPreview() {
     ServeraTheme {
         LoginContent(
             uiState = LoginUiState(isLoading = false, password = "", isBiometricEnabled = false),
+            isBiometricAvailable = true,
             onPasswordChange = {},
             onTogglePasswordVisibility = {},
             onLoginClick = {},
@@ -298,6 +317,7 @@ private fun LoginContentWithBiometricPreview() {
     ServeraTheme {
         LoginContent(
             uiState = LoginUiState(isLoading = false, password = "secret", isBiometricEnabled = true),
+            isBiometricAvailable = true,
             onPasswordChange = {},
             onTogglePasswordVisibility = {},
             onLoginClick = {},

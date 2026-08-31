@@ -1,6 +1,7 @@
 package com.tivanstudio.servera.data.repository
 
 import android.content.SharedPreferences
+import com.tivanstudio.servera.data.crypto.BiometricKeyManager
 import com.tivanstudio.servera.data.crypto.MigrationManager
 import com.tivanstudio.servera.data.crypto.PasswordKeyManager
 import com.tivanstudio.servera.data.crypto.SecurityLevel
@@ -17,6 +18,7 @@ import com.tivanstudio.servera.di.SessionKeyHolder
 import com.tivanstudio.servera.domain.repository.AuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import javax.crypto.Cipher
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,6 +26,7 @@ import javax.inject.Singleton
 class AuthRepositoryImpl @Inject constructor(
     @AuthPrefs private val prefs: SharedPreferences,
     private val passwordKeyManager: PasswordKeyManager,
+    private val biometricKeyManager: BiometricKeyManager,
     private val migrationManager: MigrationManager,
     private val session: SessionKeyHolder,
     private val serverDao: ServerDao,
@@ -87,6 +90,7 @@ class AuthRepositoryImpl @Inject constructor(
         presetGroupDao.clearAll()
 
         appPreferences.clear()
+        biometricKeyManager.clearBiometric()
         prefs.edit()
             .remove(KEY_BIOMETRIC_ENABLED)
             // Pre-V2 builds stored a password hash here; upgraded installs still carry it.
@@ -97,11 +101,47 @@ class AuthRepositoryImpl @Inject constructor(
         commandResultHolder.clear()
     }
 
+    // The flag alone is not enough: a new fingerprint enrollment invalidates the BEK and takes
+    // the wrapping with it, leaving the flag pointing at a door that no longer exists.
     override fun isBiometricEnabled(): Boolean =
-        prefs.getBoolean(KEY_BIOMETRIC_ENABLED, false)
+        prefs.getBoolean(KEY_BIOMETRIC_ENABLED, false) &&
+                biometricKeyManager.isBiometricWrapPresent()
 
     override suspend fun setBiometricEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_BIOMETRIC_ENABLED, enabled).apply()
+    }
+
+    override fun getBiometricEncryptCipher(): Cipher? {
+        // Nothing to wrap while locked, and generating a BEK here would only orphan it.
+        if (session.dek == null) return null
+        biometricKeyManager.generateBek()
+        return biometricKeyManager.getEncryptCipher()
+    }
+
+    override suspend fun finishEnableBiometric(cipher: Cipher): Result<Unit> = runCatching {
+        val dek = session.dek ?: error("Session is locked")
+        biometricKeyManager.wrapDekWithCipher(dek, cipher)
+        setBiometricEnabled(true)
+    }
+
+    override suspend fun disableBiometric() {
+        biometricKeyManager.clearBiometric()
+        setBiometricEnabled(false)
+    }
+
+    override fun getBiometricDecryptCipher(): Cipher? = biometricKeyManager.getDecryptCipher()
+
+    override suspend fun unlockWithBiometricCipher(cipher: Cipher): Boolean {
+        // One AES-GCM unwrap, not a derivation -- but it is still Keystore work, and the caller
+        // is on Main.
+        val dek = withContext(Dispatchers.Default) {
+            runCatching { biometricKeyManager.unwrapDekWithCipher(cipher) }.getOrNull()
+        } ?: return false
+
+        session.dek = dek
+        // The password path runs this too; biometric unlock is no less of a way in.
+        migrationManager.migrateIfNeeded()
+        return true
     }
 
     override fun getSecurityLevel(): SecurityLevel = passwordKeyManager.currentLevel()

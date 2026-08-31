@@ -8,6 +8,7 @@ import com.tivanstudio.servera.domain.usecase.auth.IsPasswordSetUseCase
 import com.tivanstudio.servera.domain.usecase.auth.ResetVaultUseCase
 import com.tivanstudio.servera.domain.usecase.auth.VerifyPasswordUseCase
 import com.tivanstudio.servera.di.SessionKeyHolder
+import com.tivanstudio.servera.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,16 +17,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.crypto.Cipher
 import javax.inject.Inject
-
-/**
- * TODO(biometrics): biometric login is off while the DEK can only be unwrapped by the
- *  password-derived KEK -- a fingerprint alone cannot open the vault, so letting it through
- *  would leave the session locked and every read would fail. Turn this back on once the DEK
- *  gets a second, biometric-wrapped copy (separate step). The Settings toggle keeps working
- *  and its value is preserved.
- */
-private const val BIOMETRIC_UNLOCK_SUPPORTED = false
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
@@ -33,6 +26,7 @@ class LoginViewModel @Inject constructor(
     private val verifyPassword: VerifyPasswordUseCase,
     private val isBiometricEnabled: IsBiometricEnabledUseCase,
     private val resetVault: ResetVaultUseCase,
+    private val authRepository: AuthRepository,
     private val session: SessionKeyHolder
 ) : ViewModel() {
 
@@ -61,7 +55,7 @@ class LoginViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     isFirstLaunch = !passwordSet,
-                    isBiometricEnabled = isBiometricEnabled() && BIOMETRIC_UNLOCK_SUPPORTED,
+                    isBiometricEnabled = isBiometricEnabled(),
                     isLoading = false
                 )
             }
@@ -89,10 +83,40 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    fun onBiometricSuccess() {
-        // Unreachable while BIOMETRIC_UNLOCK_SUPPORTED is false: the button is hidden.
-        if (!BIOMETRIC_UNLOCK_SUPPORTED) return
-        viewModelScope.launch { _events.send(LoginEvent.NavigateToServers) }
+    /**
+     * The cipher for the prompt's CryptoObject, fetched when the button is pressed rather than
+     * up front -- the BEK can die between opening this screen and reaching for it.
+     *
+     * @return null when the biometric door is gone. That folds the button away and says so,
+     * leaving the password as the way in; the wrapping has already been cleaned up underneath.
+     */
+    fun getBiometricCipher(): Cipher? {
+        val cipher = authRepository.getBiometricDecryptCipher()
+        if (cipher == null) {
+            _uiState.update {
+                it.copy(isBiometricEnabled = false, error = R.string.biometric_reset_use_password)
+            }
+        }
+        return cipher
+    }
+
+    /** [cipher] is the one out of the prompt's result, so the Keystore will let it unwrap. */
+    fun onBiometricSuccess(cipher: Cipher) {
+        viewModelScope.launch {
+            if (authRepository.unlockWithBiometricCipher(cipher)) {
+                _uiState.update { it.copy(isAuthenticated = true, error = null) }
+                _events.send(LoginEvent.NavigateToServers)
+            } else {
+                // Authenticated but the unwrap still failed: the wrapping is unusable, so the
+                // password is the only door left.
+                _uiState.update {
+                    it.copy(
+                        isBiometricEnabled = false,
+                        error = R.string.biometric_reset_use_password
+                    )
+                }
+            }
+        }
     }
 
     /** Only reachable on a genuine first launch, when no vault exists yet. */

@@ -70,6 +70,10 @@
     <string name="section_security">Безопасность</string>
     <string name="section_about">О приложении</string>
     <string name="biometric_unavailable">Биометрия недоступна на этом устройстве</string>
+    <string name="biometric_enroll_title">Включить вход по отпечатку</string>
+    <string name="biometric_enroll_subtitle">Подтвердите отпечаток</string>
+    <string name="biometric_enabled_msg">Вход по отпечатку включён</string>
+    <string name="biometric_enroll_failed">Не удалось включить вход по отпечатку</string>
     <string name="encryption_label">Шифрование</string>
     <string name="section_support">ПОДДЕРЖКА</string>
     <string name="rate_app_title">Оценить приложение</string>
@@ -103,6 +107,9 @@
     <string name="search_hint">Поиск…</string>
     <!-- Biometric -->
     <string name="biometric_prompt_title">Аутентификация</string>
+    <string name="biometric_login_title">Вход</string>
+    <string name="biometric_login_subtitle">Подтвердите отпечаток</string>
+    <string name="biometric_reset_use_password">Отпечаток изменён. Войдите паролём.</string>
     <string name="biometric_prompt_subtitle">Войдите с помощью биометрии</string>
     <string name="biometric_cancel">Отмена</string>
     <!-- Dialogs -->
