@@ -1,6 +1,7 @@
 package com.tivanstudio.servera.presentation.servers.add.ui
 
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -110,7 +111,13 @@ private fun AddServerContent(
             Spacer(Modifier.height(8.dp))
 
             AppTextField(value = uiState.name,  label = stringResource(R.string.server_name_hint),  onValueChange = onNameChange)
-            AppTextField(value = uiState.host,  label = stringResource(R.string.server_host_hint),  onValueChange = onHostChange)
+            AppTextField(
+                value = uiState.host,
+                label = stringResource(R.string.server_host_hint),
+                onValueChange = onHostChange,
+                // An untouched empty field is not a mistake worth flagging yet.
+                errorRes = uiState.hostErrorRes.takeIf { uiState.host.isNotBlank() }
+            )
             AppTextField(
                 value = uiState.port,
                 label = stringResource(R.string.server_port_hint),
@@ -219,7 +226,7 @@ private fun AddServerContent(
                 Button(
                     onClick = onSave,
                     modifier = Modifier.weight(2f),
-                    enabled = !uiState.isLoading && !uiState.isTesting,
+                    enabled = !uiState.isLoading && !uiState.isTesting && uiState.isHostValid,
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                     shape = MaterialTheme.shapes.medium
                 ) {
@@ -241,7 +248,8 @@ private fun AppTextField(
     value: String,
     label: String,
     onValueChange: (String) -> Unit,
-    keyboardType: KeyboardType = KeyboardType.Text
+    keyboardType: KeyboardType = KeyboardType.Text,
+    @StringRes errorRes: Int? = null
 ) {
     OutlinedTextField(
         value = value,
@@ -249,6 +257,8 @@ private fun AppTextField(
         label = { Text(label) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        isError = errorRes != null,
+        supportingText = errorRes?.let { { Text(stringResource(it)) } },
         colors = fieldColors(),
         modifier = Modifier.fillMaxWidth()
     )

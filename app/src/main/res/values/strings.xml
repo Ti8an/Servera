@@ -133,6 +133,7 @@
     <!-- Errors -->
     <string name="error_name_required">Name is required</string>
     <string name="error_host_required">Host is required</string>
+    <string name="invalid_ip">Invalid IP address</string>
     <string name="error_invalid_port">Invalid port (1–65535)</string>
     <string name="error_login_required">Username is required</string>
     <string name="error_wrong_password">Wrong password</string>
