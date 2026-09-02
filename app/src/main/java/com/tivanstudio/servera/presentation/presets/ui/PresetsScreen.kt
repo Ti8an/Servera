@@ -453,16 +453,20 @@ private fun PresetsScreenContentPreview() {
     ServeraTheme {
         PresetsScreenContent(
             uiState = PresetsUiState(
+                // Both blocks number sortOrder from zero, so this ordering only comes out as
+                // Docker, Network, My scripts, System once source outranks sortOrder.
                 groups = listOf(
-                    PresetGroup(1, "Docker", "#1565C0", 0),
-                    PresetGroup(2, "System", "#2E7D32", 1),
-                    PresetGroup(3, "Network", "#AD1457", 2)
+                    PresetGroup(-10, "Docker", "#1565C0", 0, PresetSource.BUILTIN),
+                    PresetGroup(-11, "Network", "#AD1457", 1, PresetSource.BUILTIN),
+                    PresetGroup(1, "My scripts", "#2E7D32", 0, PresetSource.CUSTOM),
+                    PresetGroup(2, "System", "#455A64", 1, PresetSource.CUSTOM)
                 ),
                 presets = listOf(
                     // Built-ins carry negative catalog ids; the users own rows come from Room.
-                    Preset(-1, 1, "Running containers", "docker ps", 0, PresetSource.BUILTIN),
-                    Preset(-2, 1, "Compose logs", "docker compose logs --tail=100", 1, PresetSource.BUILTIN),
-                    Preset(1, 1, "My compose restart", "docker compose restart", 2, PresetSource.CUSTOM),
+                    Preset(-1, -10, "Running containers", "docker ps", 0, PresetSource.BUILTIN),
+                    Preset(-2, -10, "Compose logs", "docker compose logs --tail=100", 1, PresetSource.BUILTIN),
+                    Preset(-3, -11, "Open ports", "ss -tulpn", 0, PresetSource.BUILTIN),
+                    Preset(1, 1, "Deploy", "./deploy.sh", 0, PresetSource.CUSTOM),
                     Preset(2, 2, "Disk free", "df -h", 0, PresetSource.CUSTOM)
                 )
             ),
@@ -489,9 +493,9 @@ private fun PresetsScreenUpdatingPreview() {
     ServeraTheme {
         PresetsScreenContent(
             uiState = PresetsUiState(
-                groups  = listOf(PresetGroup(1, "Docker", "#1565C0", 0)),
+                groups  = listOf(PresetGroup(-10, "Docker", "#1565C0", 0, PresetSource.BUILTIN)),
                 presets = listOf(
-                    Preset(-1, 1, "Running containers", "docker ps", 0, PresetSource.BUILTIN)
+                    Preset(-1, -10, "Running containers", "docker ps", 0, PresetSource.BUILTIN)
                 ),
                 isUpdating = true
             ),
