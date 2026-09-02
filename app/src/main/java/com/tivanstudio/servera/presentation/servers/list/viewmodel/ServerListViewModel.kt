@@ -3,6 +3,8 @@ package com.tivanstudio.servera.presentation.servers.list.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.di.ServerCache
+import com.tivanstudio.servera.domain.analytics.Analytics
+import com.tivanstudio.servera.domain.analytics.AnalyticsEvent
 import com.tivanstudio.servera.domain.usecase.server.CheckServerStatusUseCase
 import com.tivanstudio.servera.domain.usecase.server.DeleteServerUseCase
 import com.tivanstudio.servera.domain.usecase.server.GetServersUseCase
@@ -21,7 +23,8 @@ class ServerListViewModel @Inject constructor(
     private val getServers: GetServersUseCase,
     private val deleteServer: DeleteServerUseCase,
     private val checkStatus: CheckServerStatusUseCase,
-    private val serverCache: ServerCache
+    private val serverCache: ServerCache,
+    private val analytics: Analytics
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ServerListUiState())
@@ -64,7 +67,10 @@ class ServerListViewModel @Inject constructor(
         updateServer(id) { it.copy(isChecking = checking) }
     }
 
-    fun deleteServer(id: Long) = viewModelScope.launch { deleteServer.invoke(id) }
+    fun deleteServer(id: Long) = viewModelScope.launch {
+        deleteServer.invoke(id)
+        analytics.log(AnalyticsEvent.ServerDeleted)
+    }
 
     fun onSearch(q: String) = _uiState.update { it.copy(searchQuery = q) }
 
@@ -74,10 +80,13 @@ class ServerListViewModel @Inject constructor(
             setChecking(id, true)
             checkStatus(id)
                 .onSuccess {
+                    analytics.log(AnalyticsEvent.ServerConnectSuccess)
                     serverCache.putStatus(id, true)
                     updateServer(id) { it.copy(isOnline = true, isChecking = false) }
                 }
                 .onFailure { e ->
+                    // The cause stays out of it: a failure reason can name the host.
+                    analytics.log(AnalyticsEvent.ServerConnectFail)
                     serverCache.putStatus(id, false)
                     updateServer(id) { it.copy(isOnline = false, isChecking = false) }
                     _uiState.update {

@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.data.network.NetworkScanner
+import com.tivanstudio.servera.domain.analytics.Analytics
+import com.tivanstudio.servera.domain.analytics.AnalyticsEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class NetworkScanViewModel @Inject constructor(
-    private val scanner: NetworkScanner
+    private val scanner: NetworkScanner,
+    private val analytics: Analytics
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NetworkScanUiState())
@@ -39,6 +42,8 @@ class NetworkScanViewModel @Inject constructor(
                 subnet     = subnet.base + "0/24"
             )
         }
+
+        analytics.log(AnalyticsEvent.NetworkScanRun)
 
         viewModelScope.launch {
             val devices = scanner.scan { scanned, total ->

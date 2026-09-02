@@ -3,6 +3,8 @@ package com.tivanstudio.servera.presentation.presets.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.R
+import com.tivanstudio.servera.domain.analytics.Analytics
+import com.tivanstudio.servera.domain.analytics.AnalyticsEvent
 import com.tivanstudio.servera.domain.entity.Preset
 import com.tivanstudio.servera.domain.entity.PresetSource
 import com.tivanstudio.servera.domain.usecase.preset.AddPresetUseCase
@@ -27,7 +29,8 @@ class PresetsViewModel @Inject constructor(
     private val addPreset: AddPresetUseCase,
     private val deletePreset: DeletePresetUseCase,
     private val updatePresets: UpdatePresetsUseCase,
-    private val copyBuiltinToCustom: CopyBuiltinToCustomUseCase
+    private val copyBuiltinToCustom: CopyBuiltinToCustomUseCase,
+    private val analytics: Analytics
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PresetsUiState())
@@ -96,6 +99,8 @@ class PresetsViewModel @Inject constructor(
                     sortOrder = sortOrder
                 )
             )
+            // savePreset also serves edits; only a brand new row is a creation.
+            if (state.isNew) analytics.log(AnalyticsEvent.PresetCreated)
             dismissDialog()
         }
     }
@@ -115,8 +120,13 @@ class PresetsViewModel @Inject constructor(
         if (_uiState.value.isUpdating) return
         _uiState.update { it.copy(isUpdating = true, updateMessageRes = null) }
         viewModelScope.launch {
-            val messageRes = updatePresets()
-                .fold({ R.string.presets_updated }, { R.string.presets_update_failed })
+            val messageRes = updatePresets().fold(
+                {
+                    analytics.log(AnalyticsEvent.PresetsUpdated)
+                    R.string.presets_updated
+                },
+                { R.string.presets_update_failed }
+            )
             _uiState.update { it.copy(isUpdating = false, updateMessageRes = messageRes) }
         }
     }
@@ -125,6 +135,7 @@ class PresetsViewModel @Inject constructor(
     fun copyToCustom(preset: Preset) {
         viewModelScope.launch {
             copyBuiltinToCustom(preset)
+            analytics.log(AnalyticsEvent.PresetCopiedToCustom)
             _uiState.update { it.copy(updateMessageRes = R.string.preset_copied) }
         }
     }

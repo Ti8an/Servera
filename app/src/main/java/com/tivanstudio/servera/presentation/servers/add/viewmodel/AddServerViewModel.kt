@@ -3,6 +3,8 @@ package com.tivanstudio.servera.presentation.servers.add.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tivanstudio.servera.domain.analytics.Analytics
+import com.tivanstudio.servera.domain.analytics.AnalyticsEvent
 import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.server.AddServerUseCase
@@ -25,6 +27,7 @@ class AddServerViewModel @Inject constructor(
     private val updateServer: UpdateServerUseCase,
     private val testConnection: TestConnectionUseCase,
     private val serverRepository: ServerRepository,
+    private val analytics: Analytics,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -77,6 +80,8 @@ class AddServerViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
             val outcome: Result<*> = if (state.isEditing) updateServer(server) else addServer(server)
             outcome.onSuccess {
+                // Only a genuinely new server counts; an edit is not an add.
+                if (!state.isEditing) analytics.log(AnalyticsEvent.ServerAdded)
                 _uiState.update { it.copy(isLoading = false) }
                 _events.send(AddServerEvent.Saved)
             }.onFailure { e ->
@@ -91,6 +96,9 @@ class AddServerViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isTesting = true, testResult = null) }
             val ok = testConnection(server).getOrDefault(false)
+            analytics.log(
+                if (ok) AnalyticsEvent.ServerConnectSuccess else AnalyticsEvent.ServerConnectFail
+            )
             _uiState.update { it.copy(isTesting = false, testResult = ok) }
         }
     }

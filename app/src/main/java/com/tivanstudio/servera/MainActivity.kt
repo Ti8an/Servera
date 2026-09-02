@@ -11,6 +11,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation.compose.rememberNavController
 import com.tivanstudio.servera.data.preferences.ThemePreferences
+import com.tivanstudio.servera.domain.analytics.Analytics
 import com.tivanstudio.servera.presentation.navigation.AppNavGraph
 import com.tivanstudio.servera.presentation.theme.ServeraTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -21,6 +22,9 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var themePreferences: ThemePreferences
+
+    @Inject
+    lateinit var analytics: Analytics
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,7 +46,7 @@ class MainActivity : AppCompatActivity() {
             }
             ServeraTheme(darkTheme = isDarkTheme) {
                 val navController = rememberNavController()
-                AppNavGraph(navController = navController)
+                AppNavGraph(navController = navController, analytics = analytics)
             }
         }
     }

@@ -8,6 +8,8 @@ import com.tivanstudio.servera.data.crypto.PasswordKeyManager
 import com.tivanstudio.servera.data.crypto.SecurityLevel
 import com.tivanstudio.servera.data.preferences.AppPreferences
 import com.tivanstudio.servera.data.preferences.ThemePreferences
+import com.tivanstudio.servera.domain.analytics.Analytics
+import com.tivanstudio.servera.domain.analytics.AnalyticsEvent
 import com.tivanstudio.servera.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +26,8 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val themePreferences: ThemePreferences,
-    private val appPreferences: AppPreferences
+    private val appPreferences: AppPreferences,
+    private val analytics: Analytics
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -68,6 +71,7 @@ class SettingsViewModel @Inject constructor(
         if (!enable) {
             viewModelScope.launch {
                 authRepository.disableBiometric()
+                analytics.log(AnalyticsEvent.BiometricDisabled)
                 _uiState.update { it.copy(isBiometricEnabled = false) }
             }
             return
@@ -94,6 +98,7 @@ class SettingsViewModel @Inject constructor(
     fun onBiometricEnrollSuccess(cipher: Cipher) {
         viewModelScope.launch {
             val result = authRepository.finishEnableBiometric(cipher)
+            if (result.isSuccess) analytics.log(AnalyticsEvent.BiometricEnabled)
             _uiState.update {
                 it.copy(
                     showBiometricPrompt = false,
@@ -161,6 +166,9 @@ class SettingsViewModel @Inject constructor(
             _uiState.update { it.copy(isChangingLevel = true, levelPasswordError = false) }
 
             val result = authRepository.changeSecurityLevel(level, password)
+            if (result.isSuccess) {
+                analytics.log(AnalyticsEvent.SecurityLevelChanged(level.toAnalyticsLevel()))
+            }
 
             _uiState.update {
                 if (result.isSuccess) {
@@ -196,3 +204,14 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(messageRes = null) }
     }
 }
+
+/**
+ * Maps the KDF work factor onto the reportable mode. Kept here rather than on [SecurityLevel]
+ * itself so the crypto enum stays free of anything analytics-shaped.
+ */
+private fun SecurityLevel.toAnalyticsLevel(): AnalyticsEvent.SecurityLevelChanged.Level =
+    when (this) {
+        SecurityLevel.MIN  -> AnalyticsEvent.SecurityLevelChanged.Level.MIN
+        SecurityLevel.MID  -> AnalyticsEvent.SecurityLevelChanged.Level.MID
+        SecurityLevel.HIGH -> AnalyticsEvent.SecurityLevelChanged.Level.HIGH
+    }

@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.data.preferences.AppPreferences
 import com.tivanstudio.servera.di.CommandResultHolder
 import com.tivanstudio.servera.di.ServerCache
+import com.tivanstudio.servera.domain.analytics.Analytics
+import com.tivanstudio.servera.domain.analytics.AnalyticsEvent
 import com.tivanstudio.servera.domain.entity.Preset
 import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.entity.QuickCommand
@@ -42,6 +44,7 @@ class ConsoleViewModel @Inject constructor(
     private val resultHolder: CommandResultHolder,
     private val serverCache: ServerCache,
     private val appPreferences: AppPreferences,
+    private val analytics: Analytics,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -180,6 +183,10 @@ class ConsoleViewModel @Inject constructor(
         if (_uiState.value.runStates[cmd.id] is CommandRunState.Running) return
         viewModelScope.launch {
             setRunState(cmd.id, CommandRunState.Running)
+            // Every run counts once; the second event marks that it came off the attached strip
+            // rather than the free-form Execute screen.
+            analytics.log(AnalyticsEvent.CommandRun)
+            analytics.log(AnalyticsEvent.PresetUsed)
             executeCommand(
                 server,
                 cmd.command,

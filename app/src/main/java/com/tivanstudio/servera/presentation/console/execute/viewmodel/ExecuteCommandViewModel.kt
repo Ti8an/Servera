@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.data.preferences.AppPreferences
 import com.tivanstudio.servera.di.CommandResultHolder
+import com.tivanstudio.servera.domain.analytics.Analytics
+import com.tivanstudio.servera.domain.analytics.AnalyticsEvent
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.ssh.ExecuteCommandUseCase
 import com.tivanstudio.servera.presentation.common.toSshErrorRes
@@ -25,6 +27,7 @@ class ExecuteCommandViewModel @Inject constructor(
     private val serverRepository: ServerRepository,
     private val resultHolder: CommandResultHolder,
     private val appPreferences: AppPreferences,
+    private val analytics: Analytics,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -52,6 +55,7 @@ class ExecuteCommandViewModel @Inject constructor(
                 }
                 return@launch
             }
+            analytics.log(AnalyticsEvent.CommandRun)
             executeCommand(
                 server,
                 cmd,
