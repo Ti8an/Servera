@@ -7,5 +7,6 @@ import com.tivanstudio.servera.domain.entity.ServerInfo
 interface SshClient {
     suspend fun execute(server: Server, command: String): CommandResult
     suspend fun testConnection(server: Server): Boolean
+    suspend fun checkConnection(server: Server): Result<Unit>
     suspend fun fetchServerInfo(server: Server): ServerInfo
 }

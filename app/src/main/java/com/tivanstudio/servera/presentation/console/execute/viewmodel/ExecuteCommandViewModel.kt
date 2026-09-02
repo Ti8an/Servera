@@ -3,9 +3,12 @@ package com.tivanstudio.servera.presentation.console.execute.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tivanstudio.servera.R
+import com.tivanstudio.servera.data.preferences.AppPreferences
 import com.tivanstudio.servera.di.CommandResultHolder
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.ssh.ExecuteCommandUseCase
+import com.tivanstudio.servera.presentation.common.toSshErrorRes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +24,7 @@ class ExecuteCommandViewModel @Inject constructor(
     private val executeCommand: ExecuteCommandUseCase,
     private val serverRepository: ServerRepository,
     private val resultHolder: CommandResultHolder,
+    private val appPreferences: AppPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -32,7 +36,7 @@ class ExecuteCommandViewModel @Inject constructor(
     private val _events = Channel<ExecuteCommandEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
-    fun onCommandChange(value: String) = _uiState.update { it.copy(command = value, error = null) }
+    fun onCommandChange(value: String) = _uiState.update { it.copy(command = value, errorRes = null) }
 
     fun setCommand(cmd: String) = _uiState.update { it.copy(command = cmd) }
 
@@ -40,21 +44,34 @@ class ExecuteCommandViewModel @Inject constructor(
         val cmd = _uiState.value.command.trim()
         if (cmd.isBlank()) return
         viewModelScope.launch {
-            _uiState.update { it.copy(isExecuting = true, error = null) }
+            _uiState.update { it.copy(isExecuting = true, errorRes = null) }
             val server = serverRepository.getServerById(serverId)
             if (server == null) {
-                _uiState.update { it.copy(isExecuting = false, error = "Сервер не найден") }
+                _uiState.update {
+                    it.copy(isExecuting = false, errorRes = R.string.error_server_not_found)
+                }
                 return@launch
             }
-            executeCommand(server, cmd)
+            executeCommand(
+                server,
+                cmd,
+                saveOnFailure = appPreferences.isSaveCommandsAlways.value,
+                saveResult    = appPreferences.saveResultInHistory.value
+            )
                 .onSuccess { result ->
-                    resultHolder.result   = result
-                    resultHolder.serverId = serverId
+                    resultHolder.result      = result
+                    resultHolder.serverId    = serverId
+                    resultHolder.serverName  = server.name
+                    resultHolder.serverHost  = server.host
+                    resultHolder.groupName   = null
+                    resultHolder.command     = result.command
+                    resultHolder.exitCode    = result.exitCode
+                    resultHolder.outputSaved = true
                     _uiState.update { it.copy(isExecuting = false) }
                     _events.send(ExecuteCommandEvent.NavigateToResult(result))
                 }
                 .onFailure { e ->
-                    _uiState.update { it.copy(isExecuting = false, error = e.message ?: "Ошибка выполнения") }
+                    _uiState.update { it.copy(isExecuting = false, errorRes = e.toSshErrorRes()) }
                 }
         }
     }

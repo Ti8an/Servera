@@ -1,0 +1,233 @@
+<resources>
+    <string name="app_name">Servera</string>
+    <!-- Login -->
+    <string name="login_title">Управление удалённым сервером</string>
+    <string name="login_password_hint">Пароль</string>
+    <string name="login_button">Войти</string>
+    <string name="login_biometric_button">Войти по биометрии</string>
+    <string name="login_first_launch">Первый запуск? Создать пароль</string>
+    <string name="or_divider">или</string>
+    <!-- Create Password -->
+    <string name="create_password_title">Создать пароль</string>
+    <string name="create_password_hint">Новый пароль</string>
+    <string name="create_password_confirm_hint">Подтвердите пароль</string>
+    <string name="create_password_button">Создать</string>
+    <!-- Servers -->
+    <string name="servers_title">Мои серверы</string>
+    <string name="add_server_button">Добавить сервер</string>
+    <string name="empty_servers">Нет серверов.\nДобавьте первый!</string>
+    <!-- Add Server -->
+    <string name="add_server_title">Добавить сервер</string>
+    <string name="edit_server_title">Редактировать сервер</string>
+    <string name="server_name_hint">Название</string>
+    <string name="server_host_hint">Хост / IP</string>
+    <string name="server_port_hint">Порт</string>
+    <string name="server_login_hint">Логин</string>
+    <string name="server_password_hint">Пароль</string>
+    <string name="server_advanced">Дополнительно</string>
+    <string name="server_private_key_hint">Приватный ключ (PEM)</string>
+    <string name="server_timeout_hint">Таймаут (сек)</string>
+    <string name="save_button">Сохранить</string>
+    <string name="run_button">Запустить</string>
+    <string name="test_button">Тест</string>
+    <string name="test_connection">Тест соединения</string>
+    <string name="connection_ok">Соединение успешно</string>
+    <string name="connection_failed">Не удалось подключиться</string>
+    <!-- Console -->
+    <string name="console_tab">Консоль</string>
+    <string name="info_tab">Информация</string>
+    <string name="recent_commands">Последние команды</string>
+    <string name="add_command">Добавить команду</string>
+    <string name="cmd_running">Выполняется…</string>
+    <string name="cmd_exit_code">Код выхода: %1$d</string>
+    <string name="command_label">Команда</string>
+    <!-- Execute -->
+    <string name="execute_title">Выполнить команду</string>
+    <string name="execute_command_hint">Введите команду…</string>
+    <string name="execute_button">Выполнить</string>
+    <string name="executing_label">Выполняется…</string>
+    <string name="example_commands">Примеры команд</string>
+    <!-- Result -->
+    <string name="result_title">Результат</string>
+    <string name="result_repeat">Повторить</string>
+    <string name="result_copy">Скопировать</string>
+    <string name="stdout_label">STDOUT</string>
+    <string name="stderr_label">STDERR</string>
+    <string name="empty_output">(пусто)</string>
+    <string name="exit_code_label">Exit code: %d</string>
+    <string name="duration_label">Время: %d мс</string>
+    <string name="copied">Скопировано</string>
+    <string name="no_data">Нет данных</string>
+    <!-- History -->
+    <string name="history_title">История</string>
+    <string name="empty_history">История пуста</string>
+    <string name="clear_history">Очистить</string>
+    <string name="clear_history_title">Очистить историю?</string>
+    <!-- Settings -->
+    <string name="settings_title">Настройки</string>
+    <string name="biometric_setting">Вход по биометрии</string>
+    <string name="app_version">Версия</string>
+    <string name="section_security">Безопасность</string>
+    <string name="section_about">О приложении</string>
+    <string name="biometric_unavailable">Биометрия недоступна на этом устройстве</string>
+    <string name="biometric_enroll_title">Включить вход по отпечатку</string>
+    <string name="biometric_enroll_subtitle">Подтвердите отпечаток</string>
+    <string name="biometric_enabled_msg">Вход по отпечатку включён</string>
+    <string name="biometric_enroll_failed">Не удалось включить вход по отпечатку</string>
+    <string name="encryption_label">Шифрование</string>
+    <string name="section_support">ПОДДЕРЖКА</string>
+    <string name="rate_app_title">Оценить приложение</string>
+    <string name="rate_app_subtitle">Оставить отзыв в Google Play</string>
+    <string name="rate_app_error">Google Play недоступен</string>
+    <!-- Status -->
+    <string name="status_online">В сети</string>
+    <string name="status_offline">Не в сети</string>
+    <string name="status_checking">Проверка…</string>
+    <string name="check_status">Проверить статус</string>
+    <string name="status_unknown">Не проверен</string>
+    <string name="status_problem_title">Проблема подключения</string>
+    <string name="status_corrupted">Не расшифровывается</string>
+    <string name="server_corrupted_hint">Этот сервер сохранён с другим ключом и больше не открывается. Удалите его и добавьте заново.</string>
+    <string name="ok">OK</string>
+    <string name="info_swipe_hint">Свайпните вниз для загрузки информации</string>
+    <!-- Bottom Nav -->
+    <string name="nav_servers">Серверы</string>
+    <string name="nav_history">История</string>
+    <string name="nav_presets">Команды</string>
+    <string name="nav_settings">Настройки</string>
+    <!-- Server Info -->
+    <string name="info_hostname">Хост</string>
+    <string name="info_os">ОС</string>
+    <string name="info_cpu">Процессор</string>
+    <string name="info_ram_total">ОЗУ всего</string>
+    <string name="info_ram_free">ОЗУ свободно</string>
+    <string name="info_disk">Диск</string>
+    <string name="info_uptime">Аптайм</string>
+    <!-- Search -->
+    <string name="search_hint">Поиск…</string>
+    <!-- Biometric -->
+    <string name="biometric_prompt_title">Аутентификация</string>
+    <string name="biometric_login_title">Вход</string>
+    <string name="biometric_login_subtitle">Подтвердите отпечаток</string>
+    <string name="biometric_reset_use_password">Отпечаток изменён. Войдите паролём.</string>
+    <string name="biometric_prompt_subtitle">Войдите с помощью биометрии</string>
+    <string name="biometric_cancel">Отмена</string>
+    <!-- Dialogs -->
+    <string name="delete_server_title">Удалить сервер?</string>
+    <string name="delete_server_message">Это действие нельзя отменить.</string>
+    <string name="delete_confirm">Удалить</string>
+    <!-- Preset groups -->
+    <string name="groups_title">Группы</string>
+    <string name="group_name">Название группы</string>
+    <string name="group_color">Цвет</string>
+    <string name="group_delete_warning">Пресеты внутри будут удалены</string>
+    <string name="no_groups_hint">Сначала создайте группу</string>
+    <string name="cancel">Отмена</string>
+    <!-- Errors -->
+    <string name="error_name_required">Укажите название</string>
+    <string name="error_host_required">Укажите хост</string>
+    <string name="invalid_ip">Неверный IP-адрес</string>
+    <string name="error_invalid_port">Неверный порт (1–65535)</string>
+    <string name="error_login_required">Укажите логин</string>
+    <string name="error_wrong_password">Неверный пароль</string>
+    <string name="error_passwords_dont_match">Пароли не совпадают</string>
+    <string name="error_password_too_short">Пароль слишком короткий (мин. 4 символа)</string>
+    <!-- Presets -->
+    <string name="presets_title">Пресеты команд</string>
+    <string name="presets_subtitle">Управление и свои команды</string>
+    <string name="preset_builtin">встроенный</string>
+    <string name="preset_category">Категория</string>
+    <string name="preset_label">Название</string>
+    <string name="preset_command">Команда</string>
+    <string name="preset_new_category">Новая категория</string>
+    <string name="presets_picker_open">Выбрать из пресетов</string>
+    <string name="presets_picker_title">Выберите команду</string>
+    <string name="presets_picker_empty">Пресетов пока нет</string>
+    <string name="no_attached_commands">Добавьте команды кнопкой +</string>
+    <string name="add_command_title">Новая команда</string>
+    <string name="edit_command_title">Редактировать команду</string>
+    <string name="command_added">Команда добавлена</string>
+    <string name="mode_from_catalog">Из каталога</string>
+    <string name="mode_own">Своя</string>
+    <string name="select_group">Группа</string>
+    <string name="group_custom">Пользовательская</string>
+    <string name="delete_command_title">Удалить команду?</string>
+    <string name="delete_command_message">Удалить «%1$s»?</string>
+    <string name="command_label_field">Название</string>
+    <string name="common_commands">Общие команды</string>
+    <string name="no_common_commands">Общих команд пока нет</string>
+    <string name="show_output_field">Показывать результат</string>
+    <string name="ssh_error_auth">Ошибка авторизации. Проверьте логин, пароль или ключ.</string>
+    <string name="ssh_error_timeout">Превышено время ожидания.</string>
+    <string name="ssh_error_unreachable">Сервер недоступен.</string>
+    <string name="ssh_error_host">Хост не найден. Проверьте адрес.</string>
+    <string name="ssh_error_unknown">Не удалось подключиться к серверу.</string>
+    <!-- History filters -->
+    <string name="filter_title">Фильтры</string>
+    <string name="filter_server">Сервер</string>
+    <string name="filter_group">Группа</string>
+    <string name="filter_status">Статус</string>
+    <string name="filter_period">Период</string>
+    <string name="filter_search">Поиск по команде</string>
+    <string name="filter_all">Все</string>
+    <string name="filter_status_success">Успех</string>
+    <string name="filter_status_error">Ошибка</string>
+    <string name="filter_period_all">Всё время</string>
+    <string name="filter_period_today">Сегодня</string>
+    <string name="filter_period_week">Неделя</string>
+    <string name="filter_apply">Применить</string>
+    <string name="filter_reset">Сбросить</string>
+    <string name="no_history_for_filter">Нет команд по фильтру</string>
+    <string name="save_result_setting">Сохранять результат в истории</string>
+    <string name="save_result_description">Хранить вывод команд для последующего просмотра</string>
+    <!-- Result details -->
+    <string name="result_server">Сервер</string>
+    <string name="result_ip">IP</string>
+    <string name="result_group">Группа</string>
+    <string name="result_not_saved">Результат не сохранён</string>
+    <!-- Network scanner -->
+    <string name="section_tools">Инструменты</string>
+    <string name="net_scan_title">Сканер сети</string>
+    <string name="net_scan_subtitle">Устройства в вашей сети</string>
+    <string name="net_scan_button">Сканировать</string>
+    <string name="net_no_wifi">Подключитесь к Wi-Fi для сканирования</string>
+    <string name="net_nothing_found">Устройства не найдены</string>
+    <string name="net_self">Это устройство</string>
+    <string name="net_gateway">Шлюз</string>
+    <string name="net_subnet">Подсеть: %1$s</string>
+    <string name="error_server_not_found">Сервер не найден</string>
+    <!-- Change password -->
+    <string name="change_password_title">Сменить пароль</string>
+    <string name="change_password_subtitle">Перешифровать хранилище новым паролем</string>
+    <string name="change_password_old_hint">Текущий пароль</string>
+    <string name="change_password_new_hint">Новый пароль</string>
+    <string name="change_password_confirm_hint">Подтвердите новый пароль</string>
+    <string name="change_password_button">Сменить пароль</string>
+    <string name="change_password_success">Пароль изменён</string>
+    <!-- Vault reset -->
+    <string name="reset_password">Забыли пароль</string>
+    <string name="reset_warning">Все данные будут удалены безвозвратно: серверы, пресеты, прикреплённые команды и история. Восстановления нет — ключ шифрования уничтожается вместе с паролем. После этого нужно будет создать новый пароль.</string>
+    <string name="reset_confirm">Удалить всё</string>
+    <!-- Password strength hint (advisory only) -->
+    <string name="pwd_weak">Слабый</string>
+    <string name="pwd_medium">Средний</string>
+    <string name="pwd_strong">Надёжный</string>
+    <string name="crack_prefix">Примерное время взлома:</string>
+    <string name="crack_instant">мгновенно</string>
+    <string name="crack_hours">часы</string>
+    <string name="crack_days">дни</string>
+    <string name="crack_years">годы</string>
+    <string name="crack_centuries">века</string>
+    <!-- Enhanced login security -->
+    <string name="enhanced_title">Усиленная защита входа</string>
+    <string name="enhanced_desc">Медленнее вход, выше стойкость к перебору</string>
+    <string name="enhanced_off_msg">Отключить усиленную защиту? Вход станет быстрее, но менее стойким к перебору.</string>
+    <string name="level_pick_title">Уровень защиты</string>
+    <string name="level_min">Минимальный (~0,4с)</string>
+    <string name="level_mid">Средний (~0,7с)</string>
+    <string name="level_high">Высокий (~2с)</string>
+    <string name="level_password_prompt">Введите пароль для применения</string>
+    <string name="level_wrong_password">Неверный пароль</string>
+    <string name="level_apply">Применить</string>
+    <string name="level_changed">Уровень защиты обновлён</string>
+</resources>

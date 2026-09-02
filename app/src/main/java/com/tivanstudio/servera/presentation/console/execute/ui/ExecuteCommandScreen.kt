@@ -10,13 +10,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.presentation.console.execute.viewmodel.ExecuteCommandEvent
+import com.tivanstudio.servera.presentation.console.execute.viewmodel.ExecuteCommandUiState
 import com.tivanstudio.servera.presentation.console.execute.viewmodel.ExecuteCommandViewModel
 import com.tivanstudio.servera.presentation.theme.*
 
@@ -42,14 +46,32 @@ fun ExecuteCommandScreen(
         }
     }
 
+    ExecuteCommandContent(
+        uiState = uiState,
+        onCommandChange = viewModel::onCommandChange,
+        onSetCommand = viewModel::setCommand,
+        onExecute = viewModel::execute,
+        onBack = onBack
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExecuteCommandContent(
+    uiState: ExecuteCommandUiState,
+    onCommandChange: (String) -> Unit,
+    onSetCommand: (String) -> Unit,
+    onExecute: () -> Unit,
+    onBack: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Выполнить команду") },
+                title = { Text(stringResource(R.string.execute_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = null) }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { padding ->
@@ -64,9 +86,9 @@ fun ExecuteCommandScreen(
 
             OutlinedTextField(
                 value = uiState.command,
-                onValueChange = viewModel::onCommandChange,
-                label = { Text("Команда") },
-                placeholder = { Text("uname -a", fontFamily = FontFamily.Monospace, color = TextSecondary) },
+                onValueChange = onCommandChange,
+                label = { Text(stringResource(R.string.command_label)) },
+                placeholder = { Text("uname -a", fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 minLines = 4,
                 maxLines = 10,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
@@ -74,26 +96,30 @@ fun ExecuteCommandScreen(
                     fontSize = 14.sp
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor   = Elevated,
-                    unfocusedContainerColor = Elevated,
+                    focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     focusedBorderColor      = PrimaryGreen,
-                    unfocusedBorderColor    = Surface
+                    unfocusedBorderColor    = MaterialTheme.colorScheme.surface
                 ),
                 modifier = Modifier.fillMaxWidth(),
-                isError = uiState.error != null
+                isError = uiState.errorRes != null
             )
 
-            if (uiState.error != null) {
-                Text(uiState.error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            uiState.errorRes?.let { res ->
+                Text(
+                    stringResource(res),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
-            Text("Примеры команд", color = TextSecondary, fontSize = 12.sp)
+            Text(stringResource(R.string.example_commands), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(EXAMPLE_COMMANDS) { cmd ->
                     SuggestionChip(
-                        onClick = { viewModel.setCommand(cmd) },
+                        onClick = { onSetCommand(cmd) },
                         label = { Text(cmd, fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
-                        colors = SuggestionChipDefaults.suggestionChipColors(containerColor = Elevated)
+                        colors = SuggestionChipDefaults.suggestionChipColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     )
                 }
             }
@@ -101,7 +127,7 @@ fun ExecuteCommandScreen(
             Spacer(Modifier.weight(1f))
 
             Button(
-                onClick = viewModel::execute,
+                onClick = onExecute,
                 enabled = !uiState.isExecuting && uiState.command.isNotBlank(),
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
@@ -110,15 +136,43 @@ fun ExecuteCommandScreen(
                 if (uiState.isExecuting) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                     Spacer(Modifier.width(8.dp))
-                    Text("Выполняется…", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
+                    Text(stringResource(R.string.executing_label), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                 } else {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("▶ Выполнить", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
+                    Text(stringResource(R.string.execute_button), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
 
             Spacer(Modifier.height(16.dp))
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ExecuteCommandContentPreview() {
+    ServeraTheme {
+        ExecuteCommandContent(
+            uiState = ExecuteCommandUiState(command = "ls -la /etc"),
+            onCommandChange = {},
+            onSetCommand = {},
+            onExecute = {},
+            onBack = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ExecuteCommandContentExecutingPreview() {
+    ServeraTheme {
+        ExecuteCommandContent(
+            uiState = ExecuteCommandUiState(command = "top -bn1", isExecuting = true),
+            onCommandChange = {},
+            onSetCommand = {},
+            onExecute = {},
+            onBack = {}
+        )
     }
 }

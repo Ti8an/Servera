@@ -4,7 +4,7 @@ import com.tivanstudio.servera.domain.entity.QuickCommand
 import kotlinx.coroutines.flow.Flow
 
 interface QuickCommandRepository {
-    fun getQuickCommands(): Flow<List<QuickCommand>>
-    suspend fun saveQuickCommand(cmd: QuickCommand)
+    fun getQuickCommands(serverId: Long): Flow<List<QuickCommand>>
+    suspend fun saveQuickCommand(cmd: QuickCommand): Long
     suspend fun deleteQuickCommand(id: Long)
 }

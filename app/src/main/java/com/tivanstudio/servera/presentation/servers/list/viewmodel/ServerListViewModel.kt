@@ -2,9 +2,11 @@ package com.tivanstudio.servera.presentation.servers.list.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tivanstudio.servera.di.ServerCache
 import com.tivanstudio.servera.domain.usecase.server.CheckServerStatusUseCase
 import com.tivanstudio.servera.domain.usecase.server.DeleteServerUseCase
 import com.tivanstudio.servera.domain.usecase.server.GetServersUseCase
+import com.tivanstudio.servera.presentation.common.toSshErrorRes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +20,8 @@ import javax.inject.Inject
 class ServerListViewModel @Inject constructor(
     private val getServers: GetServersUseCase,
     private val deleteServer: DeleteServerUseCase,
-    private val checkStatus: CheckServerStatusUseCase
+    private val checkStatus: CheckServerStatusUseCase,
+    private val serverCache: ServerCache
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ServerListUiState())
@@ -39,36 +42,57 @@ class ServerListViewModel @Inject constructor(
                             host     = s.host,
                             port     = s.port,
                             login    = s.login,
-                            isOnline = false,
-                            isChecking = true
+                            isOnline = serverCache.statusOf(s.id),
+                            isChecking = false,
+                            isCorrupted = s.isCorrupted
                         )
                     }
                 }
                 .collect { models ->
                     _uiState.update { it.copy(servers = models, isLoading = false) }
-                    pingAll(models)
                 }
         }
     }
 
-    private fun pingAll(servers: List<ServerUiModel>) {
-        servers.forEach { model ->
-            viewModelScope.launch {
-                val online = checkStatus(model.id)
-                _uiState.update { state ->
-                    state.copy(servers = state.servers.map {
-                        if (it.id == model.id) it.copy(isOnline = online, isChecking = false) else it
-                    })
-                }
-            }
+    private fun updateServer(id: Long, transform: (ServerUiModel) -> ServerUiModel) {
+        _uiState.update { state ->
+            state.copy(servers = state.servers.map { if (it.id == id) transform(it) else it })
         }
+    }
+
+    private fun setChecking(id: Long, checking: Boolean) {
+        updateServer(id) { it.copy(isChecking = checking) }
     }
 
     fun deleteServer(id: Long) = viewModelScope.launch { deleteServer.invoke(id) }
 
     fun onSearch(q: String) = _uiState.update { it.copy(searchQuery = q) }
 
-    fun refreshStatus() {
-        pingAll(_uiState.value.servers)
+    fun checkOne(id: Long) {
+        if (_uiState.value.servers.any { it.id == id && (it.isChecking || it.isCorrupted) }) return
+        viewModelScope.launch {
+            setChecking(id, true)
+            checkStatus(id)
+                .onSuccess {
+                    serverCache.putStatus(id, true)
+                    updateServer(id) { it.copy(isOnline = true, isChecking = false) }
+                }
+                .onFailure { e ->
+                    serverCache.putStatus(id, false)
+                    updateServer(id) { it.copy(isOnline = false, isChecking = false) }
+                    _uiState.update {
+                        it.copy(
+                            statusError = StatusError(
+                                serverId   = id,
+                                messageRes = e.toSshErrorRes()
+                            )
+                        )
+                    }
+                }
+        }
+    }
+
+    fun dismissStatusError() {
+        _uiState.update { it.copy(statusError = null) }
     }
 }

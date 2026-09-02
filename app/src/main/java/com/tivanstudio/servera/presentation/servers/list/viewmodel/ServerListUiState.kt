@@ -4,7 +4,14 @@ data class ServerListUiState(
     val servers: List<ServerUiModel> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null,
-    val searchQuery: String = ""
+    val searchQuery: String = "",
+    val statusError: StatusError? = null
+)
+
+data class StatusError(
+    val serverId: Long,
+    /** String resource describing why the check failed. */
+    val messageRes: Int
 )
 
 data class ServerUiModel(
@@ -13,6 +20,8 @@ data class ServerUiModel(
     val host: String,
     val port: Int,
     val login: String,
-    val isOnline: Boolean = false,
-    val isChecking: Boolean = false
+    val isOnline: Boolean? = null,
+    val isChecking: Boolean = false,
+    /** Secrets could not be decrypted: the row can only be deleted. */
+    val isCorrupted: Boolean = false
 )

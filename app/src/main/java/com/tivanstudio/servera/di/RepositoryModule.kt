@@ -2,10 +2,12 @@ package com.tivanstudio.servera.di
 
 import com.tivanstudio.servera.data.repository.AuthRepositoryImpl
 import com.tivanstudio.servera.data.repository.CommandHistoryRepositoryImpl
+import com.tivanstudio.servera.data.repository.PresetRepositoryImpl
 import com.tivanstudio.servera.data.repository.QuickCommandRepositoryImpl
 import com.tivanstudio.servera.data.repository.ServerRepositoryImpl
 import com.tivanstudio.servera.domain.repository.AuthRepository
 import com.tivanstudio.servera.domain.repository.CommandHistoryRepository
+import com.tivanstudio.servera.domain.repository.PresetRepository
 import com.tivanstudio.servera.domain.repository.QuickCommandRepository
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import dagger.Binds
@@ -33,4 +35,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindQuickCmdRepo(impl: QuickCommandRepositoryImpl): QuickCommandRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPresetRepo(impl: PresetRepositoryImpl): PresetRepository
 }

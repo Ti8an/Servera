@@ -12,19 +12,23 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.tivanstudio.servera.R
+import com.tivanstudio.servera.presentation.auth.PasswordStrength
 import com.tivanstudio.servera.presentation.auth.viewmodel.CreatePasswordEvent
+import com.tivanstudio.servera.presentation.auth.viewmodel.CreatePasswordUiState
 import com.tivanstudio.servera.presentation.auth.viewmodel.CreatePasswordViewModel
-import com.tivanstudio.servera.presentation.theme.Elevated
 import com.tivanstudio.servera.presentation.theme.PrimaryGreen
-import com.tivanstudio.servera.presentation.theme.Surface
-import com.tivanstudio.servera.presentation.theme.TextSecondary
+import com.tivanstudio.servera.presentation.theme.ServeraTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,16 +49,36 @@ fun CreatePasswordScreen(
         }
     }
 
+    CreatePasswordContent(
+        uiState = uiState,
+        onPasswordChange = viewModel::onPasswordChange,
+        onConfirmChange = viewModel::onConfirmChange,
+        onToggleVisibility = viewModel::onToggleVisibility,
+        onCreatePassword = viewModel::createPassword,
+        onBack = onBack
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CreatePasswordContent(
+    uiState: CreatePasswordUiState,
+    onPasswordChange: (String) -> Unit,
+    onConfirmChange: (String) -> Unit,
+    onToggleVisibility: () -> Unit,
+    onCreatePassword: () -> Unit,
+    onBack: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Создать пароль") },
+                title = { Text(stringResource(R.string.create_password_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = null)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { padding ->
@@ -68,44 +92,59 @@ fun CreatePasswordScreen(
         ) {
             OutlinedTextField(
                 value = uiState.password,
-                onValueChange = viewModel::onPasswordChange,
-                label = { Text("Новый пароль") },
+                onValueChange = onPasswordChange,
+                label = { Text(stringResource(R.string.create_password_hint)) },
                 singleLine = true,
                 visualTransformation = if (uiState.isPasswordVisible) VisualTransformation.None
                                        else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 trailingIcon = {
-                    IconButton(onClick = viewModel::onToggleVisibility) {
+                    IconButton(onClick = onToggleVisibility) {
                         Icon(
                             if (uiState.isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                             contentDescription = null,
-                            tint = TextSecondary
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor   = Elevated,
-                    unfocusedContainerColor = Elevated,
+                    focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     focusedBorderColor      = PrimaryGreen,
-                    unfocusedBorderColor    = Surface
+                    unfocusedBorderColor    = MaterialTheme.colorScheme.surface
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(Modifier.height(8.dp))
+
+            if (uiState.password.isNotEmpty()) {
+                PasswordStrengthMeter(strength = uiState.strength)
+                Spacer(Modifier.height(6.dp))
+
+                Text(
+                    text = stringResource(R.string.crack_prefix) + " " +
+                        stringResource(uiState.crackTimeRes),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    modifier = Modifier.align(Alignment.Start).padding(start = 4.dp)
+                )
+            }
 
             Spacer(Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = uiState.confirm,
-                onValueChange = viewModel::onConfirmChange,
-                label = { Text("Подтвердите пароль") },
+                onValueChange = onConfirmChange,
+                label = { Text(stringResource(R.string.create_password_confirm_hint)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor   = Elevated,
-                    unfocusedContainerColor = Elevated,
+                    focusedContainerColor   = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     focusedBorderColor      = PrimaryGreen,
-                    unfocusedBorderColor    = Surface
+                    unfocusedBorderColor    = MaterialTheme.colorScheme.surface
                 ),
                 modifier = Modifier.fillMaxWidth(),
                 isError = uiState.error != null
@@ -113,7 +152,7 @@ fun CreatePasswordScreen(
 
             if (uiState.error != null) {
                 Text(
-                    text = uiState.error!!,
+                    text = stringResource(uiState.error),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.align(Alignment.Start).padding(start = 4.dp, top = 4.dp)
@@ -123,18 +162,59 @@ fun CreatePasswordScreen(
             Spacer(Modifier.height(24.dp))
 
             Button(
-                onClick = viewModel::createPassword,
+                onClick = onCreatePassword,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-                enabled = !uiState.isLoading,
+                enabled = !uiState.isLoading && uiState.canSubmit,
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                 shape = MaterialTheme.shapes.medium
             ) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
                 } else {
-                    Text("Создать", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
+                    Text(stringResource(R.string.create_password_button), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun CreatePasswordContentPreview() {
+    ServeraTheme {
+        CreatePasswordContent(
+            uiState = CreatePasswordUiState(
+                password = "correct-horse7!",
+                confirm = "correct-horse7!",
+                strength = PasswordStrength.STRONG,
+                crackTimeRes = R.string.crack_centuries
+            ),
+            onPasswordChange = {},
+            onConfirmChange = {},
+            onToggleVisibility = {},
+            onCreatePassword = {},
+            onBack = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun CreatePasswordContentErrorPreview() {
+    ServeraTheme {
+        CreatePasswordContent(
+            uiState = CreatePasswordUiState(
+                password = "pass",
+                confirm = "pass2",
+                strength = PasswordStrength.WEAK,
+                crackTimeRes = R.string.crack_instant,
+                error = R.string.error_passwords_dont_match
+            ),
+            onPasswordChange = {},
+            onConfirmChange = {},
+            onToggleVisibility = {},
+            onCreatePassword = {},
+            onBack = {}
+        )
     }
 }

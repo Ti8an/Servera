@@ -2,18 +2,62 @@ package com.tivanstudio.servera.data.ssh
 
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.JSch
+import com.jcraft.jsch.JSchException
 import com.jcraft.jsch.Session
 import com.tivanstudio.servera.domain.entity.CommandResult
 import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.domain.entity.ServerInfo
+import com.tivanstudio.servera.domain.entity.SshErrorType
+import com.tivanstudio.servera.domain.entity.SshException
 import com.tivanstudio.servera.domain.repository.SshClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import javax.inject.Inject
 
 class SshClientImpl @Inject constructor() : SshClient {
 
     private data class ExecResult(val stdout: String, val stderr: String, val exitCode: Int)
+
+    /**
+     * JSch reports nearly everything as [JSchException] with the real reason nested or
+     * only spelled out in the message, so both the cause chain and the text are inspected.
+     */
+    private fun mapSshError(e: Throwable): SshException {
+        if (e is SshException) return e
+
+        // Bounded so a self-referencing cause cannot spin forever.
+        val chain = generateSequence(e) { it.cause }.take(8).toList()
+
+        val typed = chain.firstNotNullOfOrNull { cause ->
+            when (cause) {
+                is UnknownHostException   -> SshErrorType.HOST_NOT_FOUND
+                is SocketTimeoutException -> SshErrorType.TIMEOUT
+                is ConnectException       -> SshErrorType.UNREACHABLE
+                else                      -> null
+            }
+        }
+        if (typed != null) return SshException(typed, e)
+
+        val text = chain.mapNotNull { it.message }.joinToString(" ").lowercase()
+        val type = when {
+            "unknownhostexception" in text || "unknown host" in text -> SshErrorType.HOST_NOT_FOUND
+            "timeout" in text || "timed out" in text                 -> SshErrorType.TIMEOUT
+            "connection refused" in text ||
+                "no route to host" in text ||
+                "network is unreachable" in text                     -> SshErrorType.UNREACHABLE
+            "auth fail" in text ||
+                "auth cancel" in text ||
+                "permission denied" in text ||
+                "publickey" in text ||
+                "password" in text ||
+                "auth" in text                                       -> SshErrorType.AUTH
+            else                                                     -> SshErrorType.UNKNOWN
+        }
+        return SshException(type, e)
+    }
 
     private fun createSession(server: Server): Session {
         val jsch = JSch()
@@ -41,9 +85,10 @@ class SshClientImpl @Inject constructor() : SshClient {
     override suspend fun execute(server: Server, command: String): CommandResult =
         withContext(Dispatchers.IO) {
             val start = System.currentTimeMillis()
-            val session = createSession(server)
+            var session: Session? = null
             try {
-                val result = runOnSession(session, command)
+                val open = createSession(server).also { session = it }
+                val result = runOnSession(open, command)
                 CommandResult(
                     command = command,
                     stdout = result.stdout,
@@ -51,19 +96,26 @@ class SshClientImpl @Inject constructor() : SshClient {
                     exitCode = result.exitCode,
                     durationMs = System.currentTimeMillis() - start
                 )
+            } catch (e: Exception) {
+                throw mapSshError(e)
             } finally {
-                session.disconnect()
+                session?.disconnect()
             }
         }
 
     override suspend fun testConnection(server: Server): Boolean =
         runCatching { execute(server, "echo ok") }.isSuccess
 
+    override suspend fun checkConnection(server: Server): Result<Unit> =
+        runCatching { execute(server, "echo ok"); Unit }
+            .recoverCatching { throw mapSshError(it) }
+
     override suspend fun fetchServerInfo(server: Server): ServerInfo =
         withContext(Dispatchers.IO) {
-            val session = createSession(server)
+            var session: Session? = null
             try {
-                fun run(cmd: String) = runOnSession(session, cmd).stdout.trim()
+                val open = createSession(server).also { session = it }
+                fun run(cmd: String) = runOnSession(open, cmd).stdout.trim()
                 ServerInfo(
                     hostname  = run("hostname"),
                     os        = run("cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2 | tr -d '\"'"),
@@ -73,8 +125,10 @@ class SshClientImpl @Inject constructor() : SshClient {
                     diskUsage = run("df -h / | awk 'NR==2{print \$3\"/\"\$2\" (\"\$5\")\"}'" ),
                     uptime    = run("uptime -p")
                 )
+            } catch (e: Exception) {
+                throw mapSshError(e)
             } finally {
-                session.disconnect()
+                session?.disconnect()
             }
         }
 }

@@ -7,5 +7,9 @@ data class CommandHistory(
     val stdout: String,
     val stderr: String,
     val exitCode: Int,
-    val executedAt: Long
+    val executedAt: Long,
+    /** Snapshot of the group the command belonged to when it ran; null for ad-hoc runs. */
+    val groupName: String? = null,
+    /** Whether stdout/stderr were kept; when false the output fields are empty by design. */
+    val resultSaved: Boolean = false
 )
