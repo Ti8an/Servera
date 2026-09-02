@@ -5,5 +5,6 @@ data class Preset(
     val groupId: Long,
     val label: String,
     val command: String,
-    val sortOrder: Int
+    val sortOrder: Int,
+    val source: PresetSource = PresetSource.CUSTOM
 )

@@ -23,3 +23,6 @@ local.properties
 !.idea/misc.xml
 !.idea/modules.xml
 !.idea/vcs.xml
+
+# Google Services
+google-services.json

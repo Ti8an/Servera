@@ -150,6 +150,11 @@
     <string name="presets_title">Command presets</string>
     <string name="presets_subtitle">Manage and add your own commands</string>
     <string name="preset_builtin">built-in</string>
+    <string name="presets_update">Update presets</string>
+    <string name="presets_updated">Presets updated</string>
+    <string name="presets_update_failed">Update failed</string>
+    <string name="copy_to_custom">Copy to my presets</string>
+    <string name="preset_copied">Copied to your presets</string>
     <string name="preset_category">Category</string>
     <string name="preset_label">Name</string>
     <string name="preset_command">Command</string>

@@ -4,5 +4,6 @@ data class PresetGroup(
     val id: Long = 0,
     val name: String,
     val colorHex: String,
-    val sortOrder: Int
+    val sortOrder: Int,
+    val source: PresetSource = PresetSource.CUSTOM
 )
