@@ -3,6 +3,8 @@ package com.tivanstudio.servera.presentation.auth.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.R
+import com.tivanstudio.servera.domain.analytics.Analytics
+import com.tivanstudio.servera.domain.analytics.AnalyticsEvent
 import com.tivanstudio.servera.domain.usecase.auth.IsBiometricEnabledUseCase
 import com.tivanstudio.servera.domain.usecase.auth.IsPasswordSetUseCase
 import com.tivanstudio.servera.domain.usecase.auth.ResetVaultUseCase
@@ -27,7 +29,8 @@ class LoginViewModel @Inject constructor(
     private val isBiometricEnabled: IsBiometricEnabledUseCase,
     private val resetVault: ResetVaultUseCase,
     private val authRepository: AuthRepository,
-    private val session: SessionKeyHolder
+    private val session: SessionKeyHolder,
+    private val analytics: Analytics
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -75,9 +78,11 @@ class LoginViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
             val ok = verifyPassword(password)
             if (ok) {
+                analytics.log(AnalyticsEvent.LoginPassword)
                 _uiState.update { it.copy(isLoading = false, isAuthenticated = true) }
                 _events.send(LoginEvent.NavigateToServers)
             } else {
+                analytics.log(AnalyticsEvent.LoginFailed)
                 _uiState.update { it.copy(isLoading = false, error = R.string.error_wrong_password) }
             }
         }
@@ -104,6 +109,7 @@ class LoginViewModel @Inject constructor(
     fun onBiometricSuccess(cipher: Cipher) {
         viewModelScope.launch {
             if (authRepository.unlockWithBiometricCipher(cipher)) {
+                analytics.log(AnalyticsEvent.LoginBiometric)
                 _uiState.update { it.copy(isAuthenticated = true, error = null) }
                 _events.send(LoginEvent.NavigateToServers)
             } else {

@@ -20,6 +20,13 @@
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.Servera"
         tools:targetApi="31">
+
+        <!-- Analytics reports anonymous action facts only. The advertising id is not one of
+             them, and Firebase collects it by default, so switch that off explicitly. -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
