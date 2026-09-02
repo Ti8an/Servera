@@ -136,6 +136,11 @@
     <string name="presets_title">Пресеты команд</string>
     <string name="presets_subtitle">Управление и свои команды</string>
     <string name="preset_builtin">встроенный</string>
+    <string name="presets_update">Обновить пресеты</string>
+    <string name="presets_updated">Пресеты обновлены</string>
+    <string name="presets_update_failed">Не удалось обновить</string>
+    <string name="copy_to_custom">Скопировать в свои</string>
+    <string name="preset_copied">Скопировано в ваши пресеты</string>
     <string name="preset_category">Категория</string>
     <string name="preset_label">Название</string>
     <string name="preset_command">Команда</string>

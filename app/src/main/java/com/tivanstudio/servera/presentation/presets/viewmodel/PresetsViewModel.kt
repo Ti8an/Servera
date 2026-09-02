@@ -2,11 +2,15 @@ package com.tivanstudio.servera.presentation.presets.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.Preset
+import com.tivanstudio.servera.domain.entity.PresetSource
 import com.tivanstudio.servera.domain.usecase.preset.AddPresetUseCase
+import com.tivanstudio.servera.domain.usecase.preset.CopyBuiltinToCustomUseCase
 import com.tivanstudio.servera.domain.usecase.preset.DeletePresetUseCase
 import com.tivanstudio.servera.domain.usecase.preset.GetGroupsUseCase
 import com.tivanstudio.servera.domain.usecase.preset.GetPresetsUseCase
+import com.tivanstudio.servera.domain.usecase.preset.UpdatePresetsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +25,9 @@ class PresetsViewModel @Inject constructor(
     private val getPresets: GetPresetsUseCase,
     private val getGroups: GetGroupsUseCase,
     private val addPreset: AddPresetUseCase,
-    private val deletePreset: DeletePresetUseCase
+    private val deletePreset: DeletePresetUseCase,
+    private val updatePresets: UpdatePresetsUseCase,
+    private val copyBuiltinToCustom: CopyBuiltinToCustomUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PresetsUiState())
@@ -58,7 +64,9 @@ class PresetsViewModel @Inject constructor(
         }
     }
 
+    /** Built-ins are read-only: the UI hides the affordance, this is the backstop. */
     fun startEdit(preset: Preset) {
+        if (preset.source == PresetSource.BUILTIN) return
         _uiState.update { it.copy(editing = preset, isNew = false) }
     }
 
@@ -93,6 +101,35 @@ class PresetsViewModel @Inject constructor(
     }
 
     fun deletePreset(id: Long) {
+        // Built-in rows carry catalog-derived ids that no Room row owns; deleting one would be a
+        // silent no-op, so refuse it outright.
+        if (_uiState.value.presets.any { it.id == id && it.source == PresetSource.BUILTIN }) return
         viewModelScope.launch { deletePreset.invoke(id) }
+    }
+
+    /**
+     * Pulls a fresh built-in catalog from Remote Config. The list itself refreshes through the
+     * repository's catalogRevision flow, so this only has to report the outcome.
+     */
+    fun refresh() {
+        if (_uiState.value.isUpdating) return
+        _uiState.update { it.copy(isUpdating = true, updateMessageRes = null) }
+        viewModelScope.launch {
+            val messageRes = updatePresets()
+                .fold({ R.string.presets_updated }, { R.string.presets_update_failed })
+            _uiState.update { it.copy(isUpdating = false, updateMessageRes = messageRes) }
+        }
+    }
+
+    /** Forks a built-in preset into an editable copy of the user's own. */
+    fun copyToCustom(preset: Preset) {
+        viewModelScope.launch {
+            copyBuiltinToCustom(preset)
+            _uiState.update { it.copy(updateMessageRes = R.string.preset_copied) }
+        }
+    }
+
+    fun clearMessage() {
+        _uiState.update { it.copy(updateMessageRes = null) }
     }
 }

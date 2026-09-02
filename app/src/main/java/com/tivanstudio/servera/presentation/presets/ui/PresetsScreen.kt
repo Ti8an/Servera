@@ -9,7 +9,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.Preset
 import com.tivanstudio.servera.domain.entity.PresetGroup
+import com.tivanstudio.servera.domain.entity.PresetSource
 import com.tivanstudio.servera.presentation.components.AppBottomBar
 import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsUiState
@@ -53,6 +56,9 @@ fun PresetsScreen(
         onAdd           = viewModel::startAdd,
         onEdit          = viewModel::startEdit,
         onDelete        = viewModel::deletePreset,
+        onRefresh       = viewModel::refresh,
+        onCopyToCustom  = viewModel::copyToCustom,
+        onClearMessage  = viewModel::clearMessage,
         onDismissDialog = viewModel::dismissDialog,
         onSave          = viewModel::savePreset
     )
@@ -69,10 +75,23 @@ private fun PresetsScreenContent(
     onAdd: () -> Unit,
     onEdit: (Preset) -> Unit,
     onDelete: (Long) -> Unit,
+    onRefresh: () -> Unit,
+    onCopyToCustom: (Preset) -> Unit,
+    onClearMessage: () -> Unit,
     onDismissDialog: () -> Unit,
     onSave: (groupId: Long, label: String, command: String) -> Unit
 ) {
     val hasGroups = uiState.groups.isNotEmpty()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val message = uiState.updateMessageRes?.let { stringResource(it) }
+
+    LaunchedEffect(message) {
+        if (message != null) {
+            snackbarHostState.showSnackbar(message)
+            onClearMessage()
+        }
+    }
 
     if (uiState.editing != null) {
         PresetDialog(
@@ -85,12 +104,27 @@ private fun PresetsScreenContent(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
                     Text(stringResource(R.string.presets_title), fontWeight = FontWeight.Bold)
                 },
                 actions = {
+                    IconButton(onClick = onRefresh, enabled = !uiState.isUpdating) {
+                        if (uiState.isUpdating) {
+                            CircularProgressIndicator(
+                                modifier    = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color       = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = stringResource(R.string.presets_update)
+                            )
+                        }
+                    }
                     IconButton(onClick = onNavigateToGroups) {
                         Icon(
                             Icons.Default.Category,
@@ -154,10 +188,11 @@ private fun PresetsScreenContent(
 
                 items(presets, key = { it.id }) { preset ->
                     PresetRow(
-                        preset   = preset,
-                        group    = group,
-                        onEdit   = { onEdit(preset) },
-                        onDelete = { onDelete(preset.id) }
+                        preset         = preset,
+                        group          = group,
+                        onEdit         = { onEdit(preset) },
+                        onDelete       = { onDelete(preset.id) },
+                        onCopyToCustom = { onCopyToCustom(preset) }
                     )
                 }
             }
@@ -219,9 +254,60 @@ private fun GroupHeader(group: PresetGroup) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Built-ins come from the Remote Config catalog and have no Room row behind them, so they get a
+ * read-only card with a copy-into-my-presets action instead of edit and delete.
+ */
 @Composable
 private fun PresetRow(
+    preset: Preset,
+    group: PresetGroup,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onCopyToCustom: () -> Unit
+) {
+    when (preset.source) {
+        PresetSource.BUILTIN -> BuiltinPresetRow(
+            preset         = preset,
+            group          = group,
+            onCopyToCustom = onCopyToCustom
+        )
+        PresetSource.CUSTOM -> CustomPresetRow(
+            preset   = preset,
+            group    = group,
+            onEdit   = onEdit,
+            onDelete = onDelete
+        )
+    }
+}
+
+@Composable
+private fun BuiltinPresetRow(
+    preset: Preset,
+    group: PresetGroup,
+    onCopyToCustom: () -> Unit
+) {
+    Card(
+        colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape    = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        PresetCardBody(preset = preset, group = group) {
+            IconButton(onClick = onCopyToCustom) {
+                Icon(
+                    Icons.Default.ContentCopy,
+                    contentDescription = stringResource(R.string.copy_to_custom),
+                    tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CustomPresetRow(
     preset: Preset,
     group: PresetGroup,
     onEdit: () -> Unit,
@@ -269,32 +355,7 @@ private fun PresetRow(
             shape    = MaterialTheme.shapes.medium,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                modifier          = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text       = preset.label,
-                        fontWeight = FontWeight.Medium,
-                        fontSize   = 14.sp,
-                        maxLines   = 1,
-                        overflow   = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text       = preset.command,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize   = 12.sp,
-                        color      = MaterialTheme.colorScheme.onSurface,
-                        maxLines   = 2,
-                        overflow   = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(Modifier.width(8.dp))
-
-                GroupChip(group = group)
-
+            PresetCardBody(preset = preset, group = group) {
                 IconButton(onClick = onDelete) {
                     Icon(
                         Icons.Default.Delete,
@@ -306,6 +367,66 @@ private fun PresetRow(
             }
         }
     }
+}
+
+/** Label, command and group chip — the part both row flavours share; [action] closes the row. */
+@Composable
+private fun PresetCardBody(
+    preset: Preset,
+    group: PresetGroup,
+    action: @Composable () -> Unit
+) {
+    Row(
+        modifier          = Modifier.padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text       = preset.label,
+                    fontWeight = FontWeight.Medium,
+                    fontSize   = 14.sp,
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis,
+                    modifier   = Modifier.weight(1f, fill = false)
+                )
+                if (preset.source == PresetSource.BUILTIN) {
+                    Spacer(Modifier.width(6.dp))
+                    BuiltinBadge()
+                }
+            }
+            Text(
+                text       = preset.command,
+                fontFamily = FontFamily.Monospace,
+                fontSize   = 12.sp,
+                color      = MaterialTheme.colorScheme.onSurface,
+                maxLines   = 2,
+                overflow   = TextOverflow.Ellipsis
+            )
+        }
+
+        Spacer(Modifier.width(8.dp))
+
+        GroupChip(group = group)
+
+        action()
+    }
+}
+
+@Composable
+private fun BuiltinBadge() {
+    Text(
+        text     = stringResource(R.string.preset_builtin),
+        style    = MaterialTheme.typography.labelSmall,
+        color    = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        modifier = Modifier
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = MaterialTheme.shapes.small
+            )
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    )
 }
 
 @Composable
@@ -338,9 +459,11 @@ private fun PresetsScreenContentPreview() {
                     PresetGroup(3, "Network", "#AD1457", 2)
                 ),
                 presets = listOf(
-                    Preset(0, 1, "Running containers", "docker ps", 0),
-                    Preset(1, 1, "Compose logs", "docker compose logs --tail=100", 1),
-                    Preset(2, 2, "Disk free", "df -h", 0)
+                    // Built-ins carry negative catalog ids; the users own rows come from Room.
+                    Preset(-1, 1, "Running containers", "docker ps", 0, PresetSource.BUILTIN),
+                    Preset(-2, 1, "Compose logs", "docker compose logs --tail=100", 1, PresetSource.BUILTIN),
+                    Preset(1, 1, "My compose restart", "docker compose restart", 2, PresetSource.CUSTOM),
+                    Preset(2, 2, "Disk free", "df -h", 0, PresetSource.CUSTOM)
                 )
             ),
             onNavigateToServers  = {},
@@ -350,6 +473,38 @@ private fun PresetsScreenContentPreview() {
             onAdd           = {},
             onEdit          = {},
             onDelete        = {},
+            onRefresh       = {},
+            onCopyToCustom  = {},
+            onClearMessage  = {},
+            onDismissDialog = {},
+            onSave          = { _, _, _ -> }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Preview(showBackground = true)
+@Composable
+private fun PresetsScreenUpdatingPreview() {
+    ServeraTheme {
+        PresetsScreenContent(
+            uiState = PresetsUiState(
+                groups  = listOf(PresetGroup(1, "Docker", "#1565C0", 0)),
+                presets = listOf(
+                    Preset(-1, 1, "Running containers", "docker ps", 0, PresetSource.BUILTIN)
+                ),
+                isUpdating = true
+            ),
+            onNavigateToServers  = {},
+            onNavigateToHistory  = {},
+            onNavigateToSettings = {},
+            onNavigateToGroups   = {},
+            onAdd           = {},
+            onEdit          = {},
+            onDelete        = {},
+            onRefresh       = {},
+            onCopyToCustom  = {},
+            onClearMessage  = {},
             onDismissDialog = {},
             onSave          = { _, _, _ -> }
         )
@@ -370,6 +525,9 @@ private fun PresetsScreenNoGroupsPreview() {
             onAdd           = {},
             onEdit          = {},
             onDelete        = {},
+            onRefresh       = {},
+            onCopyToCustom  = {},
+            onClearMessage  = {},
             onDismissDialog = {},
             onSave          = { _, _, _ -> }
         )
