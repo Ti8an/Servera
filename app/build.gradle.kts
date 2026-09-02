@@ -104,9 +104,10 @@ dependencies {
     // Serialization
     implementation(libs.kotlinx.serialization.json)
 
-    // Firebase (Remote Config — built-in preset catalog)
+    // Firebase (Remote Config — built-in preset catalog; Analytics — anonymous usage events)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.config)
+    implementation(libs.firebase.analytics)
 
     // SSH (JSch)
     implementation(libs.jsch)
