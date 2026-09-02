@@ -7,6 +7,13 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// The Firebase plugin hard-fails the build when app/google-services.json is absent.
+// Remote Config degrades to an empty built-in catalog in that case, so the app still
+// builds and runs; drop the file in and the plugin wires itself up on the next sync.
+if (file("google-services.json").exists()) {
+    apply(plugin = libs.plugins.google.services.get().pluginId)
+}
+
 android {
     namespace = "com.tivanstudio.servera"
     compileSdk = 36
@@ -96,6 +103,10 @@ dependencies {
 
     // Serialization
     implementation(libs.kotlinx.serialization.json)
+
+    // Firebase (Remote Config — built-in preset catalog)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.config)
 
     // SSH (JSch)
     implementation(libs.jsch)
