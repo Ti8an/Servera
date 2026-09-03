@@ -57,7 +57,7 @@ class PresetsViewModel @Inject constructor(
             it.copy(
                 editing = Preset(
                     id        = 0,
-                    groupId   = groupId,
+                    groupId   = resolveTargetGroupId(groupId) ?: NO_GROUP,
                     label     = "",
                     command   = "",
                     sortOrder = 0
@@ -76,28 +76,35 @@ class PresetsViewModel @Inject constructor(
     /**
      * Opens the dialog on a fresh copy of a built-in so it can be adjusted before it becomes one
      * of the user's own presets.
-     *
-     * The copy also has to change groups: built-in groups come from the catalog and have no row in
-     * `preset_groups`, and `presets.groupId` is a foreign key onto it. Reuse the user's group of
-     * the same name when there is one, the same rule the repository copy follows; failing that,
-     * leave the group unresolved so the dialog makes them pick one.
      */
     fun startCopy(preset: Preset) {
-        val state = _uiState.value
-        val originName = state.groups.firstOrNull { it.id == preset.groupId }?.name
-        val target = state.groups.firstOrNull {
-            it.source == PresetSource.CUSTOM && it.name.equals(originName, ignoreCase = true)
-        }
         _uiState.update {
             it.copy(
                 editing = preset.copy(
                     id        = 0,
-                    groupId   = target?.id ?: preset.groupId,
+                    groupId   = resolveTargetGroupId(preset.groupId) ?: NO_GROUP,
                     sortOrder = 0
                 ),
                 isNew = true
             )
         }
+    }
+
+    /**
+     * The group a preset started in, translated into one it can actually be saved to.
+     *
+     * Built-in groups are catalog entries with no row in `preset_groups`, and `presets.groupId` is
+     * a foreign key onto it, so one can never be the target: fall back to the user's group of the
+     * same name, the rule the repository copy already follows. Null when there is nothing to fall
+     * back to, which leaves the dialog to ask for a group.
+     */
+    private fun resolveTargetGroupId(sourceGroupId: Long): Long? {
+        val groups = _uiState.value.groups
+        val source = groups.firstOrNull { it.id == sourceGroupId } ?: return null
+        if (source.source == PresetSource.CUSTOM) return source.id
+        return groups.firstOrNull {
+            it.source == PresetSource.CUSTOM && it.name.equals(source.name, ignoreCase = true)
+        }?.id
     }
 
     fun dismissDialog() {
@@ -169,5 +176,10 @@ class PresetsViewModel @Inject constructor(
 
     fun clearMessage() {
         _uiState.update { it.copy(updateMessageRes = null) }
+    }
+
+    private companion object {
+        /** Room ids start at 1, so zero reads as "no group chosen yet" and matches nothing. */
+        const val NO_GROUP = 0L
     }
 }
