@@ -3,7 +3,6 @@ package com.tivanstudio.servera.presentation.presets.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,18 +20,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,10 +43,10 @@ import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsUiState
 import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsViewModel
 import com.tivanstudio.servera.presentation.theme.*
 
-/** Tiles per row. Bump to 3 and the width maths below follows on its own. */
-private const val PRESET_TILE_COLUMNS = 2
+/** Tiles per row. Change it and the width maths below follows on its own. */
+private const val PRESET_TILE_COLUMNS = 3
 
-private val TileHeight = 120.dp
+private val TileHeight = 84.dp
 private val TileSpacing = 8.dp
 private val ScreenPadding = 16.dp
 
@@ -94,7 +85,7 @@ private fun PresetsScreenContent(
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToGroups: () -> Unit,
-    onAdd: (Long) -> Unit,
+    onAdd: () -> Unit,
     onEdit: (Preset) -> Unit,
     onDelete: (Long) -> Unit,
     onRefresh: () -> Unit,
@@ -169,9 +160,24 @@ private fun PresetsScreenContent(
                 onHistory    = onNavigateToHistory,
                 onSettings   = onNavigateToSettings
             )
-        }
+        },
+        floatingActionButton = {
+            // A preset needs a group to live in — no groups, nothing to add.
+            if (hasGroups) {
+                FloatingActionButton(
+                    onClick        = onAdd,
+                    containerColor = PrimaryGreen
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = stringResource(R.string.presets_title),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+        },
+        floatingActionButtonPosition = FabPosition.End
     ) { padding ->
-        // A preset needs a group to live in — no groups, no grid to add into.
         if (!hasGroups) {
             NoGroupsState(
                 modifier = Modifier
@@ -201,7 +207,6 @@ private fun PresetsScreenContent(
                         group     = group,
                         presets   = presets,
                         tileWidth = tileWidth,
-                        onAdd     = onAdd,
                         onEdit    = onEdit,
                         onDelete  = onDelete,
                         onCopy    = onCopy
@@ -212,14 +217,13 @@ private fun PresetsScreenContent(
     }
 }
 
-/** One group as its name plus a wrapping grid of tiles, the add tile last. */
+/** One group as its name plus a wrapping grid of its presets; an empty group is just the name. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun GroupSection(
     group: PresetGroup,
     presets: List<Preset>,
     tileWidth: Dp,
-    onAdd: (Long) -> Unit,
     onEdit: (Preset) -> Unit,
     onDelete: (Long) -> Unit,
     onCopy: (Preset) -> Unit
@@ -250,12 +254,6 @@ private fun GroupSection(
                     onCopy    = { onCopy(preset) }
                 )
             }
-            // An empty group is just this tile on its own — no separate empty state needed.
-            AddTile(
-                group     = group,
-                tileWidth = tileWidth,
-                onAdd     = { onAdd(group.id) }
-            )
         }
 
         Spacer(Modifier.height(24.dp))
@@ -339,14 +337,14 @@ private fun PresetTile(
             Column(
                 modifier            = Modifier
                     .fillMaxSize()
-                    .padding(12.dp),
+                    .padding(8.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(28.dp)
                             .clip(CircleShape)
                             .background(groupColor.copy(alpha = 0.15f))
                     ) {
@@ -354,7 +352,7 @@ private fun PresetTile(
                             Icons.Default.Terminal,
                             contentDescription = null,
                             tint     = groupColor,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                     Spacer(Modifier.weight(1f))
@@ -363,29 +361,19 @@ private fun PresetTile(
                             Icons.Default.Lock,
                             contentDescription = stringResource(R.string.preset_built_in),
                             tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(12.dp)
                         )
                     }
                 }
 
-                Column {
-                    Text(
-                        text       = preset.label,
-                        fontSize   = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color      = MaterialTheme.colorScheme.onSurface,
-                        maxLines   = 2,
-                        overflow   = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text       = preset.command,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize   = 11.sp,
-                        color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines   = 1,
-                        overflow   = TextOverflow.Ellipsis
-                    )
-                }
+                Text(
+                    text       = preset.label,
+                    fontSize   = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color      = MaterialTheme.colorScheme.onSurface,
+                    maxLines   = 2,
+                    overflow   = TextOverflow.Ellipsis
+                )
             }
         }
 
@@ -410,50 +398,6 @@ private fun PresetTile(
                     menuExpanded = false
                     onDelete()
                 }
-            )
-        }
-    }
-}
-
-/** Closes every grid: a preset tile's footprint, dashed in the group's colour. */
-@Composable
-private fun AddTile(group: PresetGroup, tileWidth: Dp, onAdd: () -> Unit) {
-    val groupColor = group.colorHex.toComposeColor()
-    val dashColor  = groupColor.copy(alpha = 0.4f)
-    val shape      = MaterialTheme.shapes.large
-
-    Card(
-        shape    = shape,
-        colors   = CardDefaults.cardColors(containerColor = Color.Transparent),
-        modifier = Modifier
-            .size(width = tileWidth, height = TileHeight)
-            .drawBehind {
-                // Inset by half the stroke: centred on the bounds, its outer half would fall
-                // outside them and get clipped away.
-                val stroke = 1.dp.toPx()
-                drawRoundRect(
-                    color        = dashColor,
-                    topLeft      = Offset(stroke / 2, stroke / 2),
-                    size         = Size(size.width - stroke, size.height - stroke),
-                    cornerRadius = CornerRadius(shape.topStart.toPx(size, this)),
-                    style = Stroke(
-                        width      = stroke,
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
-                    )
-                )
-            }
-            .clip(shape)
-            .clickable(onClick = onAdd)
-    ) {
-        Box(
-            modifier         = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Default.Add,
-                contentDescription = stringResource(R.string.preset_add_to_group),
-                tint     = groupColor,
-                modifier = Modifier.size(24.dp)
             )
         }
     }

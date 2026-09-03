@@ -143,7 +143,6 @@
     <string name="preset_copied">Скопировано в ваши пресеты</string>
     <string name="preset_edit">Изменить</string>
     <string name="preset_delete">Удалить</string>
-    <string name="preset_add_to_group">Добавить команду</string>
     <string name="preset_built_in">Встроенный пресет</string>
     <string name="preset_category">Категория</string>
     <string name="preset_label">Название</string>

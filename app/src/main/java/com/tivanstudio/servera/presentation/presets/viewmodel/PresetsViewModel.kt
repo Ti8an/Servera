@@ -49,15 +49,21 @@ class PresetsViewModel @Inject constructor(
         }
     }
 
-    /** The add tile sits inside a group's own section, so the caller already knows where it goes. */
-    fun startAdd(groupId: Long) {
+    /**
+     * The FAB belongs to the screen rather than to any one section, so a new preset starts in the
+     * first of the user's own groups. Built-in groups are not candidates: nothing can be saved
+     * into them, and with no group of their own there is nowhere to add.
+     */
+    fun startAdd() {
         val state = _uiState.value
-        if (state.groups.none { it.id == groupId }) return
+        val group = state.groups
+            .filter { it.source == PresetSource.CUSTOM }
+            .minByOrNull { it.sortOrder } ?: return
         _uiState.update {
             it.copy(
                 editing = Preset(
                     id        = 0,
-                    groupId   = resolveTargetGroupId(groupId) ?: NO_GROUP,
+                    groupId   = resolveTargetGroupId(group.id) ?: NO_GROUP,
                     label     = "",
                     command   = "",
                     sortOrder = 0
