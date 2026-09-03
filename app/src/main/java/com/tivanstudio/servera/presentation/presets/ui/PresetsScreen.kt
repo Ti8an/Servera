@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,7 +47,7 @@ import com.tivanstudio.servera.presentation.theme.*
 /** Tiles per row. Change it and the width maths below follows on its own. */
 private const val PRESET_TILE_COLUMNS = 3
 
-private val TileHeight = 84.dp
+private val TileHeight = 92.dp
 private val TileSpacing = 8.dp
 private val ScreenPadding = 16.dp
 
@@ -366,14 +367,28 @@ private fun PresetTile(
                     }
                 }
 
-                Text(
-                    text       = preset.label,
-                    fontSize   = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color      = MaterialTheme.colorScheme.onSurface,
-                    maxLines   = 2,
-                    overflow   = TextOverflow.Ellipsis
-                )
+                // One line each: a label that wrapped would push the command off the tile.
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text       = preset.label,
+                        fontSize   = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color      = MaterialTheme.colorScheme.onSurface,
+                        maxLines   = 1,
+                        overflow   = TextOverflow.Ellipsis
+                    )
+                    // ~15 monospaced characters fit here, so most commands are cut. Ellipsis says
+                    // there is more; a flush cut would just read as a rendering glitch.
+                    Text(
+                        text       = preset.command,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize   = 10.sp,
+                        color      = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        maxLines   = 1,
+                        softWrap   = false,
+                        overflow   = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
 
@@ -426,6 +441,8 @@ private fun PresetsScreenContentPreview() {
                     // Built-ins carry negative catalog ids; the users own rows come from Room.
                     Preset(-1, -10, "Running containers", "docker ps", 0, PresetSource.BUILTIN),
                     Preset(-2, -10, "Compose logs", "docker compose logs --tail=100", 1, PresetSource.BUILTIN),
+                    // Long enough to be cut on any tile width — shows the ellipsis doing its job.
+                    Preset(-4, -10, "Prod logs", "docker compose -f docker-compose.prod.yml logs --tail=200 -f", 2, PresetSource.BUILTIN),
                     Preset(-3, -11, "Open ports", "ss -tulpn", 0, PresetSource.BUILTIN),
                     // Sits next to the built-in above, so the padlock has something to contrast with.
                     Preset(3, -11, "My tunnel", "ssh -D 1080 gateway", 1, PresetSource.CUSTOM),
