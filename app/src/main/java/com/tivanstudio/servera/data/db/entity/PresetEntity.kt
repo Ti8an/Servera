@@ -22,5 +22,6 @@ data class PresetEntity(
     val groupId: Long,
     val label: String,
     val encryptedCommand: String,
-    val sortOrder: Int
+    val sortOrder: Int,
+    val iconKey: String? = null
 )

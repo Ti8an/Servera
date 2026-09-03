@@ -89,7 +89,8 @@ class PresetsViewModel @Inject constructor(
                 editing = preset.copy(
                     id        = 0,
                     groupId   = resolveTargetGroupId(preset.groupId) ?: NO_GROUP,
-                    sortOrder = 0
+                    sortOrder = 0,
+                    iconKey   = null
                 ),
                 isNew = true
             )
@@ -117,7 +118,7 @@ class PresetsViewModel @Inject constructor(
         _uiState.update { it.copy(editing = null, isNew = false) }
     }
 
-    fun savePreset(groupId: Long, label: String, command: String) {
+    fun savePreset(groupId: Long, label: String, command: String, iconKey: String?) {
         val state = _uiState.value
         val editing = state.editing ?: return
         if (label.isBlank() || command.isBlank()) return
@@ -136,7 +137,8 @@ class PresetsViewModel @Inject constructor(
                     groupId   = groupId,
                     label     = label.trim(),
                     command   = command.trim(),
-                    sortOrder = sortOrder
+                    sortOrder = sortOrder,
+                    iconKey   = iconKey
                 )
             )
             // savePreset also serves edits; only a brand new row is a creation.

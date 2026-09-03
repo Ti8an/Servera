@@ -12,7 +12,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -91,7 +90,7 @@ private fun PresetsScreenContent(
     onCopy: (Preset) -> Unit,
     onClearMessage: () -> Unit,
     onDismissDialog: () -> Unit,
-    onSave: (groupId: Long, label: String, command: String) -> Unit
+    onSave: (groupId: Long, label: String, command: String, iconKey: String?) -> Unit
 ) {
     val hasGroups = uiState.groups.isNotEmpty()
 
@@ -336,7 +335,7 @@ private fun PresetTile(
             Box {
                 // Watermark: it runs off the right edge on purpose, and the card's shape clips it.
                 Icon(
-                    Icons.Default.Terminal,
+                    presetIconOf(preset.iconKey),
                     contentDescription = null,
                     tint = groupColor.copy(alpha = 0.10f),
                     modifier = Modifier
@@ -435,15 +434,15 @@ private fun PresetsScreenContentPreview() {
                 ),
                 presets = listOf(
                     // Built-ins carry negative catalog ids; the users own rows come from Room.
-                    Preset(-1, -10, "Running containers", "docker ps", 0, PresetSource.BUILTIN),
-                    Preset(-2, -10, "Compose logs", "docker compose logs --tail=100", 1, PresetSource.BUILTIN),
+                    Preset(-1, -10, "Running containers", "docker ps", 0, PresetSource.BUILTIN, "storage"),
+                    Preset(-2, -10, "Compose logs", "docker compose logs --tail=100", 1, PresetSource.BUILTIN, "cloud"),
                     // Long enough to be cut on any tile width — shows the ellipsis doing its job.
-                    Preset(-4, -10, "Prod logs", "docker compose -f docker-compose.prod.yml logs --tail=200 -f", 2, PresetSource.BUILTIN),
-                    Preset(-3, -11, "Open ports", "ss -tulpn", 0, PresetSource.BUILTIN),
+                    Preset(-4, -10, "Prod logs", "docker compose -f docker-compose.prod.yml logs --tail=200 -f", 2, PresetSource.BUILTIN, "bug"),
+                    Preset(-3, -11, "Open ports", "ss -tulpn", 0, PresetSource.BUILTIN, "speed"),
                     // Sits next to the built-in above, so the padlock has something to contrast with.
-                    Preset(3, -11, "My tunnel", "ssh -D 1080 gateway", 1, PresetSource.CUSTOM),
-                    Preset(1, 1, "Deploy", "./deploy.sh", 0, PresetSource.CUSTOM),
-                    Preset(2, 2, "Disk free", "df -h", 0, PresetSource.CUSTOM)
+                    Preset(3, -11, "My tunnel", "ssh -D 1080 gateway", 1, PresetSource.CUSTOM, "lock"),
+                    Preset(1, 1, "Deploy", "./deploy.sh", 0, PresetSource.CUSTOM, "upload"),
+                    Preset(2, 2, "Disk free", "df -h", 0, PresetSource.CUSTOM, "memory")
                 )
             ),
             onNavigateToServers  = {},
@@ -457,7 +456,7 @@ private fun PresetsScreenContentPreview() {
             onCopy          = {},
             onClearMessage  = {},
             onDismissDialog = {},
-            onSave          = { _, _, _ -> }
+            onSave          = { _, _, _, _ -> }
         )
     }
 }
@@ -471,7 +470,7 @@ private fun PresetsScreenUpdatingPreview() {
             uiState = PresetsUiState(
                 groups  = listOf(PresetGroup(-10, "Docker", "#1565C0", 0, PresetSource.BUILTIN)),
                 presets = listOf(
-                    Preset(-1, -10, "Running containers", "docker ps", 0, PresetSource.BUILTIN)
+                    Preset(-1, -10, "Running containers", "docker ps", 0, PresetSource.BUILTIN, "storage")
                 ),
                 isUpdating = true
             ),
@@ -486,7 +485,7 @@ private fun PresetsScreenUpdatingPreview() {
             onCopy          = {},
             onClearMessage  = {},
             onDismissDialog = {},
-            onSave          = { _, _, _ -> }
+            onSave          = { _, _, _, _ -> }
         )
     }
 }
@@ -509,7 +508,7 @@ private fun PresetsScreenNoGroupsPreview() {
             onCopy          = {},
             onClearMessage  = {},
             onDismissDialog = {},
-            onSave          = { _, _, _ -> }
+            onSave          = { _, _, _, _ -> }
         )
     }
 }

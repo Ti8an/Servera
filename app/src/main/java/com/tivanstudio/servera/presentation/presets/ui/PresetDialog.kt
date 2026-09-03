@@ -1,14 +1,19 @@
 package com.tivanstudio.servera.presentation.presets.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -19,27 +24,35 @@ import androidx.compose.ui.unit.sp
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.Preset
 import com.tivanstudio.servera.domain.entity.PresetGroup
+import com.tivanstudio.servera.presentation.theme.DEFAULT_PRESET_ICON
+import com.tivanstudio.servera.presentation.theme.PresetIcons
 import com.tivanstudio.servera.presentation.theme.PrimaryGreen
 import com.tivanstudio.servera.presentation.theme.ServeraTheme
 import com.tivanstudio.servera.presentation.theme.toComposeColor
 
 /** Shared by the presets screen and the console's add-command dialog. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun PresetDialog(
     initial: Preset,
     groups: List<PresetGroup>,
     isNew: Boolean,
     onDismiss: () -> Unit,
-    onSave: (groupId: Long, label: String, command: String) -> Unit
+    onSave: (groupId: Long, label: String, command: String, iconKey: String?) -> Unit
 ) {
     var groupId by remember(initial) { mutableStateOf(initial.groupId) }
     var label   by remember(initial) { mutableStateOf(initial.label) }
     var command by remember(initial) { mutableStateOf(initial.command) }
+    var iconKey by remember(initial) { mutableStateOf(initial.iconKey) }
     var expanded by remember { mutableStateOf(false) }
 
     val selectedGroup = groups.firstOrNull { it.id == groupId }
     val canSubmit = selectedGroup != null && label.isNotBlank() && command.isNotBlank()
+
+    // The picker follows the group's colour, and has to stand on something before one is picked.
+    val accent = selectedGroup?.colorHex?.toComposeColor() ?: PrimaryGreen
+    // A preset with no key of its own still shows the default icon, so highlight that one.
+    val highlighted = iconKey ?: DEFAULT_PRESET_ICON
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -52,7 +65,10 @@ fun PresetDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier            = Modifier.verticalScroll(rememberScrollState())
+            ) {
                 ExposedDropdownMenuBox(
                     expanded         = expanded,
                     onExpandedChange = { expanded = it }
@@ -113,6 +129,43 @@ fun PresetDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                Text(
+                    text  = stringResource(R.string.preset_icon),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(
+                    maxItemsInEachRow     = 6,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement   = Arrangement.spacedBy(8.dp)
+                ) {
+                    PresetIcons.forEach { (key, icon) ->
+                        val selected = key == highlighted
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (selected) accent.copy(alpha = 0.2f) else Color.Transparent
+                                )
+                                .then(
+                                    if (selected) Modifier.border(1.dp, accent, CircleShape)
+                                    else Modifier
+                                )
+                                .clickable { iconKey = key }
+                        ) {
+                            Icon(
+                                icon,
+                                contentDescription = key,
+                                tint = if (selected) accent
+                                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
                 OutlinedTextField(
                     value         = command,
                     onValueChange = { command = it },
@@ -139,7 +192,7 @@ fun PresetDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onSave(groupId, label, command) },
+                onClick = { onSave(groupId, label, command, iconKey) },
                 enabled = canSubmit
             ) {
                 Text(
@@ -182,7 +235,7 @@ private fun PresetDialogPreview() {
             ),
             isNew     = true,
             onDismiss = {},
-            onSave    = { _, _, _ -> }
+            onSave    = { _, _, _, _ -> }
         )
     }
 }

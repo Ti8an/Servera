@@ -6,5 +6,7 @@ data class Preset(
     val label: String,
     val command: String,
     val sortOrder: Int,
-    val source: PresetSource = PresetSource.CUSTOM
+    val source: PresetSource = PresetSource.CUSTOM,
+    /** Key into `PresetIcons`; null and unknown keys both fall back to the terminal glyph. */
+    val iconKey: String? = null
 )

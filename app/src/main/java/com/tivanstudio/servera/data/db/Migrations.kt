@@ -144,6 +144,12 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
  * under the DEK on the first unlock after the upgrade. Same reason for rebuilding rather than
  * `RENAME COLUMN`: that needs SQLite 3.25 (API 29) and minSdk is 26.
  */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE presets ADD COLUMN iconKey TEXT DEFAULT NULL")
+    }
+}
+
 val MIGRATION_9_10 = object : Migration(9, 10) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(

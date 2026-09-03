@@ -147,6 +147,7 @@
     <string name="preset_category">Категория</string>
     <string name="preset_label">Название</string>
     <string name="preset_command">Команда</string>
+    <string name="preset_icon">Иконка</string>
     <string name="preset_new_category">Новая категория</string>
     <string name="presets_picker_open">Выбрать из пресетов</string>
     <string name="presets_picker_title">Выберите команду</string>
