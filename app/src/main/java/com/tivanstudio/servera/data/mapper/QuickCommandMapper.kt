@@ -12,16 +12,19 @@ fun QuickCommandEntity.toDomain(encryption: EncryptionHelper): QuickCommand = Qu
     sortOrder = sortOrder,
     showOutput = showOutput,
     groupName = groupName,
-    groupColorHex = groupColorHex
+    groupColorHex = groupColorHex,
+    iconKey = iconKey
 )
 
 fun QuickCommand.toEntity(encryption: EncryptionHelper): QuickCommandEntity = QuickCommandEntity(
     id = id,
     serverId = serverId,
     label = label,
+    // The key is one of a fixed set of identifiers, not user data, so it stays in the clear.
     encryptedCommand = encryption.encrypt(command),
     sortOrder = sortOrder,
     showOutput = showOutput,
     groupName = groupName,
-    groupColorHex = groupColorHex
+    groupColorHex = groupColorHex,
+    iconKey = iconKey
 )

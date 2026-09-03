@@ -1,19 +1,18 @@
 package com.tivanstudio.servera.presentation.console.ui
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -23,16 +22,19 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -52,7 +54,13 @@ import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleUiState
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleViewModel
 import com.tivanstudio.servera.presentation.theme.*
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
+
+/** Tiles per row. Change it and the width maths in ConsoleTab follows on its own. */
+private const val COMMAND_TILE_COLUMNS = 3
+
+private val CommandTileHeight = 92.dp
+private val CommandTileSpacing = 8.dp
+private val CommandGridPadding = 16.dp
 
 @Composable
 fun ConsoleScreen(
@@ -102,7 +110,13 @@ private fun ConsoleScreenContent(
     onDismissCommandDialog: () -> Unit,
     onEditCommand: (QuickCommand) -> Unit,
     onPickPreset: (Preset) -> Unit,
-    onSaveOwn: (label: String, command: String, showOutput: Boolean, group: PresetGroup) -> Unit,
+    onSaveOwn: (
+        label: String,
+        command: String,
+        showOutput: Boolean,
+        group: PresetGroup,
+        iconKey: String?
+    ) -> Unit,
     onRun: (QuickCommand) -> Unit,
     onRemove: (Long) -> Unit
 ) {
@@ -181,7 +195,7 @@ private fun ConsoleScreenContent(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun ConsoleTab(
     uiState: ConsoleUiState,
@@ -190,13 +204,18 @@ private fun ConsoleTab(
     onRun: (QuickCommand) -> Unit,
     onRemove: (Long) -> Unit
 ) {
+    // FlowRow gives the tiles no intrinsic width, and weight() would stretch a lone tile across
+    // the whole row, so the row width is split up front instead.
+    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val tileWidth = (screenWidth - CommandGridPadding * 2 -
+        CommandTileSpacing * (COMMAND_TILE_COLUMNS - 1)) / COMMAND_TILE_COLUMNS
+
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            contentPadding      = PaddingValues(top = 8.dp, bottom = 88.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = CommandGridPadding),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)
         ) {
             if (uiState.attachedCommands.isEmpty()) {
                 item {
@@ -208,14 +227,25 @@ private fun ConsoleTab(
                     )
                 }
             } else {
-                items(uiState.attachedCommands, key = { it.id }) { cmd ->
-                    AttachedCommandItem(
-                        cmd      = cmd,
-                        runState = uiState.runStates[cmd.id],
-                        onRun    = { onRun(cmd) },
-                        onEdit   = { onEditCommand(cmd) },
-                        onRemove = { onRemove(cmd.id) }
-                    )
+                // One flat grid in sortOrder: a server holds few enough commands that splitting
+                // them into group sections would cost more room than it buys.
+                item {
+                    FlowRow(
+                        maxItemsInEachRow     = COMMAND_TILE_COLUMNS,
+                        horizontalArrangement = Arrangement.spacedBy(CommandTileSpacing),
+                        verticalArrangement   = Arrangement.spacedBy(CommandTileSpacing)
+                    ) {
+                        uiState.attachedCommands.forEach { cmd ->
+                            AttachedCommandTile(
+                                cmd       = cmd,
+                                runState  = uiState.runStates[cmd.id],
+                                tileWidth = tileWidth,
+                                onRun     = { onRun(cmd) },
+                                onEdit    = { onEditCommand(cmd) },
+                                onRemove  = { onRemove(cmd.id) }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -224,7 +254,7 @@ private fun ConsoleTab(
             onClick        = onOpenCommandDialog,
             containerColor = PrimaryGreen,
             modifier       = Modifier
-                .align(Alignment.BottomStart)
+                .align(Alignment.BottomEnd)
                 .padding(16.dp)
         ) {
             Icon(
@@ -235,26 +265,43 @@ private fun ConsoleTab(
     }
 }
 
+/**
+ * An attached command as a tile, matching the presets grid. The group snapshot colours the border
+ * and the watermark; commands typed by hand have no snapshot and fall back to a neutral outline.
+ *
+ * A tap runs the command — by far the common case — so edit and delete sit behind a long press,
+ * and delete still asks first: re-attaching a command to a server is not a one-tap undo.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AttachedCommandItem(
+private fun AttachedCommandTile(
     cmd: QuickCommand,
     runState: CommandRunState?,
+    tileWidth: Dp,
     onRun: () -> Unit,
     onEdit: () -> Unit,
     onRemove: () -> Unit
 ) {
-    val isRunning = runState is CommandRunState.Running
-
+    var menuExpanded      by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    val offsetX = remember { Animatable(0f) }
-    val scope   = rememberCoroutineScope()
-    val density = LocalDensity.current
+    val tileColor = cmd.groupColorHex?.toComposeColor()
+        ?: MaterialTheme.colorScheme.onSurfaceVariant
+    val isRunning = runState is CommandRunState.Running
 
-    val maxDragPx       = with(density) { 96.dp.toPx() }
-    val actionThreshold = with(density) { 72.dp.toPx() }
-
-    val offset = offsetX.value
+    // The badge is 12 dp of colour with no label of its own, so the state is spoken here instead.
+    val statusText = when (runState) {
+        is CommandRunState.Running -> stringResource(R.string.cmd_state_running)
+        is CommandRunState.Done    ->
+            if (runState.exitCode == 0) stringResource(R.string.cmd_state_success)
+            else stringResource(R.string.cmd_state_failed)
+        is CommandRunState.Failure -> stringResource(R.string.cmd_state_failed)
+        null                       -> null
+    }
+    val description = buildString {
+        append("${cmd.label}: ${cmd.command}")
+        statusText?.let { append(", $it") }
+    }
 
     if (showDeleteConfirm) {
         AlertDialog(
@@ -281,125 +328,122 @@ private fun AttachedCommandItem(
         )
     }
 
-    Box(modifier = Modifier.fillMaxWidth()) {
-        // Action layer, uncovered by the card as it follows the finger.
-        if (offset != 0f) {
-            val draggingRight = offset > 0f
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(
-                        color = if (draggingRight) InfoBlue.copy(alpha = 0.85f)
-                                else DangerRed.copy(alpha = 0.85f),
-                        shape = MaterialTheme.shapes.medium
-                    )
-                    .padding(horizontal = 16.dp),
-                contentAlignment = if (draggingRight) Alignment.CenterStart else Alignment.CenterEnd
-            ) {
-                Icon(
-                    imageVector        = if (draggingRight) Icons.Default.Edit else Icons.Default.Delete,
-                    contentDescription = null,
-                    tint               = Color.White
+    Box {
+        Card(
+            shape  = MaterialTheme.shapes.large,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            // A running command has to read as running from across the grid, not from a 12 dp
+            // spinner alone.
+            border = BorderStroke(
+                1.dp,
+                tileColor.copy(alpha = if (isRunning) 0.6f else 0.25f)
+            ),
+            modifier = Modifier
+                .size(width = tileWidth, height = CommandTileHeight)
+                .clip(MaterialTheme.shapes.large)
+                .combinedClickable(
+                    onClick     = onRun,
+                    onLongClick = { menuExpanded = true }
                 )
+                .semantics { contentDescription = description }
+        ) {
+            Box {
+                // Watermark: it runs off the right edge on purpose, and the card's shape clips it.
+                Icon(
+                    presetIconOf(cmd.iconKey),
+                    contentDescription = null,
+                    tint = tileColor.copy(alpha = 0.10f),
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(56.dp)
+                        .offset(x = 12.dp)
+                )
+
+                Column(
+                    modifier            = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.Top
+                ) {
+                    Text(
+                        text       = cmd.label,
+                        fontSize   = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color      = MaterialTheme.colorScheme.onSurface,
+                        maxLines   = 2,
+                        overflow   = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(Modifier.weight(1f))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text       = cmd.command,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize   = 10.sp,
+                            color      = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            maxLines   = 1,
+                            softWrap   = false,
+                            overflow   = TextOverflow.Ellipsis,
+                            modifier   = Modifier.weight(1f)
+                        )
+                        RunStateBadge(runState = runState, color = tileColor)
+                    }
+                }
             }
         }
 
-        Card(
-            colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape    = MaterialTheme.shapes.medium,
-            modifier = Modifier
-                .fillMaxWidth()
-                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
-                .draggable(
-                    orientation = Orientation.Horizontal,
-                    state = rememberDraggableState { delta ->
-                        scope.launch {
-                            offsetX.snapTo((offsetX.value + delta).coerceIn(-maxDragPx, maxDragPx))
-                        }
-                    },
-                    onDragStopped = {
-                        // Both actions open a dialog, so the row always slides back.
-                        when {
-                            offsetX.value >= actionThreshold  -> onEdit()
-                            offsetX.value <= -actionThreshold -> showDeleteConfirm = true
-                        }
-                        offsetX.animateTo(0f, tween(durationMillis = 200))
-                    }
-                )
-                .clickable(enabled = !isRunning, onClick = onRun)
+        DropdownMenu(
+            expanded         = menuExpanded,
+            onDismissRequest = { menuExpanded = false }
         ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text       = cmd.label,
-                        fontWeight = FontWeight.Medium,
-                        fontSize   = 14.sp,
-                        maxLines   = 1,
-                        overflow   = TextOverflow.Ellipsis,
-                        modifier   = Modifier.weight(1f, fill = false)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    CommandGroupTag(cmd = cmd)
+            DropdownMenuItem(
+                text        = { Text(stringResource(R.string.preset_edit)) },
+                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                onClick = {
+                    menuExpanded = false
+                    onEdit()
                 }
-                Text(
-                    text       = cmd.command,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize   = 12.sp,
-                    color      = MaterialTheme.colorScheme.onSurface,
-                    maxLines   = 1,
-                    overflow   = TextOverflow.Ellipsis
-                )
-
-                when (runState) {
-                    is CommandRunState.Running -> Row(
-                        modifier          = Modifier.padding(top = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier    = Modifier.size(14.dp),
-                            color       = PrimaryGreen,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text     = stringResource(R.string.cmd_running),
-                            color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp
-                        )
-                    }
-                    is CommandRunState.Done -> Text(
-                        text     = stringResource(R.string.cmd_exit_code, runState.exitCode),
-                        color    = if (runState.exitCode == 0) PrimaryGreen else DangerRed,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 6.dp)
-                    )
-                    is CommandRunState.Failure -> Text(
-                        text     = stringResource(runState.messageRes),
-                        color    = DangerRed,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(top = 6.dp)
-                    )
-                    null -> Unit
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.preset_delete)) },
+                leadingIcon = {
+                    Icon(Icons.Default.Delete, contentDescription = null, tint = DangerRed)
+                },
+                onClick = {
+                    menuExpanded = false
+                    showDeleteConfirm = true
                 }
-            }
+            )
         }
     }
 }
 
+/** Always 12 dp wide, so the command beside it does not reflow as a run starts and finishes. */
 @Composable
-private fun CommandGroupTag(cmd: QuickCommand) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        cmd.groupColorHex?.let { hex ->
-            GroupDot(colorHex = hex, size = 8)
-            Spacer(Modifier.width(4.dp))
-        }
-        Text(
-            text     = cmd.groupName ?: stringResource(R.string.group_custom),
-            style    = MaterialTheme.typography.labelSmall,
-            color    = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+private fun RunStateBadge(runState: CommandRunState?, color: Color) {
+    when (runState) {
+        is CommandRunState.Running -> CircularProgressIndicator(
+            modifier    = Modifier.size(12.dp),
+            strokeWidth = 1.5.dp,
+            color       = color
         )
+        is CommandRunState.Done -> Icon(
+            imageVector        = if (runState.exitCode == 0) Icons.Default.CheckCircle
+                                 else Icons.Default.Error,
+            contentDescription = null,
+            tint     = if (runState.exitCode == 0) PrimaryGreen else DangerRed,
+            modifier = Modifier.size(12.dp)
+        )
+        is CommandRunState.Failure -> Icon(
+            Icons.Default.Error,
+            contentDescription = null,
+            tint     = DangerRed,
+            modifier = Modifier.size(12.dp)
+        )
+        null -> Spacer(Modifier.size(12.dp))
     }
 }
 
@@ -415,7 +459,13 @@ private fun CommandDialog(
     initial: QuickCommand?,
     onDismiss: () -> Unit,
     onPickPreset: (Preset) -> Unit,
-    onSaveOwn: (label: String, command: String, showOutput: Boolean, group: PresetGroup) -> Unit
+    onSaveOwn: (
+        label: String,
+        command: String,
+        showOutput: Boolean,
+        group: PresetGroup,
+        iconKey: String?
+    ) -> Unit
 ) {
     val isEditing = initial != null
     var ownMode by remember(initial) { mutableStateOf(isEditing) }
@@ -627,7 +677,13 @@ private fun CatalogPicker(
 private fun OwnCommandForm(
     uiState: ConsoleUiState,
     initial: QuickCommand?,
-    onSave: (label: String, command: String, showOutput: Boolean, group: PresetGroup) -> Unit,
+    onSave: (
+        label: String,
+        command: String,
+        showOutput: Boolean,
+        group: PresetGroup,
+        iconKey: String?
+    ) -> Unit,
     onCancel: () -> Unit
 ) {
     val groups = uiState.groups.sortedBy { it.sortOrder }
@@ -635,6 +691,7 @@ private fun OwnCommandForm(
     var label      by remember(initial) { mutableStateOf(initial?.label ?: "") }
     var command    by remember(initial) { mutableStateOf(initial?.command ?: "") }
     var showOutput by remember(initial) { mutableStateOf(initial?.showOutput ?: true) }
+    var iconKey    by remember(initial) { mutableStateOf(initial?.iconKey) }
     // An edited command only remembers its group by name, so match on that.
     var group      by remember(initial, groups) {
         mutableStateOf(
@@ -663,6 +720,47 @@ private fun OwnCommandForm(
             ),
             modifier = Modifier.fillMaxWidth()
         )
+
+        Text(
+            text  = stringResource(R.string.preset_icon),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        FlowRow(
+            maxItemsInEachRow     = 6,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement   = Arrangement.spacedBy(8.dp)
+        ) {
+            // Match on a key the catalog still has: one dropped by a later version would leave
+            // nothing highlighted and get silently overwritten on save.
+            val highlighted = iconKey?.takeIf { it in PresetIcons } ?: DEFAULT_PRESET_ICON
+            val accent = selected?.colorHex?.toComposeColor() ?: PrimaryGreen
+            PresetIcons.forEach { (key, icon) ->
+                val isCurrent = key == highlighted
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isCurrent) accent.copy(alpha = 0.2f) else Color.Transparent
+                        )
+                        .then(
+                            if (isCurrent) Modifier.border(1.dp, accent, CircleShape)
+                            else Modifier
+                        )
+                        .clickable { iconKey = key }
+                ) {
+                    Icon(
+                        icon,
+                        contentDescription = key,
+                        tint = if (isCurrent) accent
+                               else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
 
         OutlinedTextField(
             value         = command,
@@ -746,7 +844,7 @@ private fun OwnCommandForm(
             }
             Spacer(Modifier.width(8.dp))
             Button(
-                onClick = { selected?.let { onSave(label, command, showOutput, it) } },
+                onClick = { selected?.let { onSave(label, command, showOutput, it, iconKey) } },
                 enabled = canSubmit,
                 colors  = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                 shape   = MaterialTheme.shapes.medium
@@ -845,10 +943,12 @@ private fun ConsoleTabPreview() {
             uiState = ConsoleUiState(
                 server = Server(1, "Production", "192.168.1.1", 22, "root", ""),
                 attachedCommands = listOf(
-                    QuickCommand(1, 1, "Running containers", "docker ps", 0, showOutput = true),
-                    QuickCommand(2, 1, "Disk free", "df -h", 1, showOutput = false),
-                    QuickCommand(3, 1, "Restart nginx", "systemctl restart nginx", 2, showOutput = true),
-                    QuickCommand(4, 1, "Tail log", "tail -n 50 /var/log/syslog", 3, showOutput = true)
+                    QuickCommand(1, 1, "Running containers", "docker ps", 0, true, "Docker", "#1565C0", "cloud"),
+                    QuickCommand(2, 1, "Disk free", "df -h", 1, false, "System", "#455A64", "storage"),
+                    QuickCommand(3, 1, "Restart nginx", "systemctl restart nginx", 2, true, "System", "#455A64", "power"),
+                    QuickCommand(4, 1, "Tail log", "tail -n 50 /var/log/syslog", 3, true, "Logs", "#AD1457", "bug"),
+                    // No group snapshot and no icon: both fall back — neutral outline, terminal glyph.
+                    QuickCommand(5, 1, "Uptime", "uptime", 4, showOutput = true)
                 ),
                 presets = listOf(
                     Preset(0, 1, "Running containers", "docker ps", 0),
@@ -858,15 +958,16 @@ private fun ConsoleTabPreview() {
                     PresetGroup(1, "Docker", "#1565C0", 0),
                     PresetGroup(2, "System", "#2E7D32", 1)
                 ),
+                // Command 1 is left out on purpose: no run state is a state of its own.
                 runStates = mapOf(
-                    1L to CommandRunState.Running,
-                    2L to CommandRunState.Done(
+                    2L to CommandRunState.Running,
+                    3L to CommandRunState.Done(
                         stdout   = "CONTAINER ID   IMAGE     STATUS\n9f1c2b3a4d5e   nginx     Up 3 hours",
                         stderr   = "",
                         exitCode = 0
                     ),
-                    3L to CommandRunState.Done(stdout = "", stderr = "unit not found", exitCode = 5),
-                    4L to CommandRunState.Failure(R.string.ssh_error_unreachable)
+                    4L to CommandRunState.Done(stdout = "", stderr = "unit not found", exitCode = 1),
+                    5L to CommandRunState.Failure(R.string.ssh_error_unreachable)
                 ),
             ),
             onBack              = {},
@@ -878,7 +979,7 @@ private fun ConsoleTabPreview() {
             onDismissCommandDialog = {},
             onEditCommand      = {},
             onPickPreset       = {},
-            onSaveOwn          = { _, _, _, _ -> },
+            onSaveOwn          = { _, _, _, _, _ -> },
             onRun              = {},
             onRemove           = {}
         )
@@ -904,7 +1005,7 @@ private fun ConsoleTabEmptyPreview() {
             onDismissCommandDialog = {},
             onEditCommand      = {},
             onPickPreset       = {},
-            onSaveOwn          = { _, _, _, _ -> },
+            onSaveOwn          = { _, _, _, _, _ -> },
             onRun              = {},
             onRemove           = {}
         )
@@ -931,7 +1032,7 @@ private fun InfoTabEmptyPreview() {
             onDismissCommandDialog = {},
             onEditCommand      = {},
             onPickPreset       = {},
-            onSaveOwn          = { _, _, _, _ -> },
+            onSaveOwn          = { _, _, _, _, _ -> },
             onRun              = {},
             onRemove           = {}
         )
@@ -958,7 +1059,7 @@ private fun InfoTabErrorPreview() {
             onDismissCommandDialog = {},
             onEditCommand      = {},
             onPickPreset       = {},
-            onSaveOwn          = { _, _, _, _ -> },
+            onSaveOwn          = { _, _, _, _, _ -> },
             onRun              = {},
             onRemove           = {}
         )
@@ -968,14 +1069,15 @@ private fun InfoTabErrorPreview() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true)
 @Composable
-private fun AttachedCommandItemRunningPreview() {
+private fun AttachedCommandTileRunningPreview() {
     ServeraTheme {
-        AttachedCommandItem(
-            cmd      = QuickCommand(1, 1, "Disk free", "df -h", 0),
-            runState = CommandRunState.Running,
-            onRun    = {},
-            onEdit   = {},
-            onRemove = {}
+        AttachedCommandTile(
+            cmd       = QuickCommand(1, 1, "Disk free", "df -h", 0, true, "System", "#455A64", "storage"),
+            runState  = CommandRunState.Running,
+            tileWidth = 105.dp,
+            onRun     = {},
+            onEdit    = {},
+            onRemove  = {}
         )
     }
 }
