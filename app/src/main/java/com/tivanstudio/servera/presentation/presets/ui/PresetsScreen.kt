@@ -1,23 +1,37 @@
 package com.tivanstudio.servera.presentation.presets.ui
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -36,6 +50,10 @@ import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsUiState
 import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsViewModel
 import com.tivanstudio.servera.presentation.theme.*
+
+/** Every tile in a row shares one footprint, the add tile included, so the row scrolls evenly. */
+private val TileWidth = 168.dp
+private val TileHeight = 92.dp
 
 @Composable
 fun PresetsScreen(
@@ -64,7 +82,7 @@ fun PresetsScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PresetsScreenContent(
     uiState: PresetsUiState,
@@ -72,7 +90,7 @@ private fun PresetsScreenContent(
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToGroups: () -> Unit,
-    onAdd: () -> Unit,
+    onAdd: (Long) -> Unit,
     onEdit: (Preset) -> Unit,
     onDelete: (Long) -> Unit,
     onRefresh: () -> Unit,
@@ -145,24 +163,9 @@ private fun PresetsScreenContent(
                 onHistory    = onNavigateToHistory,
                 onSettings   = onNavigateToSettings
             )
-        },
-        floatingActionButton = {
-            // A preset needs a group to live in — no groups, no adding.
-            if (hasGroups) {
-                FloatingActionButton(
-                    onClick        = onAdd,
-                    containerColor = PrimaryGreen
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = stringResource(R.string.presets_title),
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-            }
-        },
-        floatingActionButtonPosition = FabPosition.Start
+        }
     ) { padding ->
+        // A preset needs a group to live in — no groups, no rows to add into.
         if (!hasGroups) {
             NoGroupsState(
                 modifier = Modifier
@@ -176,25 +179,58 @@ private fun PresetsScreenContent(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
+                .padding(padding),
             contentPadding      = PaddingValues(bottom = 88.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             uiState.grouped.forEach { (group, presets) ->
-                stickyHeader(key = "header_${group.id}") {
-                    GroupHeader(group = group)
-                }
-
-                items(presets, key = { it.id }) { preset ->
-                    PresetRow(
-                        preset         = preset,
+                item(key = "group_${group.id}") {
+                    GroupSection(
                         group          = group,
-                        onEdit         = { onEdit(preset) },
-                        onDelete       = { onDelete(preset.id) },
-                        onCopyToCustom = { onCopyToCustom(preset) }
+                        presets        = presets,
+                        onAdd          = onAdd,
+                        onEdit         = onEdit,
+                        onDelete       = onDelete,
+                        onCopyToCustom = onCopyToCustom
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * One group as a header plus a horizontal row of tiles. The row carries its own horizontal padding
+ * instead of inheriting it from the column, so tiles slide under the edges and the next one peeks
+ * in rather than being clipped flat.
+ */
+@Composable
+private fun GroupSection(
+    group: PresetGroup,
+    presets: List<Preset>,
+    onAdd: (Long) -> Unit,
+    onEdit: (Preset) -> Unit,
+    onDelete: (Long) -> Unit,
+    onCopyToCustom: (Preset) -> Unit
+) {
+    Column {
+        GroupHeader(group = group, count = presets.size)
+        LazyRow(
+            contentPadding        = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(presets, key = { it.id }) { preset ->
+                PresetTile(
+                    preset         = preset,
+                    group          = group,
+                    onEdit         = { onEdit(preset) },
+                    onDelete       = { onDelete(preset.id) },
+                    onCopyToCustom = { onCopyToCustom(preset) }
+                )
+            }
+            // An empty group is just this tile on its own — no separate empty state needed.
+            item(key = "add_${group.id}") {
+                AddTile(group = group, onAdd = { onAdd(group.id) })
             }
         }
     }
@@ -234,219 +270,171 @@ private fun NoGroupsState(
 }
 
 @Composable
-private fun GroupHeader(group: PresetGroup) {
+private fun GroupHeader(group: PresetGroup, count: Int) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         GroupDot(colorHex = group.colorHex, size = 14)
         Spacer(Modifier.width(8.dp))
         Text(
             text     = group.name,
-            style    = MaterialTheme.typography.titleSmall,
+            style    = MaterialTheme.typography.labelMedium,
             color    = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text  = count.toString(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
 /**
- * Built-ins come from the Remote Config catalog and have no Room row behind them, so they get a
- * read-only card with a copy-into-my-presets action instead of edit and delete.
+ * A preset as a tile tinted with its group's colour. The tint stays translucent over the surface —
+ * the raw group colour would swallow the monospaced command on a dark theme.
+ *
+ * Built-ins have no Room row behind them, so editing and deleting are off the table: their menu
+ * offers the copy-into-my-presets fork instead, and a tap opens that menu rather than a dead edit.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PresetRow(
+private fun PresetTile(
     preset: Preset,
     group: PresetGroup,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onCopyToCustom: () -> Unit
 ) {
-    when (preset.source) {
-        PresetSource.BUILTIN -> BuiltinPresetRow(
-            preset         = preset,
-            group          = group,
-            onCopyToCustom = onCopyToCustom
-        )
-        PresetSource.CUSTOM -> CustomPresetRow(
-            preset   = preset,
-            group    = group,
-            onEdit   = onEdit,
-            onDelete = onDelete
-        )
-    }
-}
+    var menuExpanded by remember { mutableStateOf(false) }
 
-@Composable
-private fun BuiltinPresetRow(
-    preset: Preset,
-    group: PresetGroup,
-    onCopyToCustom: () -> Unit
-) {
-    Card(
-        colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape    = MaterialTheme.shapes.medium,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        PresetCardBody(preset = preset, group = group) {
-            IconButton(onClick = onCopyToCustom) {
-                Icon(
-                    Icons.Default.ContentCopy,
-                    contentDescription = stringResource(R.string.copy_to_custom),
-                    tint     = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-    }
-}
+    val groupColor  = group.colorHex.toComposeColor()
+    val isBuiltin   = preset.source == PresetSource.BUILTIN
+    val description = "${preset.label}: ${preset.command}"
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CustomPresetRow(
-    preset: Preset,
-    group: PresetGroup,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
-                onDelete()
-                true
-            } else {
-                false
-            }
-        }
-    )
-
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromStartToEnd = false,
-        enableDismissFromEndToStart = true,
-        backgroundContent = {
-            val color by animateColorAsState(
-                targetValue = when (dismissState.dismissDirection) {
-                    SwipeToDismissBoxValue.EndToStart -> DangerRed.copy(alpha = 0.85f)
-                    else                              -> Color.Transparent
-                },
-                label = "preset_swipe_bg"
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(color, shape = MaterialTheme.shapes.medium)
-                    .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
-                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
-                }
-            }
-        }
-    ) {
+    Box {
         Card(
-            onClick  = onEdit,
-            colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape    = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth()
+            shape  = MaterialTheme.shapes.medium,
+            colors = CardDefaults.cardColors(
+                containerColor = groupColor
+                    .copy(alpha = 0.18f)
+                    .compositeOver(MaterialTheme.colorScheme.surface)
+            ),
+            border = BorderStroke(1.dp, groupColor.copy(alpha = 0.45f)),
+            modifier = Modifier
+                .size(width = TileWidth, height = TileHeight)
+                .clip(MaterialTheme.shapes.medium)
+                .combinedClickable(
+                    onClick     = { if (isBuiltin) menuExpanded = true else onEdit() },
+                    onLongClick = { menuExpanded = true }
+                )
+                .semantics { contentDescription = description }
         ) {
-            PresetCardBody(preset = preset, group = group) {
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = null,
-                        tint     = DangerRed,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** Label, command and group chip — the part both row flavours share; [action] closes the row. */
-@Composable
-private fun PresetCardBody(
-    preset: Preset,
-    group: PresetGroup,
-    action: @Composable () -> Unit
-) {
-    Row(
-        modifier          = Modifier.padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.padding(12.dp)) {
                 Text(
                     text       = preset.label,
                     fontWeight = FontWeight.Medium,
                     fontSize   = 14.sp,
+                    color      = MaterialTheme.colorScheme.onSurface,
                     maxLines   = 1,
-                    overflow   = TextOverflow.Ellipsis,
-                    modifier   = Modifier.weight(1f, fill = false)
+                    overflow   = TextOverflow.Ellipsis
                 )
-                if (preset.source == PresetSource.BUILTIN) {
-                    Spacer(Modifier.width(6.dp))
-                    BuiltinBadge()
-                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text       = preset.command,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize   = 12.sp,
+                    color      = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                    maxLines   = 2,
+                    overflow   = TextOverflow.Ellipsis
+                )
             }
-            Text(
-                text       = preset.command,
-                fontFamily = FontFamily.Monospace,
-                fontSize   = 12.sp,
-                color      = MaterialTheme.colorScheme.onSurface,
-                maxLines   = 2,
-                overflow   = TextOverflow.Ellipsis
-            )
         }
 
-        Spacer(Modifier.width(8.dp))
-
-        GroupChip(group = group)
-
-        action()
+        DropdownMenu(
+            expanded         = menuExpanded,
+            onDismissRequest = { menuExpanded = false }
+        ) {
+            if (isBuiltin) {
+                DropdownMenuItem(
+                    text        = { Text(stringResource(R.string.copy_to_custom)) },
+                    leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+                    onClick = {
+                        menuExpanded = false
+                        onCopyToCustom()
+                    }
+                )
+            } else {
+                DropdownMenuItem(
+                    text        = { Text(stringResource(R.string.preset_edit)) },
+                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                    onClick = {
+                        menuExpanded = false
+                        onEdit()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.preset_delete)) },
+                    leadingIcon = {
+                        Icon(Icons.Default.Delete, contentDescription = null, tint = DangerRed)
+                    },
+                    onClick = {
+                        menuExpanded = false
+                        onDelete()
+                    }
+                )
+            }
+        }
     }
 }
 
+/** Closes every row: a preset tile's footprint, dashed in the group's colour. */
 @Composable
-private fun BuiltinBadge() {
-    Text(
-        text     = stringResource(R.string.preset_builtin),
-        style    = MaterialTheme.typography.labelSmall,
-        color    = MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines = 1,
-        modifier = Modifier
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = MaterialTheme.shapes.small
-            )
-            .padding(horizontal = 6.dp, vertical = 2.dp)
-    )
-}
+private fun AddTile(group: PresetGroup, onAdd: () -> Unit) {
+    val groupColor = group.colorHex.toComposeColor()
+    val dashColor  = groupColor.copy(alpha = 0.4f)
 
-@Composable
-private fun GroupChip(group: PresetGroup) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        GroupDot(colorHex = group.colorHex, size = 8)
-        Spacer(Modifier.width(4.dp))
-        Text(
-            text     = group.name,
-            style    = MaterialTheme.typography.labelSmall,
-            color    = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(width = TileWidth, height = TileHeight)
+            .clip(MaterialTheme.shapes.medium)
+            .background(Color.Transparent)
+            .drawBehind {
+                // Inset by half the stroke: centred on the bounds, its outer half falls outside
+                // and the clip eats it.
+                val stroke = 1.dp.toPx()
+                drawRoundRect(
+                    color        = dashColor,
+                    topLeft      = Offset(stroke / 2, stroke / 2),
+                    size         = Size(size.width - stroke, size.height - stroke),
+                    cornerRadius = CornerRadius(12.dp.toPx()),
+                    style = Stroke(
+                        width      = stroke,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))
+                    )
+                )
+            }
+            .clickable(onClick = onAdd)
+    ) {
+        Icon(
+            Icons.Default.Add,
+            contentDescription = stringResource(R.string.preset_add_to_group),
+            tint     = groupColor,
+            modifier = Modifier.size(24.dp)
         )
     }
 }
 
 // ── Previews ─────────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true)
 @Composable
 private fun PresetsScreenContentPreview() {
@@ -454,12 +442,14 @@ private fun PresetsScreenContentPreview() {
         PresetsScreenContent(
             uiState = PresetsUiState(
                 // Both blocks number sortOrder from zero, so this ordering only comes out as
-                // Docker, Network, My scripts, System once source outranks sortOrder.
+                // Docker, Network, My scripts, System, Empty once source outranks sortOrder.
                 groups = listOf(
                     PresetGroup(-10, "Docker", "#1565C0", 0, PresetSource.BUILTIN),
                     PresetGroup(-11, "Network", "#AD1457", 1, PresetSource.BUILTIN),
                     PresetGroup(1, "My scripts", "#2E7D32", 0, PresetSource.CUSTOM),
-                    PresetGroup(2, "System", "#455A64", 1, PresetSource.CUSTOM)
+                    PresetGroup(2, "System", "#455A64", 1, PresetSource.CUSTOM),
+                    // No presets of its own — the row is nothing but the add tile.
+                    PresetGroup(3, "Empty", "#6A1B9A", 2, PresetSource.CUSTOM)
                 ),
                 presets = listOf(
                     // Built-ins carry negative catalog ids; the users own rows come from Room.
@@ -486,7 +476,7 @@ private fun PresetsScreenContentPreview() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true)
 @Composable
 private fun PresetsScreenUpdatingPreview() {
@@ -515,7 +505,7 @@ private fun PresetsScreenUpdatingPreview() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true)
 @Composable
 private fun PresetsScreenNoGroupsPreview() {

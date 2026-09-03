@@ -141,6 +141,9 @@
     <string name="presets_update_failed">Не удалось обновить</string>
     <string name="copy_to_custom">Скопировать в свои</string>
     <string name="preset_copied">Скопировано в ваши пресеты</string>
+    <string name="preset_edit">Изменить</string>
+    <string name="preset_delete">Удалить</string>
+    <string name="preset_add_to_group">Добавить команду</string>
     <string name="preset_category">Категория</string>
     <string name="preset_label">Название</string>
     <string name="preset_command">Команда</string>

@@ -49,15 +49,15 @@ class PresetsViewModel @Inject constructor(
         }
     }
 
-    /** Adding needs a group to put the preset in; defaults to the first one. */
-    fun startAdd() {
+    /** The add tile lives inside a group's row, so the caller already knows where it goes. */
+    fun startAdd(groupId: Long) {
         val state = _uiState.value
-        val group = state.groups.minByOrNull { it.sortOrder } ?: return
+        if (state.groups.none { it.id == groupId }) return
         _uiState.update {
             it.copy(
                 editing = Preset(
                     id        = 0,
-                    groupId   = group.id,
+                    groupId   = groupId,
                     label     = "",
                     command   = "",
                     sortOrder = 0
