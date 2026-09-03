@@ -1,28 +1,32 @@
 package com.tivanstudio.servera.presentation.presets.ui
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -36,6 +40,13 @@ import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsUiState
 import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsViewModel
 import com.tivanstudio.servera.presentation.theme.*
+
+/** Tiles per row. Change it and the width maths below follows on its own. */
+private const val PRESET_TILE_COLUMNS = 3
+
+private val TileHeight = 92.dp
+private val TileSpacing = 8.dp
+private val ScreenPadding = 16.dp
 
 @Composable
 fun PresetsScreen(
@@ -57,14 +68,14 @@ fun PresetsScreen(
         onEdit          = viewModel::startEdit,
         onDelete        = viewModel::deletePreset,
         onRefresh       = viewModel::refresh,
-        onCopyToCustom  = viewModel::copyToCustom,
+        onCopy          = viewModel::startCopy,
         onClearMessage  = viewModel::clearMessage,
         onDismissDialog = viewModel::dismissDialog,
         onSave          = viewModel::savePreset
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PresetsScreenContent(
     uiState: PresetsUiState,
@@ -76,10 +87,10 @@ private fun PresetsScreenContent(
     onEdit: (Preset) -> Unit,
     onDelete: (Long) -> Unit,
     onRefresh: () -> Unit,
-    onCopyToCustom: (Preset) -> Unit,
+    onCopy: (Preset) -> Unit,
     onClearMessage: () -> Unit,
     onDismissDialog: () -> Unit,
-    onSave: (groupId: Long, label: String, command: String) -> Unit
+    onSave: (groupId: Long, label: String, command: String, iconKey: String?) -> Unit
 ) {
     val hasGroups = uiState.groups.isNotEmpty()
 
@@ -96,7 +107,9 @@ private fun PresetsScreenContent(
     if (uiState.editing != null) {
         PresetDialog(
             initial   = uiState.editing,
-            groups    = uiState.groups,
+            // Built-in groups are catalog entries with no row in preset_groups, and presets.groupId
+            // is a foreign key onto it — offering one as a target would fail the insert.
+            groups    = uiState.groups.filter { it.source == PresetSource.CUSTOM },
             isNew     = uiState.isNew,
             onDismiss = onDismissDialog,
             onSave    = onSave
@@ -147,7 +160,7 @@ private fun PresetsScreenContent(
             )
         },
         floatingActionButton = {
-            // A preset needs a group to live in — no groups, no adding.
+            // A preset needs a group to live in — no groups, nothing to add.
             if (hasGroups) {
                 FloatingActionButton(
                     onClick        = onAdd,
@@ -161,7 +174,7 @@ private fun PresetsScreenContent(
                 }
             }
         },
-        floatingActionButtonPosition = FabPosition.Start
+        floatingActionButtonPosition = FabPosition.End
     ) { padding ->
         if (!hasGroups) {
             NoGroupsState(
@@ -173,30 +186,75 @@ private fun PresetsScreenContent(
             return@Scaffold
         }
 
+        // FlowRow gives the tiles no intrinsic width, and weight() would stretch a lone tile
+        // across the whole row, so the column width is split up front instead.
+        val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+        val tileWidth = (screenWidth - ScreenPadding * 2 -
+            TileSpacing * (PRESET_TILE_COLUMNS - 1)) / PRESET_TILE_COLUMNS
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp),
-            contentPadding      = PaddingValues(bottom = 88.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = ScreenPadding),
+            contentPadding = PaddingValues(bottom = 88.dp)
         ) {
             uiState.grouped.forEach { (group, presets) ->
-                stickyHeader(key = "header_${group.id}") {
-                    GroupHeader(group = group)
-                }
-
-                items(presets, key = { it.id }) { preset ->
-                    PresetRow(
-                        preset         = preset,
-                        group          = group,
-                        onEdit         = { onEdit(preset) },
-                        onDelete       = { onDelete(preset.id) },
-                        onCopyToCustom = { onCopyToCustom(preset) }
+                item(key = "group_${group.id}") {
+                    GroupSection(
+                        group     = group,
+                        presets   = presets,
+                        tileWidth = tileWidth,
+                        onEdit    = onEdit,
+                        onDelete  = onDelete,
+                        onCopy    = onCopy
                     )
                 }
             }
         }
+    }
+}
+
+/** One group as its name plus a wrapping grid of its presets; an empty group is just the name. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GroupSection(
+    group: PresetGroup,
+    presets: List<Preset>,
+    tileWidth: Dp,
+    onEdit: (Preset) -> Unit,
+    onDelete: (Long) -> Unit,
+    onCopy: (Preset) -> Unit
+) {
+    Column {
+        Text(
+            text       = group.name,
+            fontSize   = 22.sp,
+            fontWeight = FontWeight.Normal,
+            color      = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            maxLines   = 1,
+            overflow   = TextOverflow.Ellipsis,
+            modifier   = Modifier.padding(bottom = 12.dp)
+        )
+
+        FlowRow(
+            maxItemsInEachRow     = PRESET_TILE_COLUMNS,
+            horizontalArrangement = Arrangement.spacedBy(TileSpacing),
+            verticalArrangement   = Arrangement.spacedBy(TileSpacing)
+        ) {
+            presets.forEach { preset ->
+                PresetTile(
+                    preset    = preset,
+                    group     = group,
+                    tileWidth = tileWidth,
+                    onEdit    = { onEdit(preset) },
+                    onDelete  = { onDelete(preset.id) },
+                    onCopy    = { onCopy(preset) }
+                )
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
     }
 }
 
@@ -233,220 +291,131 @@ private fun NoGroupsState(
     }
 }
 
-@Composable
-private fun GroupHeader(group: PresetGroup) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        GroupDot(colorHex = group.colorHex, size = 14)
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text     = group.name,
-            style    = MaterialTheme.typography.titleSmall,
-            color    = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
 /**
- * Built-ins come from the Remote Config catalog and have no Room row behind them, so they get a
- * read-only card with a copy-into-my-presets action instead of edit and delete.
+ * A preset as a tile: neutral surface, with the group's colour carried by the border and the
+ * terminal glyph rather than by a fill — a solid tile would read as an on/off state a preset
+ * does not have.
+ *
+ * A tap opens the dialog either way. Built-ins have no Room row behind them, so it opens on a
+ * copy of the preset instead of on the preset itself; the padlock is the only thing that says so.
+ * That copy is also the only thing a built-in can do, so long-press has no menu to offer.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PresetRow(
+private fun PresetTile(
     preset: Preset,
     group: PresetGroup,
+    tileWidth: Dp,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onCopyToCustom: () -> Unit
+    onCopy: () -> Unit
 ) {
-    when (preset.source) {
-        PresetSource.BUILTIN -> BuiltinPresetRow(
-            preset         = preset,
-            group          = group,
-            onCopyToCustom = onCopyToCustom
-        )
-        PresetSource.CUSTOM -> CustomPresetRow(
-            preset   = preset,
-            group    = group,
-            onEdit   = onEdit,
-            onDelete = onDelete
-        )
-    }
-}
+    var menuExpanded by remember { mutableStateOf(false) }
 
-@Composable
-private fun BuiltinPresetRow(
-    preset: Preset,
-    group: PresetGroup,
-    onCopyToCustom: () -> Unit
-) {
-    Card(
-        colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape    = MaterialTheme.shapes.medium,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        PresetCardBody(preset = preset, group = group) {
-            IconButton(onClick = onCopyToCustom) {
-                Icon(
-                    Icons.Default.ContentCopy,
-                    contentDescription = stringResource(R.string.copy_to_custom),
-                    tint     = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-    }
-}
+    val groupColor  = group.colorHex.toComposeColor()
+    val isBuiltin   = preset.source == PresetSource.BUILTIN
+    val description = "${preset.label}: ${preset.command}"
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CustomPresetRow(
-    preset: Preset,
-    group: PresetGroup,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
-                onDelete()
-                true
-            } else {
-                false
-            }
-        }
-    )
-
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromStartToEnd = false,
-        enableDismissFromEndToStart = true,
-        backgroundContent = {
-            val color by animateColorAsState(
-                targetValue = when (dismissState.dismissDirection) {
-                    SwipeToDismissBoxValue.EndToStart -> DangerRed.copy(alpha = 0.85f)
-                    else                              -> Color.Transparent
-                },
-                label = "preset_swipe_bg"
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(color, shape = MaterialTheme.shapes.medium)
-                    .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                if (dismissState.dismissDirection != SwipeToDismissBoxValue.Settled) {
-                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
-                }
-            }
-        }
-    ) {
+    Box {
         Card(
-            onClick  = onEdit,
-            colors   = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape    = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            PresetCardBody(preset = preset, group = group) {
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = null,
-                        tint     = DangerRed,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** Label, command and group chip — the part both row flavours share; [action] closes the row. */
-@Composable
-private fun PresetCardBody(
-    preset: Preset,
-    group: PresetGroup,
-    action: @Composable () -> Unit
-) {
-    Row(
-        modifier          = Modifier.padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text       = preset.label,
-                    fontWeight = FontWeight.Medium,
-                    fontSize   = 14.sp,
-                    maxLines   = 1,
-                    overflow   = TextOverflow.Ellipsis,
-                    modifier   = Modifier.weight(1f, fill = false)
+            shape  = MaterialTheme.shapes.large,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            border = BorderStroke(1.dp, groupColor.copy(alpha = 0.25f)),
+            modifier = Modifier
+                .size(width = tileWidth, height = TileHeight)
+                .clip(MaterialTheme.shapes.large)
+                .combinedClickable(
+                    onClick     = { if (isBuiltin) onCopy() else onEdit() },
+                    onLongClick = { if (!isBuiltin) menuExpanded = true }
                 )
-                if (preset.source == PresetSource.BUILTIN) {
-                    Spacer(Modifier.width(6.dp))
-                    BuiltinBadge()
+                .semantics { contentDescription = description }
+        ) {
+            Box {
+                // Watermark: it runs off the right edge on purpose, and the card's shape clips it.
+                Icon(
+                    presetIconOf(preset.iconKey),
+                    contentDescription = null,
+                    tint = groupColor.copy(alpha = 0.10f),
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(56.dp)
+                        .offset(x = 12.dp)
+                )
+
+                Column(
+                    modifier            = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.Top
+                ) {
+                    Text(
+                        text       = preset.label,
+                        fontSize   = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color      = MaterialTheme.colorScheme.onSurface,
+                        maxLines   = 2,
+                        overflow   = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(Modifier.weight(1f))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // ~15 monospaced characters fit here, so most commands are cut. Ellipsis
+                        // says there is more; a flush cut would read as a rendering glitch.
+                        Text(
+                            text       = preset.command,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize   = 10.sp,
+                            color      = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            maxLines   = 1,
+                            softWrap   = false,
+                            overflow   = TextOverflow.Ellipsis,
+                            modifier   = Modifier.weight(1f)
+                        )
+                        if (isBuiltin) {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = stringResource(R.string.preset_built_in),
+                                tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                    }
                 }
             }
-            Text(
-                text       = preset.command,
-                fontFamily = FontFamily.Monospace,
-                fontSize   = 12.sp,
-                color      = MaterialTheme.colorScheme.onSurface,
-                maxLines   = 2,
-                overflow   = TextOverflow.Ellipsis
-            )
         }
 
-        Spacer(Modifier.width(8.dp))
-
-        GroupChip(group = group)
-
-        action()
-    }
-}
-
-@Composable
-private fun BuiltinBadge() {
-    Text(
-        text     = stringResource(R.string.preset_builtin),
-        style    = MaterialTheme.typography.labelSmall,
-        color    = MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines = 1,
-        modifier = Modifier
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = MaterialTheme.shapes.small
+        DropdownMenu(
+            expanded         = menuExpanded,
+            onDismissRequest = { menuExpanded = false }
+        ) {
+            DropdownMenuItem(
+                text        = { Text(stringResource(R.string.preset_edit)) },
+                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                onClick = {
+                    menuExpanded = false
+                    onEdit()
+                }
             )
-            .padding(horizontal = 6.dp, vertical = 2.dp)
-    )
-}
-
-@Composable
-private fun GroupChip(group: PresetGroup) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        GroupDot(colorHex = group.colorHex, size = 8)
-        Spacer(Modifier.width(4.dp))
-        Text(
-            text     = group.name,
-            style    = MaterialTheme.typography.labelSmall,
-            color    = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.preset_delete)) },
+                leadingIcon = {
+                    Icon(Icons.Default.Delete, contentDescription = null, tint = DangerRed)
+                },
+                onClick = {
+                    menuExpanded = false
+                    onDelete()
+                }
+            )
+        }
     }
 }
 
 // ── Previews ─────────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true)
 @Composable
 private fun PresetsScreenContentPreview() {
@@ -454,20 +423,26 @@ private fun PresetsScreenContentPreview() {
         PresetsScreenContent(
             uiState = PresetsUiState(
                 // Both blocks number sortOrder from zero, so this ordering only comes out as
-                // Docker, Network, My scripts, System once source outranks sortOrder.
+                // Docker, Network, My scripts, System, Empty once source outranks sortOrder.
                 groups = listOf(
                     PresetGroup(-10, "Docker", "#1565C0", 0, PresetSource.BUILTIN),
                     PresetGroup(-11, "Network", "#AD1457", 1, PresetSource.BUILTIN),
                     PresetGroup(1, "My scripts", "#2E7D32", 0, PresetSource.CUSTOM),
-                    PresetGroup(2, "System", "#455A64", 1, PresetSource.CUSTOM)
+                    PresetGroup(2, "System", "#455A64", 1, PresetSource.CUSTOM),
+                    // No presets of its own — the row is nothing but the add tile.
+                    PresetGroup(3, "Empty", "#6A1B9A", 2, PresetSource.CUSTOM)
                 ),
                 presets = listOf(
                     // Built-ins carry negative catalog ids; the users own rows come from Room.
-                    Preset(-1, -10, "Running containers", "docker ps", 0, PresetSource.BUILTIN),
-                    Preset(-2, -10, "Compose logs", "docker compose logs --tail=100", 1, PresetSource.BUILTIN),
-                    Preset(-3, -11, "Open ports", "ss -tulpn", 0, PresetSource.BUILTIN),
-                    Preset(1, 1, "Deploy", "./deploy.sh", 0, PresetSource.CUSTOM),
-                    Preset(2, 2, "Disk free", "df -h", 0, PresetSource.CUSTOM)
+                    Preset(-1, -10, "Running containers", "docker ps", 0, PresetSource.BUILTIN, "storage"),
+                    Preset(-2, -10, "Compose logs", "docker compose logs --tail=100", 1, PresetSource.BUILTIN, "cloud"),
+                    // Long enough to be cut on any tile width — shows the ellipsis doing its job.
+                    Preset(-4, -10, "Prod logs", "docker compose -f docker-compose.prod.yml logs --tail=200 -f", 2, PresetSource.BUILTIN, "bug"),
+                    Preset(-3, -11, "Open ports", "ss -tulpn", 0, PresetSource.BUILTIN, "speed"),
+                    // Sits next to the built-in above, so the padlock has something to contrast with.
+                    Preset(3, -11, "My tunnel", "ssh -D 1080 gateway", 1, PresetSource.CUSTOM, "lock"),
+                    Preset(1, 1, "Deploy", "./deploy.sh", 0, PresetSource.CUSTOM, "upload"),
+                    Preset(2, 2, "Disk free", "df -h", 0, PresetSource.CUSTOM, "memory")
                 )
             ),
             onNavigateToServers  = {},
@@ -478,15 +453,15 @@ private fun PresetsScreenContentPreview() {
             onEdit          = {},
             onDelete        = {},
             onRefresh       = {},
-            onCopyToCustom  = {},
+            onCopy          = {},
             onClearMessage  = {},
             onDismissDialog = {},
-            onSave          = { _, _, _ -> }
+            onSave          = { _, _, _, _ -> }
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true)
 @Composable
 private fun PresetsScreenUpdatingPreview() {
@@ -495,7 +470,7 @@ private fun PresetsScreenUpdatingPreview() {
             uiState = PresetsUiState(
                 groups  = listOf(PresetGroup(-10, "Docker", "#1565C0", 0, PresetSource.BUILTIN)),
                 presets = listOf(
-                    Preset(-1, -10, "Running containers", "docker ps", 0, PresetSource.BUILTIN)
+                    Preset(-1, -10, "Running containers", "docker ps", 0, PresetSource.BUILTIN, "storage")
                 ),
                 isUpdating = true
             ),
@@ -507,15 +482,15 @@ private fun PresetsScreenUpdatingPreview() {
             onEdit          = {},
             onDelete        = {},
             onRefresh       = {},
-            onCopyToCustom  = {},
+            onCopy          = {},
             onClearMessage  = {},
             onDismissDialog = {},
-            onSave          = { _, _, _ -> }
+            onSave          = { _, _, _, _ -> }
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true)
 @Composable
 private fun PresetsScreenNoGroupsPreview() {
@@ -530,10 +505,10 @@ private fun PresetsScreenNoGroupsPreview() {
             onEdit          = {},
             onDelete        = {},
             onRefresh       = {},
-            onCopyToCustom  = {},
+            onCopy          = {},
             onClearMessage  = {},
             onDismissDialog = {},
-            onSave          = { _, _, _ -> }
+            onSave          = { _, _, _, _ -> }
         )
     }
 }

@@ -12,13 +12,16 @@ fun PresetEntity.toDomain(encryption: EncryptionHelper): Preset = Preset(
     command = encryption.decryptOrEmpty(encryptedCommand),
     sortOrder = sortOrder,
     // Room only ever holds the user's own presets; BUILTIN rows live in Remote Config's cache.
-    source = PresetSource.CUSTOM
+    source = PresetSource.CUSTOM,
+    iconKey = iconKey
 )
 
 fun Preset.toEntity(encryption: EncryptionHelper): PresetEntity = PresetEntity(
     id = id,
     groupId = groupId,
     label = label,
+    // The key is one of a fixed set of identifiers, not user data, so it stays in the clear.
     encryptedCommand = encryption.encrypt(command),
-    sortOrder = sortOrder
+    sortOrder = sortOrder,
+    iconKey = iconKey
 )

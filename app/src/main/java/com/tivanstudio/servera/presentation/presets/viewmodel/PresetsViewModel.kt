@@ -49,15 +49,21 @@ class PresetsViewModel @Inject constructor(
         }
     }
 
-    /** Adding needs a group to put the preset in; defaults to the first one. */
+    /**
+     * The FAB belongs to the screen rather than to any one section, so a new preset starts in the
+     * first of the user's own groups. Built-in groups are not candidates: nothing can be saved
+     * into them, and with no group of their own there is nowhere to add.
+     */
     fun startAdd() {
         val state = _uiState.value
-        val group = state.groups.minByOrNull { it.sortOrder } ?: return
+        val group = state.groups
+            .filter { it.source == PresetSource.CUSTOM }
+            .minByOrNull { it.sortOrder } ?: return
         _uiState.update {
             it.copy(
                 editing = Preset(
                     id        = 0,
-                    groupId   = group.id,
+                    groupId   = resolveTargetGroupId(group.id) ?: NO_GROUP,
                     label     = "",
                     command   = "",
                     sortOrder = 0
@@ -73,11 +79,46 @@ class PresetsViewModel @Inject constructor(
         _uiState.update { it.copy(editing = preset, isNew = false) }
     }
 
+    /**
+     * Opens the dialog on a fresh copy of a built-in so it can be adjusted before it becomes one
+     * of the user's own presets.
+     */
+    fun startCopy(preset: Preset) {
+        _uiState.update {
+            it.copy(
+                editing = preset.copy(
+                    id        = 0,
+                    groupId   = resolveTargetGroupId(preset.groupId) ?: NO_GROUP,
+                    sortOrder = 0,
+                    iconKey   = null
+                ),
+                isNew = true
+            )
+        }
+    }
+
+    /**
+     * The group a preset started in, translated into one it can actually be saved to.
+     *
+     * Built-in groups are catalog entries with no row in `preset_groups`, and `presets.groupId` is
+     * a foreign key onto it, so one can never be the target: fall back to the user's group of the
+     * same name, the rule the repository copy already follows. Null when there is nothing to fall
+     * back to, which leaves the dialog to ask for a group.
+     */
+    private fun resolveTargetGroupId(sourceGroupId: Long): Long? {
+        val groups = _uiState.value.groups
+        val source = groups.firstOrNull { it.id == sourceGroupId } ?: return null
+        if (source.source == PresetSource.CUSTOM) return source.id
+        return groups.firstOrNull {
+            it.source == PresetSource.CUSTOM && it.name.equals(source.name, ignoreCase = true)
+        }?.id
+    }
+
     fun dismissDialog() {
         _uiState.update { it.copy(editing = null, isNew = false) }
     }
 
-    fun savePreset(groupId: Long, label: String, command: String) {
+    fun savePreset(groupId: Long, label: String, command: String, iconKey: String?) {
         val state = _uiState.value
         val editing = state.editing ?: return
         if (label.isBlank() || command.isBlank()) return
@@ -96,7 +137,8 @@ class PresetsViewModel @Inject constructor(
                     groupId   = groupId,
                     label     = label.trim(),
                     command   = command.trim(),
-                    sortOrder = sortOrder
+                    sortOrder = sortOrder,
+                    iconKey   = iconKey
                 )
             )
             // savePreset also serves edits; only a brand new row is a creation.
@@ -142,5 +184,10 @@ class PresetsViewModel @Inject constructor(
 
     fun clearMessage() {
         _uiState.update { it.copy(updateMessageRes = null) }
+    }
+
+    private companion object {
+        /** Room ids start at 1, so zero reads as "no group chosen yet" and matches nothing. */
+        const val NO_GROUP = 0L
     }
 }
