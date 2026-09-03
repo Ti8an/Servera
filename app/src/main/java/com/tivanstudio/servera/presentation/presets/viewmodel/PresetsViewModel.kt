@@ -49,7 +49,7 @@ class PresetsViewModel @Inject constructor(
         }
     }
 
-    /** The add tile lives inside a group's row, so the caller already knows where it goes. */
+    /** The add tile sits inside a group's own section, so the caller already knows where it goes. */
     fun startAdd(groupId: Long) {
         val state = _uiState.value
         if (state.groups.none { it.id == groupId }) return
@@ -71,6 +71,33 @@ class PresetsViewModel @Inject constructor(
     fun startEdit(preset: Preset) {
         if (preset.source == PresetSource.BUILTIN) return
         _uiState.update { it.copy(editing = preset, isNew = false) }
+    }
+
+    /**
+     * Opens the dialog on a fresh copy of a built-in so it can be adjusted before it becomes one
+     * of the user's own presets.
+     *
+     * The copy also has to change groups: built-in groups come from the catalog and have no row in
+     * `preset_groups`, and `presets.groupId` is a foreign key onto it. Reuse the user's group of
+     * the same name when there is one, the same rule the repository copy follows; failing that,
+     * leave the group unresolved so the dialog makes them pick one.
+     */
+    fun startCopy(preset: Preset) {
+        val state = _uiState.value
+        val originName = state.groups.firstOrNull { it.id == preset.groupId }?.name
+        val target = state.groups.firstOrNull {
+            it.source == PresetSource.CUSTOM && it.name.equals(originName, ignoreCase = true)
+        }
+        _uiState.update {
+            it.copy(
+                editing = preset.copy(
+                    id        = 0,
+                    groupId   = target?.id ?: preset.groupId,
+                    sortOrder = 0
+                ),
+                isNew = true
+            )
+        }
     }
 
     fun dismissDialog() {

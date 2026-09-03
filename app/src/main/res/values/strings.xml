@@ -158,6 +158,7 @@
     <string name="preset_edit">Edit</string>
     <string name="preset_delete">Delete</string>
     <string name="preset_add_to_group">Add command</string>
+    <string name="preset_built_in">Built-in preset</string>
     <string name="preset_category">Category</string>
     <string name="preset_label">Name</string>
     <string name="preset_command">Command</string>
