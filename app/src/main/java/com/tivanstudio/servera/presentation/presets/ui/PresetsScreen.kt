@@ -2,11 +2,9 @@ package com.tivanstudio.servera.presentation.presets.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
@@ -335,59 +333,57 @@ private fun PresetTile(
                 )
                 .semantics { contentDescription = description }
         ) {
-            Column(
-                modifier            = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(groupColor.copy(alpha = 0.15f))
-                    ) {
-                        Icon(
-                            Icons.Default.Terminal,
-                            contentDescription = null,
-                            tint     = groupColor,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                    Spacer(Modifier.weight(1f))
-                    if (isBuiltin) {
-                        Icon(
-                            Icons.Default.Lock,
-                            contentDescription = stringResource(R.string.preset_built_in),
-                            tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.size(12.dp)
-                        )
-                    }
-                }
+            Box {
+                // Watermark: it runs off the right edge on purpose, and the card's shape clips it.
+                Icon(
+                    Icons.Default.Terminal,
+                    contentDescription = null,
+                    tint = groupColor.copy(alpha = 0.10f),
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(56.dp)
+                        .offset(x = 12.dp)
+                )
 
-                // One line each: a label that wrapped would push the command off the tile.
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(
+                    modifier            = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.Top
+                ) {
                     Text(
                         text       = preset.label,
                         fontSize   = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color      = MaterialTheme.colorScheme.onSurface,
-                        maxLines   = 1,
+                        maxLines   = 2,
                         overflow   = TextOverflow.Ellipsis
                     )
-                    // ~15 monospaced characters fit here, so most commands are cut. Ellipsis says
-                    // there is more; a flush cut would just read as a rendering glitch.
-                    Text(
-                        text       = preset.command,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize   = 10.sp,
-                        color      = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        maxLines   = 1,
-                        softWrap   = false,
-                        overflow   = TextOverflow.Ellipsis
-                    )
+
+                    Spacer(Modifier.weight(1f))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // ~15 monospaced characters fit here, so most commands are cut. Ellipsis
+                        // says there is more; a flush cut would read as a rendering glitch.
+                        Text(
+                            text       = preset.command,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize   = 10.sp,
+                            color      = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            maxLines   = 1,
+                            softWrap   = false,
+                            overflow   = TextOverflow.Ellipsis,
+                            modifier   = Modifier.weight(1f)
+                        )
+                        if (isBuiltin) {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = stringResource(R.string.preset_built_in),
+                                tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
