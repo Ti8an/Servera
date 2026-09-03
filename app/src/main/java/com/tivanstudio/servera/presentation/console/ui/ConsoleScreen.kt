@@ -2,6 +2,9 @@ package com.tivanstudio.servera.presentation.console.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -9,6 +12,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -106,7 +110,13 @@ private fun ConsoleScreenContent(
     onDismissCommandDialog: () -> Unit,
     onEditCommand: (QuickCommand) -> Unit,
     onPickPreset: (Preset) -> Unit,
-    onSaveOwn: (label: String, command: String, showOutput: Boolean, group: PresetGroup) -> Unit,
+    onSaveOwn: (
+        label: String,
+        command: String,
+        showOutput: Boolean,
+        group: PresetGroup,
+        iconKey: String?
+    ) -> Unit,
     onRun: (QuickCommand) -> Unit,
     onRemove: (Long) -> Unit
 ) {
@@ -277,8 +287,21 @@ private fun AttachedCommandTile(
 
     val tileColor = cmd.groupColorHex?.toComposeColor()
         ?: MaterialTheme.colorScheme.onSurfaceVariant
-    val isRunning   = runState is CommandRunState.Running
-    val description = "${cmd.label}: ${cmd.command}"
+    val isRunning = runState is CommandRunState.Running
+
+    // The badge is 12 dp of colour with no label of its own, so the state is spoken here instead.
+    val statusText = when (runState) {
+        is CommandRunState.Running -> stringResource(R.string.cmd_state_running)
+        is CommandRunState.Done    ->
+            if (runState.exitCode == 0) stringResource(R.string.cmd_state_success)
+            else stringResource(R.string.cmd_state_failed)
+        is CommandRunState.Failure -> stringResource(R.string.cmd_state_failed)
+        null                       -> null
+    }
+    val description = buildString {
+        append("${cmd.label}: ${cmd.command}")
+        statusText?.let { append(", $it") }
+    }
 
     if (showDeleteConfirm) {
         AlertDialog(
@@ -329,7 +352,7 @@ private fun AttachedCommandTile(
             Box {
                 // Watermark: it runs off the right edge on purpose, and the card's shape clips it.
                 Icon(
-                    Icons.Default.Terminal,
+                    presetIconOf(cmd.iconKey),
                     contentDescription = null,
                     tint = tileColor.copy(alpha = 0.10f),
                     modifier = Modifier
@@ -436,7 +459,13 @@ private fun CommandDialog(
     initial: QuickCommand?,
     onDismiss: () -> Unit,
     onPickPreset: (Preset) -> Unit,
-    onSaveOwn: (label: String, command: String, showOutput: Boolean, group: PresetGroup) -> Unit
+    onSaveOwn: (
+        label: String,
+        command: String,
+        showOutput: Boolean,
+        group: PresetGroup,
+        iconKey: String?
+    ) -> Unit
 ) {
     val isEditing = initial != null
     var ownMode by remember(initial) { mutableStateOf(isEditing) }
@@ -648,7 +677,13 @@ private fun CatalogPicker(
 private fun OwnCommandForm(
     uiState: ConsoleUiState,
     initial: QuickCommand?,
-    onSave: (label: String, command: String, showOutput: Boolean, group: PresetGroup) -> Unit,
+    onSave: (
+        label: String,
+        command: String,
+        showOutput: Boolean,
+        group: PresetGroup,
+        iconKey: String?
+    ) -> Unit,
     onCancel: () -> Unit
 ) {
     val groups = uiState.groups.sortedBy { it.sortOrder }
@@ -656,6 +691,7 @@ private fun OwnCommandForm(
     var label      by remember(initial) { mutableStateOf(initial?.label ?: "") }
     var command    by remember(initial) { mutableStateOf(initial?.command ?: "") }
     var showOutput by remember(initial) { mutableStateOf(initial?.showOutput ?: true) }
+    var iconKey    by remember(initial) { mutableStateOf(initial?.iconKey) }
     // An edited command only remembers its group by name, so match on that.
     var group      by remember(initial, groups) {
         mutableStateOf(
@@ -684,6 +720,47 @@ private fun OwnCommandForm(
             ),
             modifier = Modifier.fillMaxWidth()
         )
+
+        Text(
+            text  = stringResource(R.string.preset_icon),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        FlowRow(
+            maxItemsInEachRow     = 6,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement   = Arrangement.spacedBy(8.dp)
+        ) {
+            // Match on a key the catalog still has: one dropped by a later version would leave
+            // nothing highlighted and get silently overwritten on save.
+            val highlighted = iconKey?.takeIf { it in PresetIcons } ?: DEFAULT_PRESET_ICON
+            val accent = selected?.colorHex?.toComposeColor() ?: PrimaryGreen
+            PresetIcons.forEach { (key, icon) ->
+                val isCurrent = key == highlighted
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isCurrent) accent.copy(alpha = 0.2f) else Color.Transparent
+                        )
+                        .then(
+                            if (isCurrent) Modifier.border(1.dp, accent, CircleShape)
+                            else Modifier
+                        )
+                        .clickable { iconKey = key }
+                ) {
+                    Icon(
+                        icon,
+                        contentDescription = key,
+                        tint = if (isCurrent) accent
+                               else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
 
         OutlinedTextField(
             value         = command,
@@ -767,7 +844,7 @@ private fun OwnCommandForm(
             }
             Spacer(Modifier.width(8.dp))
             Button(
-                onClick = { selected?.let { onSave(label, command, showOutput, it) } },
+                onClick = { selected?.let { onSave(label, command, showOutput, it, iconKey) } },
                 enabled = canSubmit,
                 colors  = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
                 shape   = MaterialTheme.shapes.medium
@@ -866,11 +943,11 @@ private fun ConsoleTabPreview() {
             uiState = ConsoleUiState(
                 server = Server(1, "Production", "192.168.1.1", 22, "root", ""),
                 attachedCommands = listOf(
-                    QuickCommand(1, 1, "Running containers", "docker ps", 0, true, "Docker", "#1565C0"),
-                    QuickCommand(2, 1, "Disk free", "df -h", 1, false, "System", "#455A64"),
-                    QuickCommand(3, 1, "Restart nginx", "systemctl restart nginx", 2, true, "System", "#455A64"),
-                    QuickCommand(4, 1, "Tail log", "tail -n 50 /var/log/syslog", 3, true, "Logs", "#AD1457"),
-                    // Typed by hand, so there is no group snapshot to colour the tile with.
+                    QuickCommand(1, 1, "Running containers", "docker ps", 0, true, "Docker", "#1565C0", "cloud"),
+                    QuickCommand(2, 1, "Disk free", "df -h", 1, false, "System", "#455A64", "storage"),
+                    QuickCommand(3, 1, "Restart nginx", "systemctl restart nginx", 2, true, "System", "#455A64", "power"),
+                    QuickCommand(4, 1, "Tail log", "tail -n 50 /var/log/syslog", 3, true, "Logs", "#AD1457", "bug"),
+                    // No group snapshot and no icon: both fall back — neutral outline, terminal glyph.
                     QuickCommand(5, 1, "Uptime", "uptime", 4, showOutput = true)
                 ),
                 presets = listOf(
@@ -902,7 +979,7 @@ private fun ConsoleTabPreview() {
             onDismissCommandDialog = {},
             onEditCommand      = {},
             onPickPreset       = {},
-            onSaveOwn          = { _, _, _, _ -> },
+            onSaveOwn          = { _, _, _, _, _ -> },
             onRun              = {},
             onRemove           = {}
         )
@@ -928,7 +1005,7 @@ private fun ConsoleTabEmptyPreview() {
             onDismissCommandDialog = {},
             onEditCommand      = {},
             onPickPreset       = {},
-            onSaveOwn          = { _, _, _, _ -> },
+            onSaveOwn          = { _, _, _, _, _ -> },
             onRun              = {},
             onRemove           = {}
         )
@@ -955,7 +1032,7 @@ private fun InfoTabEmptyPreview() {
             onDismissCommandDialog = {},
             onEditCommand      = {},
             onPickPreset       = {},
-            onSaveOwn          = { _, _, _, _ -> },
+            onSaveOwn          = { _, _, _, _, _ -> },
             onRun              = {},
             onRemove           = {}
         )
@@ -982,7 +1059,7 @@ private fun InfoTabErrorPreview() {
             onDismissCommandDialog = {},
             onEditCommand      = {},
             onPickPreset       = {},
-            onSaveOwn          = { _, _, _, _ -> },
+            onSaveOwn          = { _, _, _, _, _ -> },
             onRun              = {},
             onRemove           = {}
         )
@@ -995,7 +1072,7 @@ private fun InfoTabErrorPreview() {
 private fun AttachedCommandTileRunningPreview() {
     ServeraTheme {
         AttachedCommandTile(
-            cmd       = QuickCommand(1, 1, "Disk free", "df -h", 0, true, "System", "#455A64"),
+            cmd       = QuickCommand(1, 1, "Disk free", "df -h", 0, true, "System", "#455A64", "storage"),
             runState  = CommandRunState.Running,
             tileWidth = 105.dp,
             onRun     = {},

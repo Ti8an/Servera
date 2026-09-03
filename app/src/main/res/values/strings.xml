@@ -44,6 +44,9 @@
     <string name="add_command">Add command</string>
     <string name="cmd_running">Running…</string>
     <string name="cmd_exit_code">Exit code: %1$d</string>
+    <string name="cmd_state_running">running</string>
+    <string name="cmd_state_success">finished</string>
+    <string name="cmd_state_failed">failed</string>
     <string name="add_quick_command">Add Quick Command</string>
     <string name="edit_quick_command">Edit Quick Command</string>
     <string name="quick_command_label_hint">Label</string>

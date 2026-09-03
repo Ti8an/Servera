@@ -146,14 +146,22 @@ class ConsoleViewModel @Inject constructor(
                     sortOrder     = state.attachedCommands.size,
                     showOutput    = true,
                     groupName     = group?.name,
-                    groupColorHex = group?.colorHex
+                    groupColorHex = group?.colorHex,
+                    // Attaching should not change how the command looks: keep the catalog icon.
+                    iconKey       = preset.iconKey
                 )
             )
         }
     }
 
     /** Saves a hand-typed command; an edit keeps its id, so REPLACE overwrites the row. */
-    fun saveOwn(label: String, command: String, showOutput: Boolean, group: PresetGroup) {
+    fun saveOwn(
+        label: String,
+        command: String,
+        showOutput: Boolean,
+        group: PresetGroup,
+        iconKey: String?
+    ) {
         if (label.isBlank() || command.isBlank()) return
         val state   = _uiState.value
         val editing = state.editingCommand
@@ -167,7 +175,8 @@ class ConsoleViewModel @Inject constructor(
                     sortOrder     = editing?.sortOrder ?: state.attachedCommands.size,
                     showOutput    = showOutput,
                     groupName     = group.name,
-                    groupColorHex = group.colorHex
+                    groupColorHex = group.colorHex,
+                    iconKey       = iconKey
                 )
             )
             dismissCommandDialog()

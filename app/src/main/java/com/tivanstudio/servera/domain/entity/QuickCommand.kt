@@ -9,5 +9,7 @@ data class QuickCommand(
     val showOutput: Boolean = true,
     /** Snapshot of the catalog group this command came from; null for ungrouped ones. */
     val groupName: String? = null,
-    val groupColorHex: String? = null
+    val groupColorHex: String? = null,
+    /** Key into `PresetIcons`; null and unknown keys both fall back to the terminal glyph. */
+    val iconKey: String? = null
 )
