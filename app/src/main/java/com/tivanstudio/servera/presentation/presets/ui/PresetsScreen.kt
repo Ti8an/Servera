@@ -5,12 +5,16 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,6 +33,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tivanstudio.servera.R
@@ -40,6 +46,7 @@ import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsUiState
 import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsViewModel
 import com.tivanstudio.servera.presentation.theme.*
+import kotlinx.coroutines.launch
 
 /** Tiles per row. Change it and the width maths below follows on its own. */
 private const val PRESET_TILE_COLUMNS = 3
@@ -68,7 +75,12 @@ fun PresetsScreen(
         onEdit          = viewModel::startEdit,
         onDelete        = viewModel::deletePreset,
         onRefresh       = viewModel::refresh,
-        onCopy          = viewModel::startCopy,
+        onOpenSourceChooser  = viewModel::openSourceChooser,
+        onDismissSourceChooser = viewModel::dismissSourceChooser,
+        onOpenLibrary        = viewModel::openLibrary,
+        onDismissLibrary     = viewModel::dismissLibrary,
+        onAddFromLibrary     = viewModel::addFromLibrary,
+        onCopyFromLibrary    = viewModel::copyFromLibrary,
         onClearMessage  = viewModel::clearMessage,
         onDismissDialog = viewModel::dismissDialog,
         onSave          = viewModel::savePreset
@@ -87,7 +99,12 @@ private fun PresetsScreenContent(
     onEdit: (Preset) -> Unit,
     onDelete: (Long) -> Unit,
     onRefresh: () -> Unit,
-    onCopy: (Preset) -> Unit,
+    onOpenSourceChooser: () -> Unit,
+    onDismissSourceChooser: () -> Unit,
+    onOpenLibrary: () -> Unit,
+    onDismissLibrary: () -> Unit,
+    onAddFromLibrary: (Preset) -> Unit,
+    onCopyFromLibrary: (Preset) -> Unit,
     onClearMessage: () -> Unit,
     onDismissDialog: () -> Unit,
     onSave: (groupId: Long, label: String, command: String, iconKey: String?) -> Unit
@@ -113,6 +130,23 @@ private fun PresetsScreenContent(
             isNew     = uiState.isNew,
             onDismiss = onDismissDialog,
             onSave    = onSave
+        )
+    }
+
+    if (uiState.showSourceChooser) {
+        SourceChooserDialog(
+            onDismiss        = onDismissSourceChooser,
+            onOpenLibrary    = onOpenLibrary,
+            onCreateManually = onAdd
+        )
+    }
+
+    if (uiState.showLibrary) {
+        PresetLibraryDialog(
+            uiState      = uiState,
+            onDismiss    = onDismissLibrary,
+            onAdd        = onAddFromLibrary,
+            onCopyToForm = onCopyFromLibrary
         )
     }
 
@@ -163,7 +197,7 @@ private fun PresetsScreenContent(
             // A preset needs a group to live in — no groups, nothing to add.
             if (hasGroups) {
                 FloatingActionButton(
-                    onClick        = onAdd,
+                    onClick        = onOpenSourceChooser,
                     containerColor = PrimaryGreen
                 ) {
                     Icon(
@@ -206,8 +240,7 @@ private fun PresetsScreenContent(
                         presets   = presets,
                         tileWidth = tileWidth,
                         onEdit    = onEdit,
-                        onDelete  = onDelete,
-                        onCopy    = onCopy
+                        onDelete  = onDelete
                     )
                 }
             }
@@ -223,8 +256,7 @@ private fun GroupSection(
     presets: List<Preset>,
     tileWidth: Dp,
     onEdit: (Preset) -> Unit,
-    onDelete: (Long) -> Unit,
-    onCopy: (Preset) -> Unit
+    onDelete: (Long) -> Unit
 ) {
     Column {
         Text(
@@ -248,8 +280,7 @@ private fun GroupSection(
                     group     = group,
                     tileWidth = tileWidth,
                     onEdit    = { onEdit(preset) },
-                    onDelete  = { onDelete(preset.id) },
-                    onCopy    = { onCopy(preset) }
+                    onDelete  = { onDelete(preset.id) }
                 )
             }
         }
@@ -296,9 +327,8 @@ private fun NoGroupsState(
  * terminal glyph rather than by a fill — a solid tile would read as an on/off state a preset
  * does not have.
  *
- * A tap opens the dialog either way. Built-ins have no Room row behind them, so it opens on a
- * copy of the preset instead of on the preset itself; the padlock is the only thing that says so.
- * That copy is also the only thing a built-in can do, so long-press has no menu to offer.
+ * The grid holds only the user's own presets, so every tile edits and deletes: the built-in
+ * catalog is read-only and lives behind the library dialog instead.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -307,13 +337,11 @@ private fun PresetTile(
     group: PresetGroup,
     tileWidth: Dp,
     onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onCopy: () -> Unit
+    onDelete: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
     val groupColor  = group.colorHex.toComposeColor()
-    val isBuiltin   = preset.source == PresetSource.BUILTIN
     val description = "${preset.label}: ${preset.command}"
 
     Box {
@@ -327,8 +355,8 @@ private fun PresetTile(
                 .size(width = tileWidth, height = TileHeight)
                 .clip(MaterialTheme.shapes.large)
                 .combinedClickable(
-                    onClick     = { if (isBuiltin) onCopy() else onEdit() },
-                    onLongClick = { if (!isBuiltin) menuExpanded = true }
+                    onClick     = onEdit,
+                    onLongClick = { menuExpanded = true }
                 )
                 .semantics { contentDescription = description }
         ) {
@@ -361,28 +389,17 @@ private fun PresetTile(
 
                     Spacer(Modifier.weight(1f))
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // ~15 monospaced characters fit here, so most commands are cut. Ellipsis
-                        // says there is more; a flush cut would read as a rendering glitch.
-                        Text(
-                            text       = preset.command,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize   = 10.sp,
-                            color      = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            maxLines   = 1,
-                            softWrap   = false,
-                            overflow   = TextOverflow.Ellipsis,
-                            modifier   = Modifier.weight(1f)
-                        )
-                        if (isBuiltin) {
-                            Icon(
-                                Icons.Default.Lock,
-                                contentDescription = stringResource(R.string.preset_built_in),
-                                tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.size(12.dp)
-                            )
-                        }
-                    }
+                    // ~15 monospaced characters fit here, so most commands are cut. Ellipsis
+                    // says there is more; a flush cut would read as a rendering glitch.
+                    Text(
+                        text       = preset.command,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize   = 10.sp,
+                        color      = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        maxLines   = 1,
+                        softWrap   = false,
+                        overflow   = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
@@ -409,6 +426,222 @@ private fun PresetTile(
                     onDelete()
                 }
             )
+        }
+    }
+}
+
+/** Step one: a new command is either lifted from the catalog or typed from scratch. */
+@Composable
+private fun SourceChooserDialog(
+    onDismiss: () -> Unit,
+    onOpenLibrary: () -> Unit,
+    onCreateManually: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor   = MaterialTheme.colorScheme.surface,
+        title = {
+            Text(
+                text       = stringResource(R.string.add_command_title),
+                style      = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    onClick = onOpenLibrary,
+                    colors  = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                    shape   = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    Icon(Icons.Default.Bookmarks, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.open_library), fontWeight = FontWeight.Bold)
+                }
+
+                OutlinedButton(
+                    onClick = onCreateManually,
+                    shape   = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.create_manually))
+                }
+            }
+        },
+        // Both choices are buttons in the body; there is nothing left to confirm.
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    stringResource(R.string.cancel),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    )
+}
+
+/**
+ * Step two: the built-in catalog, browsable in full. Adding takes a preset as it stands; the copy
+ * action drops it into the edit dialog instead, for when it needs a tweak first.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PresetLibraryDialog(
+    uiState: PresetsUiState,
+    onDismiss: () -> Unit,
+    onAdd: (Preset) -> Unit,
+    onCopyToForm: (Preset) -> Unit
+) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope   = rememberCoroutineScope()
+    val addedMsg = stringResource(R.string.preset_added)
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties       = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color    = MaterialTheme.colorScheme.background
+        ) {
+            Scaffold(
+                containerColor = MaterialTheme.colorScheme.background,
+                snackbarHost   = { SnackbarHost(snackbarHostState) },
+                topBar = {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                stringResource(R.string.preset_library),
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onDismiss) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.cancel)
+                                )
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
+                    )
+                }
+            ) { padding ->
+                // Compared by text: a catalog preset has no id its copy in Room keeps.
+                val alreadyAdded = uiState.customCommandStrings
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = ScreenPadding),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    uiState.builtinGrouped.forEach { (group, presets) ->
+                        item(key = "library_header_${group.id}") {
+                            Row(
+                                modifier          = Modifier.padding(vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                GroupDot(colorHex = group.colorHex, size = 12)
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text  = group.name,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        items(presets, key = { "library_${it.id}" }) { preset ->
+                            LibraryRow(
+                                preset       = preset,
+                                isAdded      = preset.command in alreadyAdded,
+                                onAdd        = {
+                                    onAdd(preset)
+                                    // The dialog stays open: several presets usually go at once.
+                                    scope.launch { snackbarHostState.showSnackbar(addedMsg) }
+                                },
+                                onCopyToForm = { onCopyToForm(preset) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LibraryRow(
+    preset: Preset,
+    isAdded: Boolean,
+    onAdd: () -> Unit,
+    onCopyToForm: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text       = preset.label,
+                fontWeight = FontWeight.Medium,
+                fontSize   = 14.sp,
+                maxLines   = 1,
+                overflow   = TextOverflow.Ellipsis
+            )
+            Text(
+                text       = preset.command,
+                fontFamily = FontFamily.Monospace,
+                fontSize   = 11.sp,
+                color      = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines   = 1,
+                overflow   = TextOverflow.Ellipsis
+            )
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment     = Alignment.CenterVertically
+        ) {
+            if (isAdded) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = stringResource(R.string.already_added),
+                    tint     = PrimaryGreen,
+                    modifier = Modifier.size(20.dp)
+                )
+            } else {
+                FilledTonalButton(
+                    onClick        = onAdd,
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    modifier       = Modifier.height(32.dp)
+                ) {
+                    Text(stringResource(R.string.add), fontSize = 13.sp)
+                }
+            }
+
+            IconButton(onClick = onCopyToForm, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Default.ContentCopy,
+                    contentDescription = stringResource(R.string.copy_to_form),
+                    tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }
@@ -453,10 +686,54 @@ private fun PresetsScreenContentPreview() {
             onEdit          = {},
             onDelete        = {},
             onRefresh       = {},
-            onCopy          = {},
+            onOpenSourceChooser    = {},
+            onDismissSourceChooser = {},
+            onOpenLibrary          = {},
+            onDismissLibrary       = {},
+            onAddFromLibrary       = {},
+            onCopyFromLibrary      = {},
             onClearMessage  = {},
             onDismissDialog = {},
             onSave          = { _, _, _, _ -> }
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SourceChooserDialogPreview() {
+    ServeraTheme {
+        SourceChooserDialog(
+            onDismiss        = {},
+            onOpenLibrary    = {},
+            onCreateManually = {}
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true)
+@Composable
+private fun PresetLibraryDialogPreview() {
+    ServeraTheme {
+        PresetLibraryDialog(
+            uiState = PresetsUiState(
+                groups = listOf(
+                    PresetGroup(-10, "Docker", "#1565C0", 0, PresetSource.BUILTIN),
+                    PresetGroup(-11, "Network", "#AD1457", 1, PresetSource.BUILTIN),
+                    PresetGroup(1, "Docker", "#1565C0", 0, PresetSource.CUSTOM)
+                ),
+                presets = listOf(
+                    Preset(-1, -10, "Running containers", "docker ps", 0, PresetSource.BUILTIN, "cloud"),
+                    Preset(-2, -10, "Compose logs", "docker compose logs --tail=100", 1, PresetSource.BUILTIN),
+                    Preset(-3, -11, "Open ports", "ss -tulpn", 0, PresetSource.BUILTIN, "speed"),
+                    // Same command text as the first built-in, so that row shows the tick.
+                    Preset(1, 1, "Running containers", "docker ps", 0, PresetSource.CUSTOM, "cloud")
+                )
+            ),
+            onDismiss    = {},
+            onAdd        = {},
+            onCopyToForm = {}
         )
     }
 }
@@ -482,7 +759,12 @@ private fun PresetsScreenUpdatingPreview() {
             onEdit          = {},
             onDelete        = {},
             onRefresh       = {},
-            onCopy          = {},
+            onOpenSourceChooser    = {},
+            onDismissSourceChooser = {},
+            onOpenLibrary          = {},
+            onDismissLibrary       = {},
+            onAddFromLibrary       = {},
+            onCopyFromLibrary      = {},
             onClearMessage  = {},
             onDismissDialog = {},
             onSave          = { _, _, _, _ -> }
@@ -505,7 +787,12 @@ private fun PresetsScreenNoGroupsPreview() {
             onEdit          = {},
             onDelete        = {},
             onRefresh       = {},
-            onCopy          = {},
+            onOpenSourceChooser    = {},
+            onDismissSourceChooser = {},
+            onOpenLibrary          = {},
+            onDismissLibrary       = {},
+            onAddFromLibrary       = {},
+            onCopyFromLibrary      = {},
             onClearMessage  = {},
             onDismissDialog = {},
             onSave          = { _, _, _, _ -> }
