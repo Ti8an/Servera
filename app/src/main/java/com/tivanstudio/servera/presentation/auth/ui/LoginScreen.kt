@@ -167,7 +167,11 @@ private fun LoginContent(
                 keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Done
             ),
-            keyboardActions = KeyboardActions(onDone = { onLoginClick() }),
+            // Guarded like the button below it: the IME key is the other way in, and an empty
+            // password is not one the vault can have been created with.
+            keyboardActions = KeyboardActions(
+                onDone = { if (uiState.password.isNotEmpty()) onLoginClick() }
+            ),
             trailingIcon = {
                 IconButton(onClick = onTogglePasswordVisibility) {
                     Icon(
@@ -203,6 +207,9 @@ private fun LoginContent(
 
         Button(
             onClick = onLoginClick,
+            // isNotEmpty, not isNotBlank: a password of spaces is valid if that is what the
+            // user created.
+            enabled = uiState.password.isNotEmpty(),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),

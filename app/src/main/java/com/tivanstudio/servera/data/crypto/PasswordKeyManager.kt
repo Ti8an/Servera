@@ -52,7 +52,13 @@ class PasswordKeyManager @Inject constructor(
     @AuthPrefs private val prefs: SharedPreferences
 ) {
 
+    /**
+     * @throws IllegalArgumentException on an empty password: the PBKDF2 provider rejects one
+     * anyway, and it does so with an exception no caller here was written to expect.
+     */
     private fun deriveKek(password: CharArray, salt: ByteArray, iterations: Int): SecretKey {
+        require(password.isNotEmpty()) { "Password must not be empty" }
+
         val spec = PBEKeySpec(password, salt, iterations, KEY_LENGTH_BITS)
         try {
             val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
@@ -107,9 +113,13 @@ class PasswordKeyManager @Inject constructor(
 
     /**
      * Unwraps the DEK with [password], or returns null when the password is wrong
-     * (GCM tag mismatch) or nothing has been initialized yet.
+     * (GCM tag mismatch or empty) or nothing has been initialized yet.
      */
     fun unlock(password: CharArray): SecretKey? {
+        // No vault can be created with an empty password, so there is nothing for one to open:
+        // it is a wrong password like any other, not a case worth crashing the caller over.
+        if (password.isEmpty()) return null
+
         val wrapped = prefs.getString(KEY_WRAPPED_DEK, null)?.fromBase64() ?: return null
         val salt = prefs.getString(KEY_KDF_SALT, null)?.fromBase64() ?: return null
         val iterations = storedIterations()
