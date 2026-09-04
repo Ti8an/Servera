@@ -12,17 +12,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -31,6 +41,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tivanstudio.servera.R
+import com.tivanstudio.servera.presentation.theme.PrimaryGreen
 import com.tivanstudio.servera.presentation.theme.presetIconOf
 
 /** Tiles per row. Change it and [rememberCommandTileWidth] follows on its own. */
@@ -139,6 +151,70 @@ fun CommandTile(
                     if (badge != null) badge() else Spacer(Modifier.size(12.dp))
                 }
             }
+        }
+    }
+}
+
+/**
+ * A catalog command offered for the taking: tap adds it, a long press offers to drop it into the
+ * form for a tweak first. Shared by the console's catalog tab and the preset library dialog.
+ *
+ * One already taken keeps its tile — hiding it would make the catalog shift under the finger —
+ * and marks itself with a tick and a brighter border instead.
+ */
+@Composable
+fun CommandPickerTile(
+    label: String,
+    command: String,
+    iconKey: String?,
+    accentColor: Color,
+    width: Dp,
+    isAdded: Boolean,
+    onAdd: () -> Unit,
+    onCopyToForm: () -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    // The tick is 12 dp of colour with no label of its own, so "already added" is spoken here:
+    // without it every tile in the grid reads the same to TalkBack.
+    val addedText   = stringResource(R.string.already_added)
+    val description = if (isAdded) "$label: $command, $addedText" else "$label: $command"
+
+    Box {
+        CommandTile(
+            label       = label,
+            command     = command,
+            iconKey     = iconKey,
+            accentColor = accentColor,
+            width       = width,
+            onClick     = onAdd,
+            onLongClick = { menuExpanded = true },
+            highlighted = isAdded,
+            badge = if (isAdded) {
+                {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint     = PrimaryGreen,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+            } else null,
+            contentDescription = description
+        )
+
+        DropdownMenu(
+            expanded         = menuExpanded,
+            onDismissRequest = { menuExpanded = false }
+        ) {
+            DropdownMenuItem(
+                text        = { Text(stringResource(R.string.copy_to_form)) },
+                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+                onClick = {
+                    menuExpanded = false
+                    onCopyToForm()
+                }
+            )
         }
     }
 }

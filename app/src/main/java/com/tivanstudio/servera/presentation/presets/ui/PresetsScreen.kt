@@ -2,14 +2,11 @@ package com.tivanstudio.servera.presentation.presets.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
@@ -18,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,6 +31,7 @@ import com.tivanstudio.servera.domain.entity.Preset
 import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.entity.PresetSource
 import com.tivanstudio.servera.presentation.common.CommandGridPadding
+import com.tivanstudio.servera.presentation.common.CommandPickerTile
 import com.tivanstudio.servera.presentation.common.CommandTile
 import com.tivanstudio.servera.presentation.common.CommandTileColumns
 import com.tivanstudio.servera.presentation.common.CommandTileSpacing
@@ -426,7 +423,7 @@ private fun SourceChooserDialog(
  * Step two: the built-in catalog, browsable in full. Adding takes a preset as it stands; the copy
  * action drops it into the edit dialog instead, for when it needs a tweak first.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun PresetLibraryDialog(
     uiState: PresetsUiState,
@@ -435,8 +432,9 @@ private fun PresetLibraryDialog(
     onCopyToForm: (Preset) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope   = rememberCoroutineScope()
-    val addedMsg = stringResource(R.string.preset_added)
+    val scope      = rememberCoroutineScope()
+    val addedMsg   = stringResource(R.string.preset_added)
+    val alreadyMsg = stringResource(R.string.already_added)
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -473,6 +471,7 @@ private fun PresetLibraryDialog(
             ) { padding ->
                 // Compared by text: a catalog preset has no id its copy in Room keeps.
                 val alreadyAdded = uiState.customCommandStrings
+                val tileWidth    = rememberCommandTileWidth()
 
                 LazyColumn(
                     modifier = Modifier
@@ -481,100 +480,62 @@ private fun PresetLibraryDialog(
                         .padding(horizontal = CommandGridPadding),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
+                    // A group is one item, header and grid together: splitting the tiles into
+                    // their own items would let a row straddle two groups as the list recycles.
                     uiState.builtinGrouped.forEach { (group, presets) ->
-                        item(key = "library_header_${group.id}") {
-                            Row(
-                                modifier          = Modifier.padding(vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                GroupDot(colorHex = group.colorHex, size = 12)
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text  = group.name,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                        item(key = "library_group_${group.id}") {
+                            Column {
+                                Row(
+                                    modifier          = Modifier.padding(vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    GroupDot(colorHex = group.colorHex, size = 12)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        text  = group.name,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
 
-                        items(presets, key = { "library_${it.id}" }) { preset ->
-                            LibraryRow(
-                                preset       = preset,
-                                isAdded      = preset.command in alreadyAdded,
-                                onAdd        = {
-                                    onAdd(preset)
-                                    // The dialog stays open: several presets usually go at once.
-                                    scope.launch { snackbarHostState.showSnackbar(addedMsg) }
-                                },
-                                onCopyToForm = { onCopyToForm(preset) }
-                            )
+                                FlowRow(
+                                    maxItemsInEachRow     = CommandTileColumns,
+                                    horizontalArrangement = Arrangement.spacedBy(CommandTileSpacing),
+                                    verticalArrangement   = Arrangement.spacedBy(CommandTileSpacing)
+                                ) {
+                                    presets.forEach { preset ->
+                                        val isAdded = preset.command in alreadyAdded
+                                        CommandPickerTile(
+                                            label       = preset.label,
+                                            command     = preset.command,
+                                            iconKey     = preset.iconKey,
+                                            accentColor = group.colorHex.toComposeColor(),
+                                            width       = tileWidth,
+                                            isAdded     = isAdded,
+                                            onAdd = {
+                                                // Tapping one that is already in says so rather
+                                                // than doing nothing: silence reads as a hang.
+                                                if (isAdded) {
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar(alreadyMsg)
+                                                    }
+                                                } else {
+                                                    onAdd(preset)
+                                                    // The dialog stays open: several presets
+                                                    // usually go at once.
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar(addedMsg)
+                                                    }
+                                                }
+                                            },
+                                            onCopyToForm = { onCopyToForm(preset) }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LibraryRow(
-    preset: Preset,
-    isAdded: Boolean,
-    onAdd: () -> Unit,
-    onCopyToForm: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text       = preset.label,
-                fontWeight = FontWeight.Medium,
-                fontSize   = 14.sp,
-                maxLines   = 1,
-                overflow   = TextOverflow.Ellipsis
-            )
-            Text(
-                text       = preset.command,
-                fontFamily = FontFamily.Monospace,
-                fontSize   = 11.sp,
-                color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines   = 1,
-                overflow   = TextOverflow.Ellipsis
-            )
-        }
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment     = Alignment.CenterVertically
-        ) {
-            if (isAdded) {
-                Icon(
-                    Icons.Default.CheckCircle,
-                    contentDescription = stringResource(R.string.already_added),
-                    tint     = PrimaryGreen,
-                    modifier = Modifier.size(20.dp)
-                )
-            } else {
-                FilledTonalButton(
-                    onClick        = onAdd,
-                    contentPadding = PaddingValues(horizontal = 12.dp),
-                    modifier       = Modifier.height(32.dp)
-                ) {
-                    Text(stringResource(R.string.add), fontSize = 13.sp)
-                }
-            }
-
-            IconButton(onClick = onCopyToForm, modifier = Modifier.size(32.dp)) {
-                Icon(
-                    Icons.Default.ContentCopy,
-                    contentDescription = stringResource(R.string.copy_to_form),
-                    tint     = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
-                )
             }
         }
     }

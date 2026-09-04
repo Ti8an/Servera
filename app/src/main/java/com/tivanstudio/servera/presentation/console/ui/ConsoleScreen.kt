@@ -1,13 +1,10 @@
 package com.tivanstudio.servera.presentation.console.ui
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,7 +23,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -43,6 +39,7 @@ import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.domain.entity.ServerInfo
 import com.tivanstudio.servera.presentation.common.CommandGridPadding
+import com.tivanstudio.servera.presentation.common.CommandPickerTile
 import com.tivanstudio.servera.presentation.common.CommandTile
 import com.tivanstudio.servera.presentation.common.CommandTileColumns
 import com.tivanstudio.servera.presentation.common.CommandTileSpacing
@@ -404,13 +401,13 @@ private fun CommandDialog(
 ) {
     val isEditing = initial != null
     var ownMode by remember(initial) { mutableStateOf(isEditing) }
-    // Selection is keyed by group + command rather than by id, so it survives
-    // duplicate or unsaved ids in the catalog.
-    var selectedKey by remember { mutableStateOf<String?>(null) }
+    // A catalog preset copied into the manual form, waiting there to be tweaked and saved.
+    var prefill by remember(initial) { mutableStateOf<QuickCommand?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope    = rememberCoroutineScope()
-    val addedMsg = stringResource(R.string.command_added)
+    val scope      = rememberCoroutineScope()
+    val addedMsg   = stringResource(R.string.command_added)
+    val alreadyMsg = stringResource(R.string.already_added)
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -475,38 +472,32 @@ private fun CommandDialog(
                     if (ownMode) {
                         OwnCommandForm(
                             uiState  = uiState,
-                            initial  = initial,
+                            initial  = initial ?: prefill,
                             onSave   = onSaveOwn,
                             onCancel = onDismiss
                         )
                     } else {
                         CatalogPicker(
-                            uiState     = uiState,
-                            selectedKey = selectedKey,
-                            onSelect    = { selectedKey = it },
-                            modifier    = Modifier.weight(1f)
-                        )
-
-                        Button(
-                            onClick = {
-                                val preset = uiState.presets
-                                    .firstOrNull { it.selectionKey() == selectedKey }
-                                if (preset != null) {
+                            uiState = uiState,
+                            onPick  = { preset ->
+                                // Tapping one that is already attached says so rather than doing
+                                // nothing: silence reads as a hang.
+                                if (preset.command in uiState.attachedCommandStrings) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(alreadyMsg)
+                                    }
+                                } else {
                                     onPickPreset(preset)
+                                    // The dialog stays open: several presets usually go at once.
                                     scope.launch { snackbarHostState.showSnackbar(addedMsg) }
-                                    // Cleared so the next preset can be picked right away.
-                                    selectedKey = null
                                 }
                             },
-                            enabled  = selectedKey != null,
-                            colors   = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
-                            shape    = MaterialTheme.shapes.medium,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        ) {
-                            Text(stringResource(R.string.save_button), fontWeight = FontWeight.Bold)
-                        }
+                            onCopyToForm = { preset ->
+                                prefill = preset.toDraftCommand(uiState)
+                                ownMode = true
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
@@ -514,15 +505,16 @@ private fun CommandDialog(
     }
 }
 
-/** Stable identity of a catalog row: ids may collide, group + command does not. */
-private fun Preset.selectionKey(): String = "$groupId|$command"
-
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The built-in catalog as a grid, matching the console's own command grid: a tap attaches the
+ * preset as it stands, a long press drops it into the manual form for a tweak first.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CatalogPicker(
     uiState: ConsoleUiState,
-    selectedKey: String?,
-    onSelect: (String) -> Unit,
+    onPick: (Preset) -> Unit,
+    onCopyToForm: (Preset) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (uiState.grouped.isEmpty()) {
@@ -540,64 +532,48 @@ private fun CatalogPicker(
         return
     }
 
+    val attached  = uiState.attachedCommandStrings
+    val tileWidth = rememberCommandTileWidth()
+
     LazyColumn(
         modifier       = modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = CommandGridPadding),
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
+        // A group is one item, header and grid together: splitting the tiles into their own
+        // items would let a row straddle two groups as the list recycles.
         uiState.grouped.forEach { (group, presets) ->
-            item(key = "header_${group.id}") {
-                Row(
-                    modifier          = Modifier.padding(top = 12.dp, bottom = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    GroupDot(colorHex = group.colorHex, size = 10)
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text  = group.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            items(presets, key = { "${it.groupId}_${it.command}" }) { preset ->
-                val isSelected = preset.selectionKey() == selectedKey
-                // Animated so picking another row reads as a move, not a flicker.
-                val containerColor by animateColorAsState(
-                    targetValue = if (isSelected) PrimaryGreen.copy(alpha = 0.18f)
-                                  else MaterialTheme.colorScheme.surface,
-                    label = "presetBackground"
-                )
-                Card(
-                    onClick  = { onSelect(preset.selectionKey()) },
-                    colors   = CardDefaults.cardColors(containerColor = containerColor),
-                    border   = if (isSelected) BorderStroke(1.5.dp, PrimaryGreen) else null,
-                    shape    = MaterialTheme.shapes.medium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
+            item(key = "catalog_group_${group.id}") {
+                Column {
                     Row(
-                        modifier          = Modifier.padding(12.dp),
+                        modifier          = Modifier.padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text       = preset.label,
-                                fontWeight = FontWeight.Medium,
-                                fontSize   = 14.sp,
-                                maxLines   = 1,
-                                overflow   = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text       = preset.command,
-                                fontFamily = FontFamily.Monospace,
-                                fontSize   = 12.sp,
-                                color      = MaterialTheme.colorScheme.onSurface,
-                                maxLines   = 1,
-                                overflow   = TextOverflow.Ellipsis
+                        GroupDot(colorHex = group.colorHex, size = 12)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text  = group.name,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    FlowRow(
+                        maxItemsInEachRow     = CommandTileColumns,
+                        horizontalArrangement = Arrangement.spacedBy(CommandTileSpacing),
+                        verticalArrangement   = Arrangement.spacedBy(CommandTileSpacing)
+                    ) {
+                        presets.forEach { preset ->
+                            CommandPickerTile(
+                                label        = preset.label,
+                                command      = preset.command,
+                                iconKey      = preset.iconKey,
+                                accentColor  = group.colorHex.toComposeColor(),
+                                width        = tileWidth,
+                                isAdded      = preset.command in attached,
+                                onAdd        = { onPick(preset) },
+                                onCopyToForm = { onCopyToForm(preset) }
                             )
                         }
                     }
@@ -605,6 +581,23 @@ private fun CatalogPicker(
             }
         }
     }
+}
+
+/**
+ * A catalog preset dropped into the manual form: a new command carrying the preset's group
+ * snapshot, so the form opens on the right group chip and the tile keeps its colour.
+ */
+private fun Preset.toDraftCommand(uiState: ConsoleUiState): QuickCommand {
+    val group = uiState.groups.firstOrNull { it.id == groupId }
+    return QuickCommand(
+        serverId      = uiState.server?.id ?: 0L,
+        label         = label,
+        command       = command,
+        sortOrder     = 0,
+        groupName     = group?.name,
+        groupColorHex = group?.colorHex,
+        iconKey       = iconKey
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -1013,6 +1006,34 @@ private fun AttachedCommandTileRunningPreview() {
             onRun     = {},
             onEdit    = {},
             onRemove  = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun CatalogPickerPreview() {
+    ServeraTheme {
+        CatalogPicker(
+            uiState = ConsoleUiState(
+                server = Server(1, "Staging", "10.0.0.1", 22, "deploy", ""),
+                groups = listOf(
+                    PresetGroup(1, "Docker", "#1565C0", 0),
+                    PresetGroup(2, "Network", "#AD1457", 1)
+                ),
+                presets = listOf(
+                    Preset(1, 1, "Running containers", "docker ps", 0, iconKey = "cloud"),
+                    Preset(2, 1, "Compose logs", "docker compose logs --tail=100", 1),
+                    Preset(3, 2, "Open ports", "ss -tulpn", 0, iconKey = "speed")
+                ),
+                // Same command text as the first preset, so that tile shows the tick and the
+                // brighter border while the two beside it stay plain.
+                attachedCommands = listOf(
+                    QuickCommand(1, 1, "Running containers", "docker ps", 0, iconKey = "cloud")
+                )
+            ),
+            onPick       = {},
+            onCopyToForm = {}
         )
     }
 }
