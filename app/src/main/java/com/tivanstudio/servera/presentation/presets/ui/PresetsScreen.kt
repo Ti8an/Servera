@@ -332,7 +332,9 @@ private fun PresetTile(
             accentColor = group.colorHex.toComposeColor(),
             width       = tileWidth,
             onClick     = onEdit,
-            onLongClick = { menuExpanded = true }
+            onLongClick = { menuExpanded = true },
+            // Nothing ever badges a preset tile, so the command gets the whole row.
+            reservesBadgeSlot = false
         )
 
         DropdownMenu(

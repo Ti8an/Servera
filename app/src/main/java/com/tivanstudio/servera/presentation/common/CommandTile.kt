@@ -67,8 +67,10 @@ fun rememberCommandTileWidth(columns: Int = CommandTileColumns): Dp {
  * as a watermark behind both. Shared by the presets grid and the console's attached commands, so
  * the two read as the same object in two places.
  *
- * [badge] takes the bottom-right corner beside the command — the console puts its run state there;
- * without one the corner is held open so the command text wraps the same way either way.
+ * [badge] takes the bottom-right corner beside the command — the console puts its run state there.
+ * The corner stays reserved while there is no badge, so the command text keeps its width as one
+ * comes and goes; pass [reservesBadgeSlot] = false where a badge can never appear and the command
+ * should have the whole row.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -82,6 +84,7 @@ fun CommandTile(
     onLongClick: (() -> Unit)? = null,
     highlighted: Boolean = false,
     badge: @Composable (() -> Unit)? = null,
+    reservesBadgeSlot: Boolean = true,
     contentDescription: String? = null
 ) {
     val description = contentDescription ?: "$label: $command"
@@ -148,7 +151,10 @@ fun CommandTile(
                         overflow   = TextOverflow.Ellipsis,
                         modifier   = Modifier.weight(1f)
                     )
-                    if (badge != null) badge() else Spacer(Modifier.size(12.dp))
+                    when {
+                        badge != null     -> badge()
+                        reservesBadgeSlot -> Spacer(Modifier.size(12.dp))
+                    }
                 }
             }
         }
