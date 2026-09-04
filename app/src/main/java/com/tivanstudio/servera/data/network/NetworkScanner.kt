@@ -62,6 +62,71 @@ class NetworkScanner @Inject constructor(
         )
     }.getOrNull()
 
+    enum class Transport { WIFI, CELLULAR, ETHERNET, OTHER, NONE }
+
+    data class NetworkDetails(
+        val transport: Transport,
+        val isVpnActive: Boolean,
+        val localIp: String?,
+        val subnetBase: String?,
+        val prefixLength: Int?,
+        val gatewayIp: String?,
+        val dnsServers: List<String>
+    )
+
+    /**
+     * A snapshot of the connection for the info screen. The addresses come from the same
+     * [localLinkProperties] the sweep uses, so the screen describes the network that would
+     * actually be scanned rather than whatever the system calls active.
+     *
+     * The VPN flag is the exception: it is read off the active network, before that VPN-skipping
+     * happens, since a tunnel is precisely what the rest of the numbers need explaining against.
+     */
+    fun currentDetails(): NetworkDetails = runCatching {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        val activeCaps = cm.activeNetwork?.let { cm.getNetworkCapabilities(it) }
+        val transport = when {
+            activeCaps == null -> Transport.NONE
+            activeCaps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)     -> Transport.WIFI
+            activeCaps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> Transport.CELLULAR
+            activeCaps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> Transport.ETHERNET
+            else -> Transport.OTHER
+        }
+        val isVpnActive =
+            activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+
+        val props = cm.localLinkProperties()
+
+        val localAddress = props?.linkAddresses
+            ?.firstOrNull { it.address is Inet4Address && !it.address.isLoopbackAddress }
+        val localIp = localAddress?.address?.hostAddress
+
+        val gatewayIp = props?.routes
+            ?.firstOrNull { it.isDefaultRoute && it.gateway is Inet4Address }
+            ?.gateway
+            ?.hostAddress
+
+        // IPv6 resolvers would be listed beside addresses this screen never shows, so the
+        // list is kept to the family the rest of the screen speaks.
+        val dnsServers = props?.dnsServers
+            ?.filterIsInstance<Inet4Address>()
+            ?.mapNotNull { it.hostAddress }
+            .orEmpty()
+
+        NetworkDetails(
+            transport    = transport,
+            isVpnActive  = isVpnActive,
+            localIp      = localIp,
+            subnetBase   = localIp?.let { it.substringBeforeLast('.') + "." },
+            prefixLength = localAddress?.prefixLength,
+            gatewayIp    = gatewayIp,
+            dnsServers   = dnsServers
+        )
+    }.getOrElse {
+        NetworkDetails(Transport.NONE, false, null, null, null, null, emptyList())
+    }
+
     private fun ConnectivityManager.localLinkProperties(): LinkProperties? {
         val physical = allNetworks.firstOrNull { network ->
             val caps = getNetworkCapabilities(network) ?: return@firstOrNull false
