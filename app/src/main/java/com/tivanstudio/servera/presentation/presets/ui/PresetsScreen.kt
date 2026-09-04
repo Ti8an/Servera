@@ -1,8 +1,5 @@
 package com.tivanstudio.servera.presentation.presets.ui
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,11 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -41,19 +34,17 @@ import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.Preset
 import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.entity.PresetSource
+import com.tivanstudio.servera.presentation.common.CommandGridPadding
+import com.tivanstudio.servera.presentation.common.CommandTile
+import com.tivanstudio.servera.presentation.common.CommandTileColumns
+import com.tivanstudio.servera.presentation.common.CommandTileSpacing
+import com.tivanstudio.servera.presentation.common.rememberCommandTileWidth
 import com.tivanstudio.servera.presentation.components.AppBottomBar
 import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsUiState
 import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsViewModel
 import com.tivanstudio.servera.presentation.theme.*
 import kotlinx.coroutines.launch
-
-/** Tiles per row. Change it and the width maths below follows on its own. */
-private const val PRESET_TILE_COLUMNS = 3
-
-private val TileHeight = 92.dp
-private val TileSpacing = 8.dp
-private val ScreenPadding = 16.dp
 
 @Composable
 fun PresetsScreen(
@@ -220,17 +211,13 @@ private fun PresetsScreenContent(
             return@Scaffold
         }
 
-        // FlowRow gives the tiles no intrinsic width, and weight() would stretch a lone tile
-        // across the whole row, so the column width is split up front instead.
-        val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-        val tileWidth = (screenWidth - ScreenPadding * 2 -
-            TileSpacing * (PRESET_TILE_COLUMNS - 1)) / PRESET_TILE_COLUMNS
+        val tileWidth = rememberCommandTileWidth()
 
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = ScreenPadding),
+                .padding(horizontal = CommandGridPadding),
             contentPadding = PaddingValues(bottom = 88.dp)
         ) {
             uiState.grouped.forEach { (group, presets) ->
@@ -270,9 +257,9 @@ private fun GroupSection(
         )
 
         FlowRow(
-            maxItemsInEachRow     = PRESET_TILE_COLUMNS,
-            horizontalArrangement = Arrangement.spacedBy(TileSpacing),
-            verticalArrangement   = Arrangement.spacedBy(TileSpacing)
+            maxItemsInEachRow     = CommandTileColumns,
+            horizontalArrangement = Arrangement.spacedBy(CommandTileSpacing),
+            verticalArrangement   = Arrangement.spacedBy(CommandTileSpacing)
         ) {
             presets.forEach { preset ->
                 PresetTile(
@@ -330,7 +317,6 @@ private fun NoGroupsState(
  * The grid holds only the user's own presets, so every tile edits and deletes: the built-in
  * catalog is read-only and lives behind the library dialog instead.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PresetTile(
     preset: Preset,
@@ -341,68 +327,16 @@ private fun PresetTile(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
-    val groupColor  = group.colorHex.toComposeColor()
-    val description = "${preset.label}: ${preset.command}"
-
     Box {
-        Card(
-            shape  = MaterialTheme.shapes.large,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            border = BorderStroke(1.dp, groupColor.copy(alpha = 0.25f)),
-            modifier = Modifier
-                .size(width = tileWidth, height = TileHeight)
-                .clip(MaterialTheme.shapes.large)
-                .combinedClickable(
-                    onClick     = onEdit,
-                    onLongClick = { menuExpanded = true }
-                )
-                .semantics { contentDescription = description }
-        ) {
-            Box {
-                // Watermark: it runs off the right edge on purpose, and the card's shape clips it.
-                Icon(
-                    presetIconOf(preset.iconKey),
-                    contentDescription = null,
-                    tint = groupColor.copy(alpha = 0.10f),
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .size(56.dp)
-                        .offset(x = 12.dp)
-                )
-
-                Column(
-                    modifier            = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp),
-                    verticalArrangement = Arrangement.Top
-                ) {
-                    Text(
-                        text       = preset.label,
-                        fontSize   = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color      = MaterialTheme.colorScheme.onSurface,
-                        maxLines   = 2,
-                        overflow   = TextOverflow.Ellipsis
-                    )
-
-                    Spacer(Modifier.weight(1f))
-
-                    // ~15 monospaced characters fit here, so most commands are cut. Ellipsis
-                    // says there is more; a flush cut would read as a rendering glitch.
-                    Text(
-                        text       = preset.command,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize   = 10.sp,
-                        color      = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        maxLines   = 1,
-                        softWrap   = false,
-                        overflow   = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
+        CommandTile(
+            label       = preset.label,
+            command     = preset.command,
+            iconKey     = preset.iconKey,
+            accentColor = group.colorHex.toComposeColor(),
+            width       = tileWidth,
+            onClick     = onEdit,
+            onLongClick = { menuExpanded = true }
+        )
 
         DropdownMenu(
             expanded         = menuExpanded,
@@ -544,7 +478,7 @@ private fun PresetLibraryDialog(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)
-                        .padding(horizontal = ScreenPadding),
+                        .padding(horizontal = CommandGridPadding),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
                     uiState.builtinGrouped.forEach { (group, presets) ->

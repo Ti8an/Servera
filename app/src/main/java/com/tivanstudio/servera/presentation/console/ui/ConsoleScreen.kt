@@ -5,10 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -24,10 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -48,19 +42,17 @@ import com.tivanstudio.servera.presentation.presets.ui.GroupDot
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.domain.entity.ServerInfo
+import com.tivanstudio.servera.presentation.common.CommandGridPadding
+import com.tivanstudio.servera.presentation.common.CommandTile
+import com.tivanstudio.servera.presentation.common.CommandTileColumns
+import com.tivanstudio.servera.presentation.common.CommandTileSpacing
+import com.tivanstudio.servera.presentation.common.rememberCommandTileWidth
 import com.tivanstudio.servera.presentation.console.viewmodel.CommandRunState
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleEvent
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleUiState
 import com.tivanstudio.servera.presentation.console.viewmodel.ConsoleViewModel
 import com.tivanstudio.servera.presentation.theme.*
 import kotlinx.coroutines.launch
-
-/** Tiles per row. Change it and the width maths in ConsoleTab follows on its own. */
-private const val COMMAND_TILE_COLUMNS = 3
-
-private val CommandTileHeight = 92.dp
-private val CommandTileSpacing = 8.dp
-private val CommandGridPadding = 16.dp
 
 @Composable
 fun ConsoleScreen(
@@ -204,11 +196,7 @@ private fun ConsoleTab(
     onRun: (QuickCommand) -> Unit,
     onRemove: (Long) -> Unit
 ) {
-    // FlowRow gives the tiles no intrinsic width, and weight() would stretch a lone tile across
-    // the whole row, so the row width is split up front instead.
-    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-    val tileWidth = (screenWidth - CommandGridPadding * 2 -
-        CommandTileSpacing * (COMMAND_TILE_COLUMNS - 1)) / COMMAND_TILE_COLUMNS
+    val tileWidth = rememberCommandTileWidth()
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -231,7 +219,7 @@ private fun ConsoleTab(
                 // them into group sections would cost more room than it buys.
                 item {
                     FlowRow(
-                        maxItemsInEachRow     = COMMAND_TILE_COLUMNS,
+                        maxItemsInEachRow     = CommandTileColumns,
                         horizontalArrangement = Arrangement.spacedBy(CommandTileSpacing),
                         verticalArrangement   = Arrangement.spacedBy(CommandTileSpacing)
                     ) {
@@ -272,7 +260,6 @@ private fun ConsoleTab(
  * A tap runs the command — by far the common case — so edit and delete sit behind a long press,
  * and delete still asks first: re-attaching a command to a server is not a one-tap undo.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AttachedCommandTile(
     cmd: QuickCommand,
@@ -287,7 +274,6 @@ private fun AttachedCommandTile(
 
     val tileColor = cmd.groupColorHex?.toComposeColor()
         ?: MaterialTheme.colorScheme.onSurfaceVariant
-    val isRunning = runState is CommandRunState.Running
 
     // The badge is 12 dp of colour with no label of its own, so the state is spoken here instead.
     val statusText = when (runState) {
@@ -329,71 +315,20 @@ private fun AttachedCommandTile(
     }
 
     Box {
-        Card(
-            shape  = MaterialTheme.shapes.large,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
+        CommandTile(
+            label       = cmd.label,
+            command     = cmd.command,
+            iconKey     = cmd.iconKey,
+            accentColor = tileColor,
+            width       = tileWidth,
+            onClick     = onRun,
+            onLongClick = { menuExpanded = true },
             // A running command has to read as running from across the grid, not from a 12 dp
             // spinner alone.
-            border = BorderStroke(
-                1.dp,
-                tileColor.copy(alpha = if (isRunning) 0.6f else 0.25f)
-            ),
-            modifier = Modifier
-                .size(width = tileWidth, height = CommandTileHeight)
-                .clip(MaterialTheme.shapes.large)
-                .combinedClickable(
-                    onClick     = onRun,
-                    onLongClick = { menuExpanded = true }
-                )
-                .semantics { contentDescription = description }
-        ) {
-            Box {
-                // Watermark: it runs off the right edge on purpose, and the card's shape clips it.
-                Icon(
-                    presetIconOf(cmd.iconKey),
-                    contentDescription = null,
-                    tint = tileColor.copy(alpha = 0.10f),
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .size(56.dp)
-                        .offset(x = 12.dp)
-                )
-
-                Column(
-                    modifier            = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp),
-                    verticalArrangement = Arrangement.Top
-                ) {
-                    Text(
-                        text       = cmd.label,
-                        fontSize   = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color      = MaterialTheme.colorScheme.onSurface,
-                        maxLines   = 2,
-                        overflow   = TextOverflow.Ellipsis
-                    )
-
-                    Spacer(Modifier.weight(1f))
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text       = cmd.command,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize   = 10.sp,
-                            color      = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            maxLines   = 1,
-                            softWrap   = false,
-                            overflow   = TextOverflow.Ellipsis,
-                            modifier   = Modifier.weight(1f)
-                        )
-                        RunStateBadge(runState = runState, color = tileColor)
-                    }
-                }
-            }
-        }
+            highlighted = runState is CommandRunState.Running,
+            badge       = { RunStateBadge(runState = runState, color = tileColor) },
+            contentDescription = description
+        )
 
         DropdownMenu(
             expanded         = menuExpanded,
