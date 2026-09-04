@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
@@ -56,6 +57,7 @@ fun SettingsScreen(
     onNavigateToHistory: () -> Unit,
     onNavigateToPresets: () -> Unit,
     onNavigateToNetworkScan: () -> Unit,
+    onNavigateToNetworkInfo: () -> Unit,
     onNavigateToChangePassword: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -151,6 +153,7 @@ fun SettingsScreen(
         onDismissLevelChange = viewModel::onDismissLevelChange,
         onMessageShown = viewModel::onMessageShown,
         onNavigateToNetworkScan = onNavigateToNetworkScan,
+        onNavigateToNetworkInfo = onNavigateToNetworkInfo,
         onNavigateToChangePassword = onNavigateToChangePassword,
         onRateApp = onRateApp
     )
@@ -185,6 +188,7 @@ private fun SettingsContent(
     onDismissLevelChange: () -> Unit,
     onMessageShown: () -> Unit,
     onNavigateToNetworkScan: () -> Unit,
+    onNavigateToNetworkInfo: () -> Unit,
     onNavigateToChangePassword: () -> Unit,
     onRateApp: () -> Unit
 ) {
@@ -350,6 +354,13 @@ private fun SettingsContent(
                 title = stringResource(R.string.net_scan_title),
                 subtitle = stringResource(R.string.net_scan_subtitle),
                 onClick = onNavigateToNetworkScan
+            )
+
+            ActionCard(
+                icon = Icons.Default.Router,
+                title = stringResource(R.string.network_info_title),
+                subtitle = stringResource(R.string.network_info_subtitle),
+                onClick = onNavigateToNetworkInfo
             )
 
             Spacer(Modifier.height(8.dp))
@@ -600,6 +611,7 @@ private fun SettingsContentDarkPreview() {
             onDismissLevelChange = {},
             onMessageShown = {},
             onNavigateToNetworkScan = {},
+            onNavigateToNetworkInfo = {},
             onNavigateToChangePassword = {},
             onRateApp = {}
         )
@@ -627,6 +639,7 @@ private fun SettingsContentLightPreview() {
             onDismissLevelChange = {},
             onMessageShown = {},
             onNavigateToNetworkScan = {},
+            onNavigateToNetworkInfo = {},
             onNavigateToChangePassword = {},
             onRateApp = {}
         )

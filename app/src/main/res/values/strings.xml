@@ -160,11 +160,17 @@
     <string name="preset_copied">Copied to your presets</string>
     <string name="preset_edit">Edit</string>
     <string name="preset_delete">Delete</string>
-    <string name="preset_built_in">Built-in preset</string>
     <string name="preset_category">Category</string>
     <string name="preset_label">Name</string>
     <string name="preset_command">Command</string>
     <string name="preset_icon">Icon</string>
+    <string name="open_library">Preset library</string>
+    <string name="preset_library">Preset library</string>
+    <string name="already_added">Already added</string>
+    <string name="preset_added">Command added</string>
+    <string name="create_manually">Create manually</string>
+    <string name="copy_to_form">Copy to form</string>
+    <string name="add">Add</string>
     <string name="preset_new_category">New category</string>
     <string name="presets_picker_open">Pick from presets</string>
     <string name="presets_picker_title">Choose a command</string>
@@ -222,6 +228,22 @@
     <string name="net_gateway">Gateway</string>
     <string name="net_subnet">Subnet: %1$s</string>
     <string name="error_server_not_found">Server not found</string>
+    <!-- Network info -->
+    <string name="network_info_title">Network info</string>
+    <string name="network_info_subtitle">Current connection details</string>
+    <string name="network_transport">Connection</string>
+    <string name="network_local_ip">Local IP</string>
+    <string name="network_subnet">Subnet</string>
+    <string name="network_gateway">Gateway</string>
+    <string name="network_dns">DNS</string>
+    <string name="network_refresh">Refresh</string>
+    <string name="network_wifi">Wi-Fi</string>
+    <string name="network_cellular">Cellular</string>
+    <string name="network_ethernet">Ethernet</string>
+    <string name="network_other">Other</string>
+    <string name="network_no_connection">No connection</string>
+    <string name="network_vpn_warning">VPN active — scanning and local addresses may point to the tunnel</string>
+    <string name="open_system_network_settings">Open Wi-Fi settings</string>
     <!-- Change password -->
     <string name="change_password_title">Change password</string>
     <string name="change_password_subtitle">Re-encrypt the vault with a new password</string>

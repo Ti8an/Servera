@@ -15,6 +15,7 @@ import com.tivanstudio.servera.presentation.auth.ui.LoginScreen
 import com.tivanstudio.servera.presentation.console.ui.ConsoleScreen
 import com.tivanstudio.servera.presentation.console.execute.ui.ExecuteCommandScreen
 import com.tivanstudio.servera.presentation.console.result.ui.CommandResultScreen
+import com.tivanstudio.servera.presentation.network.info.NetworkInfoScreen
 import com.tivanstudio.servera.presentation.history.ui.HistoryScreen
 import com.tivanstudio.servera.presentation.presets.groups.PresetGroupsScreen
 import com.tivanstudio.servera.presentation.presets.ui.PresetsScreen
@@ -119,6 +120,7 @@ fun AppNavGraph(navController: NavHostController, analytics: Analytics) {
                 onNavigateToPresets  = { navController.navigate(Screen.Presets.route) { launchSingleTop = true } },
                 onNavigateToHistory  = { navController.navigate(Screen.History.route) { launchSingleTop = true } },
                 onNavigateToNetworkScan = { navController.navigate(Screen.NetworkScan.route) },
+                onNavigateToNetworkInfo = { navController.navigate(Screen.NetworkInfo.route) },
                 onNavigateToChangePassword = { navController.navigate(Screen.ChangePassword.route) }
             )
         }
@@ -131,6 +133,12 @@ fun AppNavGraph(navController: NavHostController, analytics: Analytics) {
 
         composable(Screen.NetworkScan.route) {
             NetworkScanScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.NetworkInfo.route) {
+            NetworkInfoScreen(
                 onBack = { navController.popBackStack() }
             )
         }
@@ -184,5 +192,6 @@ private val TRACKED_ROUTES: Set<String> = setOf(
     Screen.Settings.route,
     Screen.Presets.route,
     Screen.PresetGroups.route,
-    Screen.NetworkScan.route
+    Screen.NetworkScan.route,
+    Screen.NetworkInfo.route
 )

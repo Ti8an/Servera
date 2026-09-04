@@ -6,7 +6,9 @@ import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.analytics.Analytics
 import com.tivanstudio.servera.domain.analytics.AnalyticsEvent
 import com.tivanstudio.servera.domain.entity.Preset
+import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.entity.PresetSource
+import com.tivanstudio.servera.domain.usecase.preset.AddGroupUseCase
 import com.tivanstudio.servera.domain.usecase.preset.AddPresetUseCase
 import com.tivanstudio.servera.domain.usecase.preset.CopyBuiltinToCustomUseCase
 import com.tivanstudio.servera.domain.usecase.preset.DeletePresetUseCase
@@ -27,6 +29,7 @@ class PresetsViewModel @Inject constructor(
     private val getPresets: GetPresetsUseCase,
     private val getGroups: GetGroupsUseCase,
     private val addPreset: AddPresetUseCase,
+    private val addGroup: AddGroupUseCase,
     private val deletePreset: DeletePresetUseCase,
     private val updatePresets: UpdatePresetsUseCase,
     private val copyBuiltinToCustom: CopyBuiltinToCustomUseCase,
@@ -68,7 +71,8 @@ class PresetsViewModel @Inject constructor(
                     command   = "",
                     sortOrder = 0
                 ),
-                isNew = true
+                isNew = true,
+                showSourceChooser = false
             )
         }
     }
@@ -79,22 +83,80 @@ class PresetsViewModel @Inject constructor(
         _uiState.update { it.copy(editing = preset, isNew = false) }
     }
 
+    fun openSourceChooser() {
+        _uiState.update { it.copy(showSourceChooser = true) }
+    }
+
+    fun dismissSourceChooser() {
+        _uiState.update { it.copy(showSourceChooser = false) }
+    }
+
+    fun openLibrary() {
+        _uiState.update { it.copy(showSourceChooser = false, showLibrary = true) }
+    }
+
+    fun dismissLibrary() {
+        _uiState.update { it.copy(showLibrary = false) }
+    }
+
     /**
-     * Opens the dialog on a fresh copy of a built-in so it can be adjusted before it becomes one
-     * of the user's own presets.
+     * Takes a built-in into the user's own presets as it stands, no dialog in between.
+     *
+     * The group has to exist first — `presets.groupId` is a foreign key onto `preset_groups`, and
+     * built-in groups have no row there — so a missing one is created from the catalog group's
+     * name and colour, and the preset waits for that insert before going in.
      */
-    fun startCopy(preset: Preset) {
+    fun addFromLibrary(preset: Preset) {
+        viewModelScope.launch {
+            val groupId = resolveTargetGroupId(preset.groupId)
+                ?: createGroupFrom(preset.groupId)
+                ?: return@launch
+
+            // Re-read: the catalog flow may have emitted while the group was being inserted.
+            val presets = _uiState.value.presets
+            addPreset(
+                preset.copy(
+                    id        = 0,
+                    groupId   = groupId,
+                    sortOrder = presets.count { it.groupId == groupId },
+                    source    = PresetSource.CUSTOM
+                )
+            )
+            analytics.log(AnalyticsEvent.PresetCreated)
+        }
+    }
+
+    /**
+     * Opens the usual dialog on a copy of a built-in, filled in and fully editable. No group is
+     * created here: the target is still up for change until the dialog is saved.
+     */
+    fun copyFromLibrary(preset: Preset) {
+        val groupId = resolveTargetGroupId(preset.groupId) ?: NO_GROUP
         _uiState.update {
             it.copy(
+                showLibrary = false,
                 editing = preset.copy(
                     id        = 0,
-                    groupId   = resolveTargetGroupId(preset.groupId) ?: NO_GROUP,
-                    sortOrder = 0,
-                    iconKey   = null
+                    groupId   = groupId,
+                    sortOrder = 0
                 ),
                 isNew = true
             )
         }
+    }
+
+    /** Mirrors the catalog group into one of the user's own, and answers with its new id. */
+    private suspend fun createGroupFrom(builtinGroupId: Long): Long? {
+        val state  = _uiState.value
+        val origin = state.groups.firstOrNull { it.id == builtinGroupId } ?: return null
+        return addGroup(
+            PresetGroup(
+                id        = 0,
+                name      = origin.name,
+                colorHex  = origin.colorHex,
+                sortOrder = state.groups.count { it.source == PresetSource.CUSTOM }
+            )
+        )
     }
 
     /**

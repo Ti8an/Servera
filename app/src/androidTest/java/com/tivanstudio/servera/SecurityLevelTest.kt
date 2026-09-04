@@ -9,6 +9,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.tivanstudio.servera.data.crypto.BiometricKeyManager
 import com.tivanstudio.servera.data.crypto.EncryptionHelper
 import com.tivanstudio.servera.data.crypto.KeystoreManager
 import com.tivanstudio.servera.data.crypto.MigrationManager
@@ -67,6 +68,7 @@ class SecurityLevelTest {
         repository = AuthRepositoryImpl(
             prefs = prefs,
             passwordKeyManager = passwordKeyManager,
+            biometricKeyManager = BiometricKeyManager(prefs),
             migrationManager = MigrationManager(
                 db, db.serverDao(), db.presetDao(), db.quickCommandDao(),
                 db.commandHistoryDao(), encryption, passwordKeyManager, session
@@ -257,6 +259,40 @@ class SecurityLevelTest {
 
         assertEquals(SecurityLevel.HIGH.iterations, passwordKeyManager.storedIterations())
         assertTrue(repository.verifyPassword("a-brand-new-password"))
+    }
+
+    @Test
+    fun unlockRejectsAnEmptyPasswordInsteadOfThrowing() = runBlocking {
+        seedVault(PASSWORD)
+        session.clear()
+
+        // The KDF provider throws on an empty password, and this used to reach the caller
+        // straight off the login button.
+        assertNull(
+            "An empty password is a wrong password, not a crash",
+            passwordKeyManager.unlock(CharArray(0))
+        )
+        assertTrue(
+            "Rejecting it must leave the vault openable",
+            repository.verifyPassword(PASSWORD)
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun initializeRefusesAnEmptyPassword() {
+        // Deliberately not seeded: an empty password must fail on its own merits, not on the
+        // already-initialized check that runs before it.
+        assertFalse(passwordKeyManager.isInitialized())
+
+        passwordKeyManager.initialize(CharArray(0))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rewrapRefusesAnEmptyPassword() = runBlocking {
+        seedVault(PASSWORD)
+
+        // Creating a vault nothing could ever open again is worse than failing loudly here.
+        passwordKeyManager.rewrap(session.dek!!, CharArray(0))
     }
 
     @Test

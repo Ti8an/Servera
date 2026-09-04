@@ -146,11 +146,17 @@
     <string name="preset_copied">Скопировано в ваши пресеты</string>
     <string name="preset_edit">Изменить</string>
     <string name="preset_delete">Удалить</string>
-    <string name="preset_built_in">Встроенный пресет</string>
     <string name="preset_category">Категория</string>
     <string name="preset_label">Название</string>
     <string name="preset_command">Команда</string>
     <string name="preset_icon">Иконка</string>
+    <string name="open_library">Библиотека пресетов</string>
+    <string name="preset_library">Библиотека пресетов</string>
+    <string name="already_added">Уже добавлена</string>
+    <string name="preset_added">Команда добавлена</string>
+    <string name="create_manually">Создать вручную</string>
+    <string name="copy_to_form">Копировать в форму</string>
+    <string name="add">Добавить</string>
     <string name="preset_new_category">Новая категория</string>
     <string name="presets_picker_open">Выбрать из пресетов</string>
     <string name="presets_picker_title">Выберите команду</string>
@@ -208,6 +214,22 @@
     <string name="net_gateway">Шлюз</string>
     <string name="net_subnet">Подсеть: %1$s</string>
     <string name="error_server_not_found">Сервер не найден</string>
+    <!-- Network info -->
+    <string name="network_info_title">Сетевая информация</string>
+    <string name="network_info_subtitle">Параметры текущего подключения</string>
+    <string name="network_transport">Подключение</string>
+    <string name="network_local_ip">Локальный IP</string>
+    <string name="network_subnet">Подсеть</string>
+    <string name="network_gateway">Шлюз</string>
+    <string name="network_dns">DNS</string>
+    <string name="network_refresh">Обновить</string>
+    <string name="network_wifi">Wi-Fi</string>
+    <string name="network_cellular">Мобильная сеть</string>
+    <string name="network_ethernet">Ethernet</string>
+    <string name="network_other">Другое</string>
+    <string name="network_no_connection">Нет сети</string>
+    <string name="network_vpn_warning">Активен VPN — сканирование и локальные адреса могут относиться к туннелю</string>
+    <string name="open_system_network_settings">Открыть настройки Wi-Fi</string>
     <!-- Change password -->
     <string name="change_password_title">Сменить пароль</string>
     <string name="change_password_subtitle">Перешифровать хранилище новым паролем</string>
