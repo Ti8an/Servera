@@ -288,4 +288,7 @@
     <string name="scan_open_settings">Open settings</string>
     <string name="scan_review_hint">Recognized from the camera. Check the values before saving — a misread digit gives a connection that fails without saying why.</string>
     <string name="scan_camera_unavailable">The camera is unavailable. Enter the details by hand.</string>
+    <string name="scan_status_searching">Point the camera at the connection line</string>
+    <string name="scan_status_no_match">Text found, but no address in it</string>
+    <string name="scan_status_confirming">Checking what was read</string>
 </resources>
