@@ -73,6 +73,7 @@ fun AddServerScreen(
         ScannerOverlay(
             onCandidate = viewModel::onScanCandidate,
             onResult = viewModel::onScanResult,
+            onPermissionDenied = viewModel::onScanPermissionDenied,
             onDismiss = viewModel::onScannerDismiss
         )
     }

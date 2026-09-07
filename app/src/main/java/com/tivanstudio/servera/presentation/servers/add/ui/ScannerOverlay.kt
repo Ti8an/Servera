@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -59,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.tivanstudio.servera.R
@@ -85,11 +87,14 @@ private const val NOTHING_FOUND_AFTER_MS = 15_000L
  *
  * @param onCandidate every non-empty parse, whether or not it is confirmed or applied.
  * @param onResult the reading the user chose to apply.
+ * @param onPermissionDenied camera access was refused; the flag is true when the system will
+ *   not ask again.
  */
 @Composable
 fun ScannerOverlay(
     onCandidate: (ScannedCredentials) -> Unit,
     onResult: (ScannedCredentials) -> Unit,
+    onPermissionDenied: (permanently: Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     Dialog(
@@ -97,6 +102,8 @@ fun ScannerOverlay(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         val context = LocalContext.current
+        val activity = LocalActivity.current
+        val currentOnPermissionDenied by rememberUpdatedState(onPermissionDenied)
         var isGranted by remember {
             mutableStateOf(
                 ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
@@ -109,6 +116,13 @@ fun ScannerOverlay(
         ) { granted ->
             isGranted = granted
             isDenied = !granted
+            if (!granted) {
+                // We have just asked, so a rationale the system declines to show means the
+                // refusal is permanent rather than a first-time "not now".
+                val permanently = activity == null || !ActivityCompat
+                    .shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)
+                currentOnPermissionDenied(permanently)
+            }
         }
 
         // Asked when the scanner opens rather than at app start: a permission prompt only

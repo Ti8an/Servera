@@ -7,9 +7,10 @@ package com.tivanstudio.servera.domain.analytics
  * password, command text or server name can reach Firebase by accident. Adding an event means
  * adding a subclass here, which puts every new event in front of a reviewer.
  *
- * [params] may only ever carry values fixed in this file — enum-like constants describing *what
- * kind* of thing happened, never user data. That is why the two events that do carry a parameter
- * take a closed type rather than a free-form String.
+ * [params] may only ever carry values fixed in this file — enum-like constants, flags and
+ * counters describing *what kind* of thing happened, never user data. That is why an event that
+ * carries a parameter takes a closed type — an enum, a Boolean, a bounded count — rather than a
+ * free-form String. Every value is reported as a string, so a count arrives as "2", not as 2.
  *
  * Firebase constrains [name] to <=40 chars, snake_case, starting with a letter.
  */
@@ -77,6 +78,40 @@ sealed class AnalyticsEvent(
 
     /** A subnet scan was started. The subnet itself is not reported. */
     object NetworkScanRun : AnalyticsEvent("network_scan_run")
+
+    // ── Camera scanner ──────────────────────────────────────────────────────
+
+    /** The camera scanner was opened from the add-server form. */
+    object ScannerOpened : AnalyticsEvent("scanner_opened")
+
+    /**
+     * Camera access was refused. [permanently] means the system will not show its dialog
+     * again, so the app settings page is the only way left to the scanner.
+     */
+    data class ScannerPermissionDenied(val permanently: Boolean) : AnalyticsEvent(
+        "scanner_permission_denied",
+        mapOf("permanently" to permanently.toString())
+    )
+
+    /**
+     * A reading was applied to the form. [fieldsCount] is how many of the three fields it
+     * filled (1..3) and [hasPort] whether a port was among them — a port is only ever read
+     * off an explicit ssh line, so it says what kind of screen was scanned. Neither carries
+     * any part of what was recognized.
+     */
+    data class ScannerApplied(val fieldsCount: Int, val hasPort: Boolean) : AnalyticsEvent(
+        "scanner_applied",
+        mapOf("fields_count" to fieldsCount.toString(), "has_port" to hasPort.toString())
+    )
+
+    /**
+     * The scanner was closed without applying anything. [hadResult] tells "recognized
+     * nothing" apart from "recognized something the user did not want".
+     */
+    data class ScannerCancelled(val hadResult: Boolean) : AnalyticsEvent(
+        "scanner_cancelled",
+        mapOf("had_result" to hadResult.toString())
+    )
 
     // ── Navigation ───────────────────────────────────────────────────────────
 
