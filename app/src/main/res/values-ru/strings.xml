@@ -264,4 +264,14 @@
     <string name="level_wrong_password">Неверный пароль</string>
     <string name="level_apply">Применить</string>
     <string name="level_changed">Уровень защиты обновлён</string>
+    <!-- Распознавание данных сервера камерой -->
+    <string name="scan_camera_cd">Сканировать камерой</string>
+    <string name="scan_hint">Наведите камеру на данные подключения</string>
+    <string name="scan_nothing_found">Пока ничего не распознано. Наведите на строку вида «ssh user@host».</string>
+    <string name="scan_apply">Подставить</string>
+    <string name="scan_retry">Сканировать заново</string>
+    <string name="scan_permission_required">Для сканирования нужен доступ к камере. Разрешите его в настройках.</string>
+    <string name="scan_open_settings">Открыть настройки</string>
+    <string name="scan_review_hint">Распознано камерой. Сверьте значения перед сохранением — ошибка в одной цифре даёт подключение, которое молча не работает.</string>
+    <string name="scan_camera_unavailable">Камера недоступна. Введите данные вручную.</string>
 </resources>

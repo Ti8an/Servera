@@ -61,8 +61,21 @@ fun AddServerScreen(
         onTimeoutChange = viewModel::onTimeoutChange,
         onTestConn = viewModel::testConn,
         onSave = viewModel::save,
+        onScanClick = viewModel::onScanClick,
+        onDismissScanHint = viewModel::onScanReviewHintDismiss,
         onBack = onBack
     )
+
+    // An overlay rather than a navigation route: the result lands straight in this screen's
+    // view model, with no SavedStateHandle hand-off and nothing already typed at risk of
+    // being lost to a recreation.
+    if (uiState.isScannerVisible) {
+        ScannerOverlay(
+            onCandidate = viewModel::onScanCandidate,
+            onResult = viewModel::onScanResult,
+            onDismiss = viewModel::onScannerDismiss
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,6 +93,8 @@ private fun AddServerContent(
     onTimeoutChange: (String) -> Unit,
     onTestConn: () -> Unit,
     onSave: () -> Unit,
+    onScanClick: () -> Unit,
+    onDismissScanHint: () -> Unit,
     onBack: () -> Unit
 ) {
     Scaffold(
@@ -110,13 +125,26 @@ private fun AddServerContent(
         ) {
             Spacer(Modifier.height(8.dp))
 
+            if (uiState.showScanReviewHint) {
+                ScanReviewHint(onDismiss = onDismissScanHint)
+            }
+
             AppTextField(value = uiState.name,  label = stringResource(R.string.server_name_hint),  onValueChange = onNameChange)
             AppTextField(
                 value = uiState.host,
                 label = stringResource(R.string.server_host_hint),
                 onValueChange = onHostChange,
                 // An untouched empty field is not a mistake worth flagging yet.
-                errorRes = uiState.hostErrorRes.takeIf { uiState.host.isNotBlank() }
+                errorRes = uiState.hostErrorRes.takeIf { uiState.host.isNotBlank() },
+                trailingIcon = {
+                    IconButton(onClick = onScanClick) {
+                        Icon(
+                            Icons.Default.PhotoCamera,
+                            contentDescription = stringResource(R.string.scan_camera_cd),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             )
             AppTextField(
                 value = uiState.port,
@@ -249,7 +277,8 @@ private fun AppTextField(
     label: String,
     onValueChange: (String) -> Unit,
     keyboardType: KeyboardType = KeyboardType.Text,
-    @StringRes errorRes: Int? = null
+    @StringRes errorRes: Int? = null,
+    trailingIcon: @Composable (() -> Unit)? = null
 ) {
     OutlinedTextField(
         value = value,
@@ -259,9 +288,44 @@ private fun AppTextField(
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         isError = errorRes != null,
         supportingText = errorRes?.let { { Text(stringResource(it)) } },
+        trailingIcon = trailingIcon,
         colors = fieldColors(),
         modifier = Modifier.fillMaxWidth()
     )
+}
+
+/**
+ * Shown after a scan. Deliberately cautionary rather than congratulatory: recognition can swap
+ * a digit, and the resulting server saves fine and then fails to connect with nothing but a
+ * timeout to go on. Checking the values is the user's job and this says so.
+ */
+@Composable
+private fun ScanReviewHint(onDismiss: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Info, contentDescription = null, tint = WarningAmber)
+            Spacer(Modifier.width(12.dp))
+            Text(
+                stringResource(R.string.scan_review_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -294,6 +358,8 @@ private fun AddServerContentPreview() {
             onTimeoutChange = {},
             onTestConn = {},
             onSave = {},
+            onScanClick = {},
+            onDismissScanHint = {},
             onBack = {}
         )
     }

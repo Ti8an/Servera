@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.domain.analytics.Analytics
 import com.tivanstudio.servera.domain.analytics.AnalyticsEvent
+import com.tivanstudio.servera.domain.entity.ScannedCredentials
 import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.server.AddServerUseCase
@@ -72,6 +73,41 @@ class AddServerViewModel @Inject constructor(
     fun onTimeoutChange(v: String)    = _uiState.update { it.copy(timeout = v) }
     fun onTogglePassword()            = _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
     fun onToggleAdvanced()            = _uiState.update { it.copy(isAdvancedExpanded = !it.isAdvancedExpanded) }
+
+    fun onScanClick() = _uiState.update {
+        // A result carried over from an earlier session would describe values that are no
+        // longer on screen.
+        it.copy(isScannerVisible = true, lastScanResult = null)
+    }
+
+    fun onScannerDismiss() = _uiState.update { it.copy(isScannerVisible = false) }
+
+    /** Every non-empty parse the scanner sees, whether or not the user applies it. */
+    fun onScanCandidate(result: ScannedCredentials) = _uiState.update { it.copy(lastScanResult = result) }
+
+    /**
+     * Fills in what was recognized, and nothing else. A field the scan did not produce keeps
+     * whatever the user typed, and the password, key, name and timeout are never touched --
+     * a password is masked on the screens this scans, and one misread character there fails
+     * authentication without saying why.
+     *
+     * The connection is deliberately not tested afterwards: there is no password yet.
+     */
+    fun onScanResult(result: ScannedCredentials) = _uiState.update { state ->
+        val host = result.host ?: state.host
+        state.copy(
+            host = host,
+            hostErrorRes = validateHost(host),
+            login = result.login ?: state.login,
+            port = result.port?.toString() ?: state.port,
+            error = null,
+            isScannerVisible = false,
+            showScanReviewHint = true,
+            lastScanResult = result
+        )
+    }
+
+    fun onScanReviewHintDismiss() = _uiState.update { it.copy(showScanReviewHint = false) }
 
     fun save() {
         val state = _uiState.value
