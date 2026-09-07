@@ -1,5 +1,7 @@
 package com.tivanstudio.servera.presentation.servers.add.viewmodel
 
+import com.tivanstudio.servera.domain.entity.ScannedCredentials
+
 data class AddServerUiState(
     val name: String = "",
     val host: String = "",
@@ -16,7 +18,12 @@ data class AddServerUiState(
     val error: String? = null,
     /** Error shown under the host field; null while the host is acceptable. */
     val hostErrorRes: Int? = null,
-    val isEditing: Boolean = false
+    val isEditing: Boolean = false,
+    val isScannerVisible: Boolean = false,
+    /** Set after a scan so the form can ask the user to double-check the values. */
+    val showScanReviewHint: Boolean = false,
+    /** Last non-empty parse of the current scanning session; reset when it opens. */
+    val lastScanResult: ScannedCredentials? = null
 ) {
     val isHostValid: Boolean get() = hostErrorRes == null
 }

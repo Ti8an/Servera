@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivanstudio.servera.domain.analytics.Analytics
 import com.tivanstudio.servera.domain.analytics.AnalyticsEvent
+import com.tivanstudio.servera.domain.entity.ScannedCredentials
 import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.domain.repository.ServerRepository
 import com.tivanstudio.servera.domain.usecase.server.AddServerUseCase
@@ -72,6 +73,65 @@ class AddServerViewModel @Inject constructor(
     fun onTimeoutChange(v: String)    = _uiState.update { it.copy(timeout = v) }
     fun onTogglePassword()            = _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
     fun onToggleAdvanced()            = _uiState.update { it.copy(isAdvancedExpanded = !it.isAdvancedExpanded) }
+
+    fun onScanClick() {
+        analytics.log(AnalyticsEvent.ScannerOpened)
+        _uiState.update {
+            // A result carried over from an earlier session would describe values that are no
+            // longer on screen.
+            it.copy(isScannerVisible = true, lastScanResult = null)
+        }
+    }
+
+    fun onScannerDismiss() {
+        // Read before the update, which leaves the last reading in place: closing the scanner
+        // after something was recognized is a different outcome from closing it empty-handed.
+        analytics.log(AnalyticsEvent.ScannerCancelled(hadResult = _uiState.value.lastScanResult != null))
+        _uiState.update { it.copy(isScannerVisible = false) }
+    }
+
+    /**
+     * @param permanently the system dialog will not appear again, so only the settings page
+     *   can still grant access.
+     */
+    fun onScanPermissionDenied(permanently: Boolean) {
+        analytics.log(AnalyticsEvent.ScannerPermissionDenied(permanently))
+    }
+
+    /** Every non-empty parse the scanner sees, whether or not the user applies it. */
+    fun onScanCandidate(result: ScannedCredentials) = _uiState.update { it.copy(lastScanResult = result) }
+
+    /**
+     * Fills in what was recognized, and nothing else. A field the scan did not produce keeps
+     * whatever the user typed, and the password, key, name and timeout are never touched --
+     * a password is masked on the screens this scans, and one misread character there fails
+     * authentication without saying why.
+     *
+     * The connection is deliberately not tested afterwards: there is no password yet.
+     */
+    fun onScanResult(result: ScannedCredentials) {
+        analytics.log(
+            AnalyticsEvent.ScannerApplied(
+                fieldsCount = result.filledCount,
+                hasPort = result.port != null
+            )
+        )
+        _uiState.update { state ->
+            val host = result.host ?: state.host
+            state.copy(
+                host = host,
+                hostErrorRes = validateHost(host),
+                login = result.login ?: state.login,
+                port = result.port?.toString() ?: state.port,
+                error = null,
+                isScannerVisible = false,
+                showScanReviewHint = true,
+                lastScanResult = result
+            )
+        }
+    }
+
+    fun onScanReviewHintDismiss() = _uiState.update { it.copy(showScanReviewHint = false) }
 
     fun save() {
         val state = _uiState.value

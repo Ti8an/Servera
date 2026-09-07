@@ -112,6 +112,15 @@ dependencies {
     // SSH (JSch)
     implementation(libs.jsch)
 
+    // CameraX
+    implementation(libs.camera.core)
+    implementation(libs.camera.camera2)
+    implementation(libs.camera.lifecycle)
+    implementation(libs.camera.view)
+
+    // ML Kit text recognition (on-demand model via Play services)
+    implementation(libs.mlkit.text.recognition)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

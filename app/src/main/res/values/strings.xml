@@ -278,4 +278,14 @@
     <string name="level_wrong_password">Wrong password</string>
     <string name="level_apply">Apply</string>
     <string name="level_changed">Security level updated</string>
+    <!-- Scanning server details off a screen with the camera -->
+    <string name="scan_camera_cd">Scan with camera</string>
+    <string name="scan_hint">Point the camera at the connection details</string>
+    <string name="scan_nothing_found">Nothing recognized yet. Aim at a line like "ssh user@host".</string>
+    <string name="scan_apply">Fill in</string>
+    <string name="scan_retry">Scan again</string>
+    <string name="scan_permission_required">Camera access is needed to scan. Grant it in settings.</string>
+    <string name="scan_open_settings">Open settings</string>
+    <string name="scan_review_hint">Recognized from the camera. Check the values before saving — a misread digit gives a connection that fails without saying why.</string>
+    <string name="scan_camera_unavailable">The camera is unavailable. Enter the details by hand.</string>
 </resources>

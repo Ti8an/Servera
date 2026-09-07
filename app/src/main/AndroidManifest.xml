@@ -8,6 +8,12 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
     <uses-permission android:name="com.google.android.gms.permission.AD_ID"  tools:node="remove" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Not required: scanning a server address off a screen is one way to add a server, never
+         the only one, and a required feature would hide the app from camera-less devices. -->
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+
     <application
         android:name=".ServeraApplication"
         android:allowBackup="false"
@@ -26,6 +32,12 @@
         <meta-data
             android:name="google_analytics_adid_collection_enabled"
             android:value="false" />
+
+        <!-- Lets Play services fetch the OCR model at install time. Without it the first scan
+             silently recognizes nothing while the model is still downloading. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr" />
 
         <activity
             android:name=".MainActivity"
