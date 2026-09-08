@@ -38,6 +38,8 @@ import com.tivanstudio.servera.presentation.presets.ui.GroupDot
 import com.tivanstudio.servera.domain.entity.QuickCommand
 import com.tivanstudio.servera.domain.entity.Server
 import com.tivanstudio.servera.domain.entity.ServerInfo
+import com.tivanstudio.servera.presentation.common.ui.DismissibleFilterChip
+import com.tivanstudio.servera.presentation.common.ui.FilterSectionTitle
 import com.tivanstudio.servera.presentation.common.CommandGridPadding
 import com.tivanstudio.servera.presentation.common.CommandPickerTile
 import com.tivanstudio.servera.presentation.common.CommandTile
@@ -401,6 +403,9 @@ private fun CommandDialog(
 ) {
     val isEditing = initial != null
     var ownMode by remember(initial) { mutableStateOf(isEditing) }
+    // Lives only as long as the dialog is open, by design -- see CatalogFilter.
+    var filter by remember { mutableStateOf(CatalogFilter()) }
+    var showFilterSheet by remember { mutableStateOf(false) }
     // A catalog preset copied into the manual form, waiting there to be tweaked and saved.
     var prefill by remember(initial) { mutableStateOf<QuickCommand?>(null) }
 
@@ -439,6 +444,19 @@ private fun CommandDialog(
                                 )
                             }
                         },
+                        actions = {
+                            // Only the catalog tab has anything to filter.
+                            if (!ownMode) {
+                                IconButton(onClick = { showFilterSheet = true }) {
+                                    Icon(
+                                        Icons.Default.FilterList,
+                                        contentDescription = stringResource(R.string.filter_title),
+                                        tint = if (filter.isActive) PrimaryGreen
+                                               else LocalContentColor.current
+                                    )
+                                }
+                            }
+                        },
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = MaterialTheme.colorScheme.surface
                         )
@@ -469,6 +487,14 @@ private fun CommandDialog(
                         }
                     }
 
+                    if (!ownMode && filter.isActive) {
+                        CatalogFilterChips(
+                            uiState  = uiState,
+                            filter   = filter,
+                            onChange = { filter = it }
+                        )
+                    }
+
                     if (ownMode) {
                         OwnCommandForm(
                             uiState  = uiState,
@@ -479,6 +505,8 @@ private fun CommandDialog(
                     } else {
                         CatalogPicker(
                             uiState = uiState,
+                            filter  = filter,
+                            onResetFilter = { filter = CatalogFilter() },
                             onPick  = { preset ->
                                 // Tapping one that is already attached says so rather than doing
                                 // nothing: silence reads as a hang.
@@ -501,8 +529,169 @@ private fun CommandDialog(
                     }
                 }
             }
+
+            if (showFilterSheet) {
+                CatalogFilterSheet(
+                    uiState   = uiState,
+                    filter    = filter,
+                    onApply   = { filter = it; showFilterSheet = false },
+                    onDismiss = { showFilterSheet = false }
+                )
+            }
         }
     }
+}
+
+/** One dismissible chip per active filter parameter, mirroring the history list. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CatalogFilterChips(
+    uiState: ConsoleUiState,
+    filter: CatalogFilter,
+    onChange: (CatalogFilter) -> Unit
+) {
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        filter.groupId?.let { id ->
+            val name = uiState.groups.firstOrNull { it.id == id }?.name ?: "#$id"
+            DismissibleFilterChip(
+                label   = "${stringResource(R.string.filter_group)}: $name",
+                onClear = { onChange(filter.copy(groupId = null)) }
+            )
+        }
+        if (filter.query.isNotBlank()) {
+            DismissibleFilterChip(
+                label   = "${stringResource(R.string.filter_search)}: ${filter.query}",
+                onClear = { onChange(filter.copy(query = "")) }
+            )
+        }
+        if (filter.hideAttached) {
+            DismissibleFilterChip(
+                label   = stringResource(R.string.filter_hide_attached),
+                onClear = { onChange(filter.copy(hideAttached = false)) }
+            )
+        }
+    }
+}
+
+/**
+ * Edited on a local copy, as in the history sheet: a half-made selection never reaches the
+ * grid, and only Apply hands the result back.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun CatalogFilterSheet(
+    uiState: ConsoleUiState,
+    filter: CatalogFilter,
+    onApply: (CatalogFilter) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var local by remember(filter) { mutableStateOf(filter) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor   = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text       = stringResource(R.string.filter_title),
+                style      = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            FilterSectionTitle(stringResource(R.string.filter_group))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = local.groupId == null,
+                    onClick  = { local = local.copy(groupId = null) },
+                    label    = { Text(stringResource(R.string.filter_all)) }
+                )
+                uiState.groups.forEach { group ->
+                    FilterChip(
+                        selected = local.groupId == group.id,
+                        onClick  = { local = local.copy(groupId = group.id) },
+                        label    = { Text(group.name) },
+                        leadingIcon = { GroupDot(colorHex = group.colorHex, size = 10) }
+                    )
+                }
+            }
+
+            OutlinedTextField(
+                value         = local.query,
+                onValueChange = { local = local.copy(query = it) },
+                label         = { Text(stringResource(R.string.filter_search)) },
+                singleLine    = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor   = PrimaryGreen,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            )
+
+            Row(
+                modifier          = Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text     = stringResource(R.string.filter_hide_attached),
+                    style    = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked         = local.hideAttached,
+                    onCheckedChange = { local = local.copy(hideAttached = it) },
+                    colors = SwitchDefaults.colors(checkedTrackColor = PrimaryGreen)
+                )
+            }
+
+            Row(
+                modifier              = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = { local = CatalogFilter() }) {
+                    Text(
+                        stringResource(R.string.filter_reset),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = { onApply(local) },
+                    colors  = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                    shape   = MaterialTheme.shapes.medium
+                ) {
+                    Text(stringResource(R.string.filter_apply), fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * What the catalog picker is narrowed to.
+ *
+ * Local to the open dialog rather than held in the view model: a filter is a way of looking at
+ * the list while choosing something, not a setting anyone expects to find again next time.
+ */
+private data class CatalogFilter(
+    val groupId: Long? = null,
+    val query: String = "",
+    val hideAttached: Boolean = false
+) {
+    val isActive: Boolean get() = groupId != null || query.isNotBlank() || hideAttached
 }
 
 /**
@@ -513,10 +702,14 @@ private fun CommandDialog(
 @Composable
 private fun CatalogPicker(
     uiState: ConsoleUiState,
+    filter: CatalogFilter,
+    onResetFilter: () -> Unit,
     onPick: (Preset) -> Unit,
     onCopyToForm: (Preset) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // An empty catalog and a filter that matched nothing are different problems with different
+    // ways out, so they get different empty states.
     if (uiState.grouped.isEmpty()) {
         Box(
             modifier         = modifier.fillMaxSize(),
@@ -534,6 +727,29 @@ private fun CatalogPicker(
 
     val attached  = uiState.attachedCommandStrings
     val tileWidth = rememberCommandTileWidth()
+    val visible   = uiState.grouped.applyFilter(filter, attached)
+
+    if (visible.isEmpty()) {
+        Box(
+            modifier         = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier            = Modifier.padding(32.dp)
+            ) {
+                Text(
+                    text      = stringResource(R.string.filter_nothing_found),
+                    color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                TextButton(onClick = onResetFilter) {
+                    Text(stringResource(R.string.filter_reset), color = PrimaryGreen)
+                }
+            }
+        }
+        return
+    }
 
     LazyColumn(
         modifier       = modifier
@@ -543,7 +759,7 @@ private fun CatalogPicker(
     ) {
         // A group is one item, header and grid together: splitting the tiles into their own
         // items would let a row straddle two groups as the list recycles.
-        uiState.grouped.forEach { (group, presets) ->
+        visible.forEach { (group, presets) ->
             item(key = "catalog_group_${group.id}") {
                 Column {
                     Row(
@@ -582,6 +798,27 @@ private fun CatalogPicker(
         }
     }
 }
+
+/**
+ * The catalog narrowed by [filter]. A group left with no presets drops out entirely: a header
+ * over an empty space reads as a loading glitch rather than as a filter result.
+ */
+private fun List<Pair<PresetGroup, List<Preset>>>.applyFilter(
+    catalogFilter: CatalogFilter,
+    attached: Set<String>
+): List<Pair<PresetGroup, List<Preset>>> =
+    filter { (group, _) -> catalogFilter.groupId == null || group.id == catalogFilter.groupId }
+        .map { (group, presets) ->
+            group to presets.filter { preset ->
+                val matchesQuery = catalogFilter.query.isBlank() ||
+                    preset.label.contains(catalogFilter.query, ignoreCase = true) ||
+                    preset.command.contains(catalogFilter.query, ignoreCase = true)
+                val allowedByAttached =
+                    !catalogFilter.hideAttached || preset.command !in attached
+                matchesQuery && allowedByAttached
+            }
+        }
+        .filter { (_, presets) -> presets.isNotEmpty() }
 
 /**
  * A catalog preset dropped into the manual form: a new command carrying the preset's group
@@ -1032,8 +1269,10 @@ private fun CatalogPickerPreview() {
                     QuickCommand(1, 1, "Running containers", "docker ps", 0, iconKey = "cloud")
                 )
             ),
-            onPick       = {},
-            onCopyToForm = {}
+            filter        = CatalogFilter(),
+            onResetFilter = {},
+            onPick        = {},
+            onCopyToForm  = {}
         )
     }
 }

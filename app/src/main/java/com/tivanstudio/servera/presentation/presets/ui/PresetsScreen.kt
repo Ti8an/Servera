@@ -2,6 +2,8 @@ package com.tivanstudio.servera.presentation.presets.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmarks
@@ -9,6 +11,7 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,6 +38,8 @@ import com.tivanstudio.servera.presentation.common.CommandTile
 import com.tivanstudio.servera.presentation.common.CommandTileColumns
 import com.tivanstudio.servera.presentation.common.CommandTileSpacing
 import com.tivanstudio.servera.presentation.common.rememberCommandTileWidth
+import com.tivanstudio.servera.presentation.common.ui.DismissibleFilterChip
+import com.tivanstudio.servera.presentation.common.ui.FilterSectionTitle
 import com.tivanstudio.servera.presentation.components.AppBottomBar
 import com.tivanstudio.servera.presentation.navigation.Screen
 import com.tivanstudio.servera.presentation.presets.viewmodel.PresetsUiState
@@ -421,6 +426,10 @@ private fun PresetLibraryDialog(
     val addedMsg   = stringResource(R.string.preset_added)
     val alreadyMsg = stringResource(R.string.already_added)
 
+    // Lives only as long as the dialog is open, by design -- see LibraryFilter.
+    var filter by remember { mutableStateOf(LibraryFilter()) }
+    var showFilterSheet by remember { mutableStateOf(false) }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties       = DialogProperties(usePlatformDefaultWidth = false)
@@ -448,6 +457,16 @@ private fun PresetLibraryDialog(
                                 )
                             }
                         },
+                        actions = {
+                            IconButton(onClick = { showFilterSheet = true }) {
+                                Icon(
+                                    Icons.Default.FilterList,
+                                    contentDescription = stringResource(R.string.filter_title),
+                                    tint = if (filter.isActive) PrimaryGreen
+                                           else LocalContentColor.current
+                                )
+                            }
+                        },
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = MaterialTheme.colorScheme.surface
                         )
@@ -457,64 +476,85 @@ private fun PresetLibraryDialog(
                 // Compared by text: a catalog preset has no id its copy in Room keeps.
                 val alreadyAdded = uiState.customCommandStrings
                 val tileWidth    = rememberCommandTileWidth()
+                val visible      = uiState.builtinGrouped.applyFilter(filter, alreadyAdded)
 
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .padding(horizontal = CommandGridPadding),
-                    contentPadding = PaddingValues(vertical = 8.dp)
-                ) {
-                    // A group is one item, header and grid together: splitting the tiles into
-                    // their own items would let a row straddle two groups as the list recycles.
-                    uiState.builtinGrouped.forEach { (group, presets) ->
-                        item(key = "library_group_${group.id}") {
-                            Column {
-                                Row(
-                                    modifier          = Modifier.padding(vertical = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    GroupDot(colorHex = group.colorHex, size = 12)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        text  = group.name,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                    if (filter.isActive) {
+                        LibraryFilterChips(
+                            uiState  = uiState,
+                            filter   = filter,
+                            onChange = { filter = it }
+                        )
+                    }
 
-                                FlowRow(
-                                    maxItemsInEachRow     = CommandTileColumns,
-                                    horizontalArrangement = Arrangement.spacedBy(CommandTileSpacing),
-                                    verticalArrangement   = Arrangement.spacedBy(CommandTileSpacing)
-                                ) {
-                                    presets.forEach { preset ->
-                                        val isAdded = preset.command in alreadyAdded
-                                        CommandPickerTile(
-                                            label       = preset.label,
-                                            command     = preset.command,
-                                            iconKey     = preset.iconKey,
-                                            accentColor = group.colorHex.toComposeColor(),
-                                            width       = tileWidth,
-                                            isAdded     = isAdded,
-                                            onAdd = {
-                                                // Tapping one that is already in says so rather
-                                                // than doing nothing: silence reads as a hang.
-                                                if (isAdded) {
-                                                    scope.launch {
-                                                        snackbarHostState.showSnackbar(alreadyMsg)
-                                                    }
-                                                } else {
-                                                    onAdd(preset)
-                                                    // The dialog stays open: several presets
-                                                    // usually go at once.
-                                                    scope.launch {
-                                                        snackbarHostState.showSnackbar(addedMsg)
-                                                    }
-                                                }
-                                            },
-                                            onCopyToForm = { onCopyToForm(preset) }
-                                        )
+                    // A filter that matched nothing and an empty catalog are different problems
+                    // with different ways out, so they get different empty states.
+                    if (visible.isEmpty()) {
+                        LibraryEmptyState(
+                            isFiltered = filter.isActive,
+                            onReset    = { filter = LibraryFilter() }
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = CommandGridPadding),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            // A group is one item, header and grid together: splitting the tiles
+                            // into their own items would let a row straddle two groups as the
+                            // list recycles.
+                            visible.forEach { (group, presets) ->
+                                item(key = "library_group_${group.id}") {
+                                    Column {
+                                        Row(
+                                            modifier          = Modifier.padding(vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            GroupDot(colorHex = group.colorHex, size = 12)
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(
+                                                text  = group.name,
+                                                style = MaterialTheme.typography.labelLarge,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+
+                                        FlowRow(
+                                            maxItemsInEachRow     = CommandTileColumns,
+                                            horizontalArrangement = Arrangement.spacedBy(CommandTileSpacing),
+                                            verticalArrangement   = Arrangement.spacedBy(CommandTileSpacing)
+                                        ) {
+                                            presets.forEach { preset ->
+                                                val isAdded = preset.command in alreadyAdded
+                                                CommandPickerTile(
+                                                    label       = preset.label,
+                                                    command     = preset.command,
+                                                    iconKey     = preset.iconKey,
+                                                    accentColor = group.colorHex.toComposeColor(),
+                                                    width       = tileWidth,
+                                                    isAdded     = isAdded,
+                                                    onAdd = {
+                                                        // Tapping one that is already in says so
+                                                        // rather than doing nothing: silence
+                                                        // reads as a hang.
+                                                        if (isAdded) {
+                                                            scope.launch {
+                                                                snackbarHostState.showSnackbar(alreadyMsg)
+                                                            }
+                                                        } else {
+                                                            onAdd(preset)
+                                                            // The dialog stays open: several
+                                                            // presets usually go at once.
+                                                            scope.launch {
+                                                                snackbarHostState.showSnackbar(addedMsg)
+                                                            }
+                                                        }
+                                                    },
+                                                    onCopyToForm = { onCopyToForm(preset) }
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -522,9 +562,218 @@ private fun PresetLibraryDialog(
                     }
                 }
             }
+
+            if (showFilterSheet) {
+                LibraryFilterSheet(
+                    uiState   = uiState,
+                    filter    = filter,
+                    onApply   = { filter = it; showFilterSheet = false },
+                    onDismiss = { showFilterSheet = false }
+                )
+            }
         }
     }
 }
+
+/** Nothing to show: either the catalog itself is empty or the filter cut everything out. */
+@Composable
+private fun LibraryEmptyState(isFiltered: Boolean, onReset: () -> Unit) {
+    Box(
+        modifier         = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier            = Modifier.padding(32.dp)
+        ) {
+            Text(
+                text      = stringResource(
+                    if (isFiltered) R.string.filter_nothing_found else R.string.presets_picker_empty
+                ),
+                color     = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            if (isFiltered) {
+                TextButton(onClick = onReset) {
+                    Text(stringResource(R.string.filter_reset), color = PrimaryGreen)
+                }
+            }
+        }
+    }
+}
+
+/** One dismissible chip per active filter parameter, mirroring the history list. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun LibraryFilterChips(
+    uiState: PresetsUiState,
+    filter: LibraryFilter,
+    onChange: (LibraryFilter) -> Unit
+) {
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        filter.groupId?.let { id ->
+            val name = uiState.groupOf(id)?.name ?: "#$id"
+            DismissibleFilterChip(
+                label   = "${stringResource(R.string.filter_group)}: $name",
+                onClear = { onChange(filter.copy(groupId = null)) }
+            )
+        }
+        if (filter.query.isNotBlank()) {
+            DismissibleFilterChip(
+                label   = "${stringResource(R.string.filter_search)}: ${filter.query}",
+                onClear = { onChange(filter.copy(query = "")) }
+            )
+        }
+        if (filter.hideAdded) {
+            DismissibleFilterChip(
+                label   = stringResource(R.string.filter_hide_attached),
+                onClear = { onChange(filter.copy(hideAdded = false)) }
+            )
+        }
+    }
+}
+
+/**
+ * Edited on a local copy, as in the history sheet: a half-made selection never reaches the
+ * grid, and only Apply hands the result back.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun LibraryFilterSheet(
+    uiState: PresetsUiState,
+    filter: LibraryFilter,
+    onApply: (LibraryFilter) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var local by remember(filter) { mutableStateOf(filter) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor   = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text       = stringResource(R.string.filter_title),
+                style      = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            FilterSectionTitle(stringResource(R.string.filter_group))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = local.groupId == null,
+                    onClick  = { local = local.copy(groupId = null) },
+                    label    = { Text(stringResource(R.string.filter_all)) }
+                )
+                // Only the catalog groups: the users own groups have nothing in here.
+                uiState.builtinGrouped.forEach { (group, _) ->
+                    FilterChip(
+                        selected = local.groupId == group.id,
+                        onClick  = { local = local.copy(groupId = group.id) },
+                        label    = { Text(group.name) },
+                        leadingIcon = { GroupDot(colorHex = group.colorHex, size = 10) }
+                    )
+                }
+            }
+
+            OutlinedTextField(
+                value         = local.query,
+                onValueChange = { local = local.copy(query = it) },
+                label         = { Text(stringResource(R.string.filter_search)) },
+                singleLine    = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor   = PrimaryGreen,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            )
+
+            Row(
+                modifier          = Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text     = stringResource(R.string.filter_hide_attached),
+                    style    = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked         = local.hideAdded,
+                    onCheckedChange = { local = local.copy(hideAdded = it) },
+                    colors = SwitchDefaults.colors(checkedTrackColor = PrimaryGreen)
+                )
+            }
+
+            Row(
+                modifier              = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = { local = LibraryFilter() }) {
+                    Text(
+                        stringResource(R.string.filter_reset),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = { onApply(local) },
+                    colors  = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                    shape   = MaterialTheme.shapes.medium
+                ) {
+                    Text(stringResource(R.string.filter_apply), fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * What the preset library is narrowed to.
+ *
+ * Local to the open dialog rather than held in the view model: a filter is a way of looking at
+ * the list while choosing something, not a setting anyone expects to find again next time.
+ */
+private data class LibraryFilter(
+    val groupId: Long? = null,
+    val query: String = "",
+    val hideAdded: Boolean = false
+) {
+    val isActive: Boolean get() = groupId != null || query.isNotBlank() || hideAdded
+}
+
+/**
+ * The catalog narrowed by [libraryFilter]. A group left with no presets drops out entirely: a
+ * header over an empty space reads as a loading glitch rather than as a filter result.
+ */
+private fun List<Pair<PresetGroup, List<Preset>>>.applyFilter(
+    libraryFilter: LibraryFilter,
+    alreadyAdded: Set<String>
+): List<Pair<PresetGroup, List<Preset>>> =
+    filter { (group, _) -> libraryFilter.groupId == null || group.id == libraryFilter.groupId }
+        .map { (group, presets) ->
+            group to presets.filter { preset ->
+                val matchesQuery = libraryFilter.query.isBlank() ||
+                    preset.label.contains(libraryFilter.query, ignoreCase = true) ||
+                    preset.command.contains(libraryFilter.query, ignoreCase = true)
+                val allowedByAdded = !libraryFilter.hideAdded || preset.command !in alreadyAdded
+                matchesQuery && allowedByAdded
+            }
+        }
+        .filter { (_, presets) -> presets.isNotEmpty() }
 
 // ── Previews ─────────────────────────────────────────────────────────────────
 

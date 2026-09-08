@@ -288,4 +288,7 @@
     <string name="scan_status_searching">Point the camera at the connection line</string>
     <string name="scan_status_no_match">Text found, but no address in it</string>
     <string name="scan_status_confirming">Checking what was read</string>
+    <!-- Catalog picker filter -->
+    <string name="filter_hide_attached">Hide already added</string>
+    <string name="filter_nothing_found">Nothing found</string>
 </resources>

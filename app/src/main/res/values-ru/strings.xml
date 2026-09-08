@@ -274,4 +274,7 @@
     <string name="scan_status_searching">Наведите камеру на строку подключения</string>
     <string name="scan_status_no_match">Вижу текст, но не нахожу адрес</string>
     <string name="scan_status_confirming">Проверяю распознанное</string>
+    <!-- Фильтр в каталоге команд -->
+    <string name="filter_hide_attached">Скрыть уже добавленные</string>
+    <string name="filter_nothing_found">Ничего не найдено</string>
 </resources>
