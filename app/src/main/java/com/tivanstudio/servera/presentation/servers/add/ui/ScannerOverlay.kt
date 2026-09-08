@@ -118,8 +118,13 @@ private const val SEPARATOR = "\n"
  * so the whole frame is recognized and the area is applied to the results. What it buys is
  * accuracy, not speed: the panel header, the menu and the footer drop out of the text, and their
  * false matches with them.
+ *
+ * The band runs 0.20..0.80 rather than 0.30..0.70 because on a real panel the IPv4 field sat
+ * above the tighter edge and was cut, leaving the parser one occurrence of the address instead
+ * of two. A closed-ports line may now fall inside it, which costs nothing: a port is only ever
+ * taken from explicit ssh syntax, and a number standing on its own is never one.
  */
-private val AIM_REGION = RectF(0.05f, 0.30f, 0.95f, 0.70f)
+private val AIM_REGION = RectF(0.05f, 0.20f, 0.95f, 0.80f)
 
 /** Readings kept for the vote. */
 private const val VOTE_WINDOW = 6

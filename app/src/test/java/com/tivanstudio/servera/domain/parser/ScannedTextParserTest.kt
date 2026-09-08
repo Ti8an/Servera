@@ -284,4 +284,81 @@ class ScannedTextParserTest {
         assertEquals("147.45.142.41", result.host)
         assertNull(result.port)
     }
+
+    @Test
+    fun `an at sign misread as a letter still yields the target`() {
+        val result = ScannedTextParser.parse("ssh rootO147.45.142.41")
+
+        assertEquals("root", result.login)
+        assertEquals("147.45.142.41", result.host)
+        assertNull(result.port)
+    }
+
+    @Test
+    fun `an at sign misread as a zero still yields the target`() {
+        val result = ScannedTextParser.parse("ssh root0147.45.142.41")
+
+        assertEquals("root", result.login)
+        assertEquals("147.45.142.41", result.host)
+        assertNull(result.port)
+    }
+
+    @Test
+    fun `a misread at sign does not disturb the port flag`() {
+        val result = ScannedTextParser.parse("ssh -p 2222 adminO10.0.0.1")
+
+        assertEquals("admin", result.login)
+        assertEquals("10.0.0.1", result.host)
+        assertEquals(2222, result.port)
+    }
+
+    @Test
+    fun `a misread at sign is repaired ahead of a domain name too`() {
+        // Also pins the character set: were a lowercase o in it, "rootOexample.com" would split
+        // validly in four places and the fallback would refuse to choose.
+        val result = ScannedTextParser.parse("ssh rootOexample.com")
+
+        assertEquals("root", result.login)
+        assertEquals("example.com", result.host)
+    }
+
+    @Test
+    fun `two possible places for a misread at sign are not guessed between`() {
+        // "rootO" then "0example.com", or "root" then "0example.com" -- both split into a valid
+        // login and a valid host, and choosing between them would be a guess.
+        val result = ScannedTextParser.parse("ssh rootO0example.com")
+
+        assertNull(result.host)
+        assertNull(result.login)
+    }
+
+    @Test
+    fun `a literal at sign is used ahead of the fallback`() {
+        val result = ScannedTextParser.parse("ssh root@147.45.142.41")
+
+        assertEquals("root", result.login)
+        assertEquals("147.45.142.41", result.host)
+    }
+
+    @Test
+    fun `a panel block whose ssh line lost its at sign still yields the target`() {
+        val result = ScannedTextParser.parse(
+            """
+            IPv4
+            147.45.142.41
+            Подключение по SSH
+            ssh rootO147.45.142.41
+            Root-пароль
+            ********
+            Нода
+            kvmnvm-1143
+            Закрытые порты
+            3389, 25, 2525, 53413, 5060, 465, 587, 389
+            """.trimIndent()
+        )
+
+        assertEquals("root", result.login)
+        assertEquals("147.45.142.41", result.host)
+        assertNull(result.port)
+    }
 }

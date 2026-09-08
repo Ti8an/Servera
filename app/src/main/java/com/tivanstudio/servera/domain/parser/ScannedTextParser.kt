@@ -30,9 +30,12 @@ object ScannedTextParser {
         // sit on either side of user@host.
         for (match in SSH_COMMAND.findAll(text)) {
             val args = match.groupValues[1]
-            val target = USER_AT_HOST.find(args) ?: continue
-            login = validLogin(target.groupValues[1])
-            host = validHost(target.groupValues[2])
+            // A literal @ always wins; the fallback runs only when the line has none to work from.
+            val target = USER_AT_HOST.find(args)?.let { it.groupValues[1] to it.groupValues[2] }
+                ?: args.splitOnMisreadAt()
+                ?: continue
+            login = validLogin(target.first)
+            host = validHost(target.second)
             port = PORT_FLAG.find(args)?.let { validPort(it.groupValues[1]) }
             if (login != null || host != null) break
         }
@@ -100,6 +103,44 @@ object ScannedTextParser {
 
     private fun validHost(value: String): String? =
         if (isIpv4(value) || isHostname(value)) value else null
+
+    /**
+     * Characters OCR hands back in place of an @: round, and mostly with something attached.
+     *
+     * A lowercase o is deliberately not among them. It is round enough to be mistaken for an @,
+     * but it is also common inside logins and domain names -- "root", ".com" -- and every
+     * occurrence is another place the line could be split. With it in the set,
+     * "rootOexample.com" splits validly in four places rather than one, and the fallback
+     * refuses to choose in exactly the cases it exists for.
+     */
+    private val AT_LOOKALIKES = charArrayOf('O', '0', 'Q', '©', '®')
+
+    /**
+     * The login and host of an ssh line whose @ was misread as something else.
+     *
+     * This repairs a structural separator, not the data around it: both halves of every
+     * candidate split go through the same validation an ordinary target does, so a wrong guess
+     * cannot yield a plausible-looking wrong address. It yields a valid pair or nothing.
+     *
+     * Whitespace splits first, because a login is one token: a candidate whose left half
+     * reaches back across a space is not a login and must not be judged as one.
+     *
+     * @return the pair when exactly one position gives a valid one. Several valid positions is
+     *   a guess between them, and no valid position is nothing to go on; both give null.
+     */
+    private fun String.splitOnMisreadAt(): Pair<String, String>? =
+        split(' ', '\t')
+            .flatMap { token -> token.validSplitsAt() }
+            .singleOrNull()
+
+    private fun String.validSplitsAt(): List<Pair<String, String>> =
+        indices
+            .filter { this[it] in AT_LOOKALIKES }
+            .mapNotNull { at ->
+                val login = validLogin(substring(0, at)) ?: return@mapNotNull null
+                val host = validHost(substring(at + 1)) ?: return@mapNotNull null
+                login to host
+            }
 
     private fun validLogin(value: String): String? =
         if (LOGIN.matches(value) && !value.all { it.isDigit() }) value else null
