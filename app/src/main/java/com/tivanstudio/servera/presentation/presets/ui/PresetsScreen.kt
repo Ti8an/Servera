@@ -9,7 +9,6 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -62,7 +61,6 @@ fun PresetsScreen(
         onAdd           = viewModel::startAdd,
         onEdit          = viewModel::startEdit,
         onDelete        = viewModel::deletePreset,
-        onRefresh       = viewModel::refresh,
         onOpenSourceChooser  = viewModel::openSourceChooser,
         onDismissSourceChooser = viewModel::dismissSourceChooser,
         onOpenLibrary        = viewModel::openLibrary,
@@ -86,7 +84,6 @@ private fun PresetsScreenContent(
     onAdd: () -> Unit,
     onEdit: (Preset) -> Unit,
     onDelete: (Long) -> Unit,
-    onRefresh: () -> Unit,
     onOpenSourceChooser: () -> Unit,
     onDismissSourceChooser: () -> Unit,
     onOpenLibrary: () -> Unit,
@@ -146,20 +143,6 @@ private fun PresetsScreenContent(
                     Text(stringResource(R.string.presets_title), fontWeight = FontWeight.Bold)
                 },
                 actions = {
-                    IconButton(onClick = onRefresh, enabled = !uiState.isUpdating) {
-                        if (uiState.isUpdating) {
-                            CircularProgressIndicator(
-                                modifier    = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color       = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            Icon(
-                                Icons.Default.Refresh,
-                                contentDescription = stringResource(R.string.presets_update)
-                            )
-                        }
-                    }
                     IconButton(onClick = onNavigateToGroups) {
                         Icon(
                             Icons.Default.Category,
@@ -582,7 +565,6 @@ private fun PresetsScreenContentPreview() {
             onAdd           = {},
             onEdit          = {},
             onDelete        = {},
-            onRefresh       = {},
             onOpenSourceChooser    = {},
             onDismissSourceChooser = {},
             onOpenLibrary          = {},
@@ -638,40 +620,6 @@ private fun PresetLibraryDialogPreview() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true)
 @Composable
-private fun PresetsScreenUpdatingPreview() {
-    ServeraTheme {
-        PresetsScreenContent(
-            uiState = PresetsUiState(
-                groups  = listOf(PresetGroup(-10, "Docker", "#1565C0", 0, PresetSource.BUILTIN)),
-                presets = listOf(
-                    Preset(-1, -10, "Running containers", "docker ps", 0, PresetSource.BUILTIN, "storage")
-                ),
-                isUpdating = true
-            ),
-            onNavigateToServers  = {},
-            onNavigateToHistory  = {},
-            onNavigateToSettings = {},
-            onNavigateToGroups   = {},
-            onAdd           = {},
-            onEdit          = {},
-            onDelete        = {},
-            onRefresh       = {},
-            onOpenSourceChooser    = {},
-            onDismissSourceChooser = {},
-            onOpenLibrary          = {},
-            onDismissLibrary       = {},
-            onAddFromLibrary       = {},
-            onCopyFromLibrary      = {},
-            onClearMessage  = {},
-            onDismissDialog = {},
-            onSave          = { _, _, _, _ -> }
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Preview(showBackground = true)
-@Composable
 private fun PresetsScreenNoGroupsPreview() {
     ServeraTheme {
         PresetsScreenContent(
@@ -683,7 +631,6 @@ private fun PresetsScreenNoGroupsPreview() {
             onAdd           = {},
             onEdit          = {},
             onDelete        = {},
-            onRefresh       = {},
             onOpenSourceChooser    = {},
             onDismissSourceChooser = {},
             onOpenLibrary          = {},
