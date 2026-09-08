@@ -181,7 +181,11 @@ fun ScannerOverlay(
                 .background(Color.Black)
         ) {
             when {
-                isGranted -> CameraScanner(onCandidate = onCandidate, onResult = onResult)
+                isGranted -> CameraScanner(
+                    onCandidate = onCandidate,
+                    onResult = onResult,
+                    onDismiss = onDismiss
+                )
                 // A second refusal is silent -- the system stops showing its dialog -- so the
                 // only way left is the app settings page.
                 isDenied -> PermissionDenied(
@@ -212,7 +216,8 @@ fun ScannerOverlay(
 @Composable
 private fun BoxScope.CameraScanner(
     onCandidate: (ScannedCredentials) -> Unit,
-    onResult: (ScannedCredentials) -> Unit
+    onResult: (ScannedCredentials) -> Unit,
+    onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -263,8 +268,17 @@ private fun BoxScope.CameraScanner(
     AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
 
     DisposableEffect(Unit) {
-        val future = ProcessCameraProvider.getInstance(context)
-        future.addListener({
+        // Since 1.4.0 CameraX checks camera availability strictly: a camera held by another
+        // app, or momentarily absent, throws out of getInstance, get() or bindToLifecycle
+        // where 1.3.4 carried on regardless. All three are guarded, and a failure shows the
+        // unavailable notice rather than a black screen or a crash.
+        val future = try {
+            ProcessCameraProvider.getInstance(context)
+        } catch (e: Exception) {
+            isCameraBroken = true
+            null
+        }
+        future?.addListener({
             try {
                 val provider = future.get()
                 // The preview keeps the default resolution; the user should not be able to see
@@ -286,7 +300,9 @@ private fun BoxScope.CameraScanner(
         }, ContextCompat.getMainExecutor(context))
 
         onDispose {
-            cameraProvider.value?.unbindAll()
+            // Releasing can throw for the same reasons acquiring can, and a throw here would
+            // take the whole screen down on the way out.
+            runCatching { cameraProvider.value?.unbindAll() }
             executor.shutdown()
             analyzer.close()
         }
@@ -355,12 +371,22 @@ private fun BoxScope.CameraScanner(
     }
 
     if (isCameraBroken) {
-        Message(
-            text = stringResource(R.string.scan_camera_unavailable),
+        Column(
             modifier = Modifier
                 .align(Alignment.Center)
-                .padding(horizontal = 32.dp)
-        )
+                .padding(horizontal = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Message(text = stringResource(R.string.scan_camera_unavailable))
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onPrimary)
+            }
+        }
     } else if (confirmed == null) {
         // Laid out against the same fractions as the reticle so the status sits under it.
         Column(modifier = Modifier.fillMaxSize()) {
