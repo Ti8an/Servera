@@ -153,9 +153,6 @@
     <string name="presets_title">Command presets</string>
     <string name="presets_subtitle">Manage and add your own commands</string>
     <string name="preset_builtin">built-in</string>
-    <string name="presets_update">Update presets</string>
-    <string name="presets_updated">Presets updated</string>
-    <string name="presets_update_failed">Update failed</string>
     <string name="copy_to_custom">Copy to my presets</string>
     <string name="preset_copied">Copied to your presets</string>
     <string name="preset_edit">Edit</string>
@@ -291,4 +288,7 @@
     <string name="scan_status_searching">Point the camera at the connection line</string>
     <string name="scan_status_no_match">Text found, but no address in it</string>
     <string name="scan_status_confirming">Checking what was read</string>
+    <!-- Catalog picker filter -->
+    <string name="filter_hide_attached">Hide already added</string>
+    <string name="filter_nothing_found">Nothing found</string>
 </resources>

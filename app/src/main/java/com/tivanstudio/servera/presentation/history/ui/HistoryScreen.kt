@@ -31,6 +31,8 @@ import com.tivanstudio.servera.R
 import com.tivanstudio.servera.domain.entity.CommandHistory
 import com.tivanstudio.servera.domain.entity.PresetGroup
 import com.tivanstudio.servera.domain.entity.Server
+import com.tivanstudio.servera.presentation.common.ui.DismissibleFilterChip
+import com.tivanstudio.servera.presentation.common.ui.FilterSectionTitle
 import com.tivanstudio.servera.presentation.components.AppBottomBar
 import com.tivanstudio.servera.presentation.history.viewmodel.HistoryEvent
 import com.tivanstudio.servera.presentation.history.viewmodel.HistoryFilter
@@ -277,21 +279,6 @@ private fun ActiveFilterChips(
     }
 }
 
-@Composable
-private fun DismissibleFilterChip(label: String, onClear: () -> Unit) {
-    AssistChip(
-        onClick = onClear,
-        label   = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        trailingIcon = {
-            Icon(
-                Icons.Default.Close,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp)
-            )
-        }
-    )
-}
-
 /**
  * Filters are edited on a local copy so a half-made selection never touches the
  * list; only "Apply" hands the result back.
@@ -421,16 +408,6 @@ private fun FilterSheet(
             }
         }
     }
-}
-
-@Composable
-private fun FilterSectionTitle(text: String) {
-    Text(
-        text       = text,
-        style      = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Medium,
-        modifier   = Modifier.padding(top = 8.dp)
-    )
 }
 
 @Composable

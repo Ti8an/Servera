@@ -14,9 +14,7 @@ data class PresetsUiState(
     val showSourceChooser: Boolean = false,
     /** The full-screen built-in catalog is open. */
     val showLibrary: Boolean = false,
-    /** A catalog refresh is in flight; the toolbar action is disabled while it is. */
-    val isUpdating: Boolean = false,
-    /** One-shot Snackbar text for the last refresh or copy; cleared once shown. */
+    /** One-shot Snackbar text for the last copy; cleared once shown. */
     @StringRes val updateMessageRes: Int? = null
 ) {
     /**

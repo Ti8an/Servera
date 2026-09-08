@@ -41,6 +41,7 @@ class PresetsViewModel @Inject constructor(
 
     init {
         observeCatalog()
+        refreshCatalog()
     }
 
     private fun observeCatalog() {
@@ -49,6 +50,21 @@ class PresetsViewModel @Inject constructor(
                 .collect { (presets, groups) ->
                     _uiState.update { it.copy(presets = presets, groups = groups) }
                 }
+        }
+    }
+
+    /**
+     * Pulls a fresh built-in catalog from Remote Config when the screen opens. The list itself
+     * refreshes through the repository's catalogRevision flow, so there is nothing to do with
+     * the result here.
+     *
+     * A failure is deliberately silent: nobody asked for this refresh, and the catalog already
+     * on screen is the one from last time either way. Telling the user that something they did
+     * not request did not happen is noise.
+     */
+    private fun refreshCatalog() {
+        viewModelScope.launch {
+            updatePresets().onSuccess { analytics.log(AnalyticsEvent.PresetsUpdated) }
         }
     }
 
@@ -214,25 +230,6 @@ class PresetsViewModel @Inject constructor(
         // silent no-op, so refuse it outright.
         if (_uiState.value.presets.any { it.id == id && it.source == PresetSource.BUILTIN }) return
         viewModelScope.launch { deletePreset.invoke(id) }
-    }
-
-    /**
-     * Pulls a fresh built-in catalog from Remote Config. The list itself refreshes through the
-     * repository's catalogRevision flow, so this only has to report the outcome.
-     */
-    fun refresh() {
-        if (_uiState.value.isUpdating) return
-        _uiState.update { it.copy(isUpdating = true, updateMessageRes = null) }
-        viewModelScope.launch {
-            val messageRes = updatePresets().fold(
-                {
-                    analytics.log(AnalyticsEvent.PresetsUpdated)
-                    R.string.presets_updated
-                },
-                { R.string.presets_update_failed }
-            )
-            _uiState.update { it.copy(isUpdating = false, updateMessageRes = messageRes) }
-        }
     }
 
     /** Forks a built-in preset into an editable copy of the user's own. */
