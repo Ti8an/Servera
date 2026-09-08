@@ -57,13 +57,23 @@ object ScannedTextParser {
             }
         }
 
-        // Rule 4 -- a standalone IPv4, and only when nothing above produced a host. Several
-        // different addresses in one text is a guess we refuse to make.
+        // Rule 4 -- a standalone IPv4, and only when nothing above produced a host.
+        //
+        // The address is usually printed more than once on one panel: as its own field, and
+        // again inside the ssh line. OCR rarely misreads the same digit the same way every
+        // time, so the reading that occurs most often is the one to trust -- refusing outright
+        // as soon as two readings differ threw away an address that was there and correct in
+        // the majority of its occurrences.
+        //
+        // A tie is still a refusal: between equally frequent candidates there is nothing to
+        // choose, and a wrong address looks exactly like a right one.
         if (host == null) {
-            val addresses = text.split(*TOKEN_SEPARATORS)
+            val occurrences = text.split(*TOKEN_SEPARATORS)
                 .filter { isIpv4(it) }
-                .distinct()
-            if (addresses.size == 1) host = addresses.first()
+                .groupingBy { it }
+                .eachCount()
+            val mostSeen = occurrences.values.maxOrNull()
+            host = occurrences.entries.singleOrNull { it.value == mostSeen }?.key
         }
 
         return ScannedCredentials(host = host, port = port, login = login)

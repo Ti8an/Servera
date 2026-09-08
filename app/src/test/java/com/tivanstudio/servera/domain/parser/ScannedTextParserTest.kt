@@ -133,7 +133,7 @@ class ScannedTextParserTest {
     }
 
     @Test
-    fun `two different addresses are not guessed between`() {
+    fun `two addresses seen once each are a tie and not guessed between`() {
         val result = ScannedTextParser.parse("IPv4 203.0.113.10\nШлюз 192.168.1.1")
 
         assertNull(result.host)
@@ -168,5 +168,71 @@ class ScannedTextParserTest {
 
         assertTrue(result.isEmpty)
         assertEquals(0, result.filledCount)
+    }
+
+    @Test
+    fun `the address read correctly more often wins over a misread one`() {
+        // The panel prints the address twice and OCR spoiled one occurrence -- a lowercase l
+        // where a 1 belongs, which validation drops. What is left is the address, twice.
+        val result = ScannedTextParser.parse(
+            """
+            IPv4
+            147.45.142.41
+            Хост 147.45.142.41
+            Резерв 147.45.142.4l
+            """.trimIndent()
+        )
+
+        assertEquals("147.45.142.41", result.host)
+    }
+
+    @Test
+    fun `the more frequent of two valid addresses wins`() {
+        // Both parse as addresses, so nothing but the count separates them.
+        val result = ScannedTextParser.parse(
+            """
+            147.45.142.41
+            147.45.142.11
+            147.45.142.41
+            """.trimIndent()
+        )
+
+        assertEquals("147.45.142.41", result.host)
+    }
+
+    @Test
+    fun `three addresses seen once each are not guessed between`() {
+        assertNull(ScannedTextParser.parse("10.0.0.1 10.0.0.2 10.0.0.3").host)
+    }
+
+    @Test
+    fun `two addresses seen twice each are not guessed between`() {
+        assertNull(ScannedTextParser.parse("10.0.0.1 10.0.0.2 10.0.0.1 10.0.0.2").host)
+    }
+
+    @Test
+    fun `a host the ssh line cannot supply is recovered from the rest of the text`() {
+        // Rule 1 half-succeeds: it reads the login off the ssh line, but the address there came
+        // back with a digit too many and fails validation. Rule 4 then recovers the address from
+        // the occurrence that survived -- the point of ranking occurrences rather than refusing
+        // as soon as two readings disagree.
+        val result = ScannedTextParser.parse(
+            """
+            IPv4
+            147.45.142.41
+            Подключение по SSH
+            ssh root@147.45.142.411
+            Root-пароль
+            ********
+            Нода
+            kvmnvm-1143
+            Закрытые порты
+            3389, 25, 2525, 53413, 5060, 465, 587, 389
+            """.trimIndent()
+        )
+
+        assertEquals("root", result.login)
+        assertEquals("147.45.142.41", result.host)
+        assertNull(result.port)
     }
 }
