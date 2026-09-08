@@ -235,4 +235,53 @@ class ScannedTextParserTest {
         assertEquals("147.45.142.41", result.host)
         assertNull(result.port)
     }
+
+    @Test
+    fun `domain names are accepted as hosts`() {
+        // A numeric label or two is ordinary in a real name; it is three in front that gives a
+        // misread address away.
+        listOf(
+            "example.com",
+            "srv1.eu-central.hosting.net",
+            "localhost",
+            "1.example.com",
+            "10.20.example.com"
+        ).forEach { host ->
+            assertEquals(host, host, ScannedTextParser.parse("admin@$host").host)
+        }
+    }
+
+    @Test
+    fun `an address misread as a domain name is rejected`() {
+        // Four valid labels ending in one that is not all digits: the numeric-TLD guard alone
+        // lets these through, and each is a dotted quad with a letter picked up in the last
+        // octet, never a name anyone would type.
+        listOf("147.45.142.4l", "192.168.1.1a", "10.0.0.1x").forEach { host ->
+            assertNull(host, ScannedTextParser.parse("admin@$host").host)
+        }
+    }
+
+    @Test
+    fun `an address misread as a domain name in the ssh line is recovered from the rest of the text`() {
+        // The defect this guards: the ssh line held a letter in the last octet, that passed as
+        // a domain name, rule 4 never ran, and the user saved a server that could only time out.
+        val result = ScannedTextParser.parse(
+            """
+            IPv4
+            147.45.142.41
+            Подключение по SSH
+            ssh root@147.45.142.4l
+            Root-пароль
+            ********
+            Нода
+            kvmnvm-1143
+            Закрытые порты
+            3389, 25, 2525, 53413, 5060, 465, 587, 389
+            """.trimIndent()
+        )
+
+        assertEquals("root", result.login)
+        assertEquals("147.45.142.41", result.host)
+        assertNull(result.port)
+    }
 }

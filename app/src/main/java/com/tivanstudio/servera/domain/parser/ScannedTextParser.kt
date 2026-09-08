@@ -124,11 +124,24 @@ object ScannedTextParser {
         }
     }
 
-    /** RFC 1123 labels, plus the rule that a fully numeric TLD means this was a malformed address. */
+    /**
+     * RFC 1123 labels, plus two guards that keep a malformed address from passing as a domain
+     * name: three fully numeric labels at the front, and a fully numeric TLD.
+     *
+     * The first guard catches a dotted quad whose last octet came back from OCR with a letter
+     * in it. "147.45.142.4l" is four valid labels ending in one that is not all digits, so
+     * nothing else here would stop it, and no real domain name begins with three numeric
+     * labels. Letting it through costs the user a server that saves and then times out with
+     * nothing to explain why. The guard is on the leading labels whatever the total count, so
+     * a longer name built on the same misreading is caught too.
+     */
     private fun isHostname(value: String): Boolean {
         if (value.isEmpty() || value.length > 253) return false
         val labels = value.split('.')
         if (labels.any { !LABEL.matches(it) }) return false
-        return labels.last().any { !it.isDigit() }
+        if (labels.size >= 3 && labels.take(3).all(::isNumericLabel)) return false
+        return !isNumericLabel(labels.last())
     }
+
+    private fun isNumericLabel(label: String): Boolean = label.all { it in '0'..'9' }
 }
