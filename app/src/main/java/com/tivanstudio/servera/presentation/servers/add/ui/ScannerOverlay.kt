@@ -71,15 +71,18 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.tivanstudio.servera.BuildConfig
 import com.tivanstudio.servera.R
 import com.tivanstudio.servera.data.scanner.RecognizedFrame
 import com.tivanstudio.servera.data.scanner.RecognizedLine
@@ -89,12 +92,22 @@ import com.tivanstudio.servera.domain.parser.ScannedTextParser
 import com.tivanstudio.servera.presentation.theme.PrimaryGreen
 import kotlinx.coroutines.delay
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import androidx.compose.ui.geometry.Rect as ViewRect
 import androidx.compose.ui.geometry.Size as ViewSize
 
 /** How long the user may stare at an empty area before being told what to aim at. */
 private const val NOTHING_FOUND_AFTER_MS = 15_000L
+
+/** Debug builds only: how often to report that frames are still going through. */
+private const val HEARTBEAT_MS = 2_000L
+
+/** Debug builds only: aimed-at lines the on-screen panel keeps. */
+private const val DIAGNOSTIC_LINES = 6
+
+/** The joiner the parser is fed, kept in one place so the panel counts what it counts. */
+private const val SEPARATOR = "\n"
 
 /**
  * The part of the frame the scanner works on, as fractions of the upright frame.
@@ -230,6 +243,7 @@ private fun BoxScope.CameraScanner(
     var showNothingFound by remember { mutableStateOf(false) }
 
     val reader = remember { FrameReader() }
+    val framesSeen = remember { AtomicInteger() }
     val executor = remember { Executors.newSingleThreadExecutor() }
     val previewView = remember {
         PreviewView(context).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
@@ -253,12 +267,20 @@ private fun BoxScope.CameraScanner(
     val analyzer = remember {
         TextRecognitionAnalyzer { frame ->
             val aimed = frame.linesInAimRegion()
-            val reading = reader.read(aimed.joinToString("\n") { it.text })
+            val aimedText = aimed.joinToString("\n") { it.text }
+            val reading = reader.read(aimedText)
             if (!reading.isEmpty) {
                 currentOnCandidate(reading)
                 reader.vote(reading)
             }
             viewfinder = Viewfinder(frame, aimed, reading, reader.hostVotes())
+            framesSeen.incrementAndGet()
+            // Only on a changed reading -- see FrameReader.isNewText.
+            if (reader.isNewText) {
+                ScanLog.d {
+                    scanDiagnostics(frame, aimed, aimedText, reading, reader.votesSummary())
+                }
+            }
             reader.confirmed()?.let { confirmed = it }
         }
     }
@@ -312,6 +334,15 @@ private fun BoxScope.CameraScanner(
     DisposableEffect(confirmed) {
         if (confirmed == null) imageAnalysis.setAnalyzer(executor, analyzer) else imageAnalysis.clearAnalyzer()
         onDispose { }
+    }
+
+    if (BuildConfig.DEBUG) {
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(HEARTBEAT_MS)
+                ScanLog.d { "alive, frames processed: ${framesSeen.get()}" }
+            }
+        }
     }
 
     LaunchedEffect(confirmed) {
@@ -410,6 +441,17 @@ private fun BoxScope.CameraScanner(
         }
     }
 
+    // Hidden once a reading is up, so it cannot cover the apply and retry buttons. Analysis
+    // is paused at that point, so there is nothing new for it to report anyway.
+    if (BuildConfig.DEBUG && confirmed == null) {
+        DiagnosticsPanel(
+            aimed = viewfinder.aimed,
+            candidates = ipv4Candidates(viewfinder.aimed.joinToString(SEPARATOR) { it.text }),
+            hostLeader = reader.leadingHost(),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+
     AnimatedVisibility(
         visible = confirmed != null,
         enter = slideInVertically { it },
@@ -429,6 +471,46 @@ private fun BoxScope.CameraScanner(
             )
         }
     }
+}
+
+/**
+ * Debug builds only: what the camera is reading, on the viewfinder.
+ *
+ * Carries no pointer input modifier of its own, so it never becomes a hit-test target and a tap
+ * anywhere on it still reaches the preview underneath and refocuses.
+ */
+@Composable
+private fun DiagnosticsPanel(
+    aimed: List<RecognizedLine>,
+    candidates: Map<String, Int>,
+    hostLeader: Pair<String, Int>?,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color.Black.copy(alpha = 0.7f))
+            .padding(8.dp)
+    ) {
+        DiagnosticsText("AIM ${aimed.size} line(s)")
+        aimed.takeLast(DIAGNOSTIC_LINES).forEach { DiagnosticsText("  ${it.text}") }
+        DiagnosticsText("IPv4 ${candidates.asCandidateList()}")
+        DiagnosticsText(
+            "host " + (hostLeader?.let { "${it.first} ${it.second}/$VOTES_TO_CONFIRM" } ?: "-")
+        )
+    }
+}
+
+@Composable
+private fun DiagnosticsText(text: String) {
+    Text(
+        text,
+        color = Color.White,
+        fontFamily = FontFamily.Monospace,
+        fontSize = 10.sp,
+        lineHeight = 13.sp,
+        maxLines = 1
+    )
 }
 
 private fun DrawScope.drawReticle() {
@@ -574,12 +656,20 @@ private class FrameReader {
      * frame would mean a still picture never confirms anything.
      */
     fun read(text: String): ScannedCredentials {
-        if (text != lastText) {
+        isNewText = text != lastText
+        if (isNewText) {
             lastText = text
             lastReading = ScannedTextParser.parse(text)
         }
         return lastReading
     }
+
+    /**
+     * Whether the last [read] saw text different from the frame before it. The diagnostics log
+     * on this rather than on every frame: a monitor sits still, and logcat would drown.
+     */
+    var isNewText: Boolean = false
+        private set
 
     /** Empty readings are not offered, and do not clear the window: a blurred frame is an absence
      *  of data, not a different reading. */
@@ -589,7 +679,18 @@ private class FrameReader {
     }
 
     /** Votes behind the leading host value, for the progress the viewfinder shows. */
-    fun hostVotes(): Int = leader { it.host }?.second ?: 0
+    fun hostVotes(): Int = leadingHost()?.second ?: 0
+
+    fun leadingHost(): Pair<String, Int>? = leader { it.host }
+
+    /** The leading value and its vote count per field, for the diagnostics block. */
+    fun votesSummary(): String = listOf(
+        "host" to leadingHost(),
+        "port" to leader { it.port },
+        "login" to leader { it.login }
+    ).joinToString(", ") { (field, top) ->
+        "$field=" + (top?.let { "${it.first} (${it.second})" } ?: "- (0)")
+    }
 
     /**
      * The reading to show, or null while the host is undecided. Fields are voted on one by one,
