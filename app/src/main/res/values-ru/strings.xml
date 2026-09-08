@@ -274,4 +274,7 @@
     <string name="scan_open_settings">Открыть настройки</string>
     <string name="scan_review_hint">Распознано камерой. Сверьте значения перед сохранением — ошибка в одной цифре даёт подключение, которое молча не работает.</string>
     <string name="scan_camera_unavailable">Камера недоступна. Введите данные вручную.</string>
+    <string name="scan_status_searching">Наведите камеру на строку подключения</string>
+    <string name="scan_status_no_match">Вижу текст, но не нахожу адрес</string>
+    <string name="scan_status_confirming">Проверяю распознанное</string>
 </resources>

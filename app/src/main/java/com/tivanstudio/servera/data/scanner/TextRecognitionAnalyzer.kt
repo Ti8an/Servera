@@ -9,14 +9,16 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 
 /**
- * Runs ML Kit text recognition over the camera preview and reports the whole recognized text.
+ * Runs ML Kit text recognition over the camera preview and reports each frame line by line.
  *
- * Nothing is parsed here: what a block of text means is a domain question, and this class only
- * says what was on the frame. The text is never logged at any level -- it carries the user's
- * server addresses and logins.
+ * Lines rather than one blob of text because a caller needs the coordinates: to keep only what
+ * the camera is actually aimed at, and to point at the line a value was taken from.
+ *
+ * Nothing is parsed here -- what a line means is a domain question. Neither the text nor the
+ * coordinates are logged at any level: they carry the user's server addresses and logins.
  */
 class TextRecognitionAnalyzer(
-    private val onTextRecognized: (String) -> Unit
+    private val onFrameRecognized: (RecognizedFrame) -> Unit
 ) : ImageAnalysis.Analyzer {
 
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -29,10 +31,24 @@ class TextRecognitionAnalyzer(
             return
         }
 
-        val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+        // Read off the proxy up front: the listeners below run after it has been closed, and
+        // touching it there throws.
+        val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+        val imageWidth = imageProxy.width
+        val imageHeight = imageProxy.height
+
+        val image = InputImage.fromMediaImage(mediaImage, rotationDegrees)
         recognizer.process(image)
             .addOnSuccessListener { result ->
-                if (result.text.isNotBlank()) onTextRecognized(result.text)
+                val lines = result.textBlocks
+                    .flatMap { block -> block.lines }
+                    // A line with no box cannot be placed on the screen or tested against the
+                    // aimed-at area, so it is of no use to the caller.
+                    .mapNotNull { line -> line.boundingBox?.let { RecognizedLine(line.text, it) } }
+                // Reported even when empty: "nothing on this frame" is a state the caller shows.
+                onFrameRecognized(
+                    RecognizedFrame(lines, rotationDegrees, imageWidth, imageHeight)
+                )
             }
             // Closed on completion rather than on success: a frame that stays open after a
             // failed recognition is never returned to the pipeline, and analysis stops for
